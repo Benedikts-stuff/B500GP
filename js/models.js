@@ -505,8 +505,8 @@
     const ball = (r, col, sx, sy, sz) => { const m = new THREE.Mesh(RB.geo('sph', sphGeo), mats.suit); m.userData.rb = { key: 'sph', col, scale: new THREE.Matrix4().makeScale(r * (sx || 1), r * (sy || 1), r * (sz || 1)) }; g.add(m); return m; };
     const parts = { arms: [], legs: [] };
     for (let s = 0; s < 2; s++) {
-      parts.arms.push({ up: limb(0.074, 0.062, suit), lo: limb(0.062, 0.05, suit), sh: ball(0.084, accent), el: ball(0.064, suit), hand: ball(0.06, dark, 1.3, 0.85, 1) });
-      parts.legs.push({ up: limb(0.104, 0.08, suit), lo: limb(0.078, 0.06, suit), hip: ball(0.105, suit), kn: ball(0.084, accent), foot: ball(0.064, dark, 2.0, 0.85, 1) });
+      parts.arms.push({ up: limb(0.074, 0.062, suit), lo: limb(0.062, 0.05, suit), sh: ball(RM ? 0.08 : 0.084, RM ? suit : accent), el: ball(0.064, suit), hand: ball(0.06, dark, 1.3, 0.85, 1) });
+      parts.legs.push({ up: limb(0.104, 0.08, suit), lo: limb(0.078, 0.06, suit), hip: ball(0.105, suit), kn: ball(RM ? 0.08 : 0.084, RM ? suit : accent), foot: ball(0.064, dark, 2.0, 0.85, 1) });
     }
     const rig = {
       group: g, torso, helmet, parts, naked, bars,
