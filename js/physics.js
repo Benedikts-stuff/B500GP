@@ -16,7 +16,7 @@
      · thrUp / thrDn: keyboard throttle roll-on / roll-off rates */
   AX.ASSISTS = {
     easy:  { id: 'easy',  tc: 1.02, wcBase: 0.0,  wcBack: 0.14, catchSa: 0.18, catchK: 2.5, slide: 0.45, abs: true,  rearAbs: true,  stop: 0.02, leanLimit: true,  highside: false, slipper: 0.35, kick: false, thrUp: 5.5, thrDn: 11, steerHelp: 1 },
-    sport: { id: 'sport', tc: 1.24, wcBase: 0.2,  wcBack: 0.38,  catchSa: 0.34, catchK: 1.4, slide: 1,    abs: true,  rearAbs: false, stop: 0.24, leanLimit: true,  highside: false, slipper: 0.6,  kick: true,  thrUp: 4.5, thrDn: 9,  steerHelp: 0.5 },
+    sport: { id: 'sport', tc: 1.5,  wcBase: 0.2,  wcBack: 0.38,  catchSa: 0.42, catchK: 0.7, slide: 1.25, brakeSlide: 2.2, saMax: 0.5,    abs: true,  rearAbs: false, stop: 0.24, leanLimit: true,  highside: false, slipper: 0.6,  kick: true,  thrUp: 4.5, thrDn: 9,  steerHelp: 0.5 },
     pro:   { id: 'pro',   tc: 0,    wcBase: null, wcBack: 0,    catchSa: 9,    catchK: 0,   slide: 1,    abs: false, rearAbs: false, stop: -1,   leanLimit: false, highside: true,  slipper: 1,    kick: true,  thrUp: 3.2, thrDn: 5,  steerHelp: 0 },
     // the AI rides with tidy, conservative assists
     ai:    { id: 'ai',    tc: 1.14, wcBase: 0.05, wcBack: 0.52, catchSa: 0.3,  catchK: 1.4, slide: 1,    abs: true,  rearAbs: true,  stop: 0.09, leanLimit: true,  highside: false, slipper: 0.5,  kick: false, thrUp: 5.5, thrDn: 11, steerHelp: 0.5 }
@@ -244,7 +244,7 @@
       if (as.abs) {
         const cq = Math.cos(q), sq = Math.sin(q);
         const bf = (spec.wheelbase - cgB) * cq - spec.cgH * sq, hf = spec.cgH * cq + (spec.wheelbase - cgB) * sq;
-        if (as.stop >= 0) { const lim = G * bf / hf + 56 * (as.stop - q) + 17 * this.pitchVel; if (aBrkF > lim) aBrkF = Math.max(0, lim); }
+        if (as.stop >= 0) { const qT = as.stop * (1 - smoothstep(0.1, 0.35, Math.abs(this.lean))) - 0.012; const lim = G * bf / hf + 56 * (qT - q) + 17 * this.pitchVel; if (aBrkF > lim) aBrkF = Math.max(0, lim); }
         const circ = GrL * Math.sqrt(Math.max(0.02, 1 - latFrac * latFrac)) * (1 + 0.1 * trail);
         if (aBrkF > circ) aBrkF = Math.max(circ, Math.min(aBrkF, Gr * 0.22));
       }
@@ -288,9 +288,15 @@
       //      or with a locked rear. The chassis' own stability (and the assist) pull it back straight.
       const turnSign = Math.abs(ayDem) > 0.5 ? Math.sign(ayDem) : (Math.abs(this.steer) > 0.05 ? Math.sign(this.steer) : 0);
       let stepOut = 2.2 * Math.max(0, Math.min(uRear, 1.9) - 1) * (this.throttle > 0.2 ? 1 : 0);
-      if (aBrk > 0.4) stepOut += (0.55 * (aBrkF / spec.brake) * latFrac * (1 + 1.3 * fwd) * (1 - 0.6 * back) + this.rearLock * (1.2 + 1.6 * latFrac)) * (rearUp ? 0 : 1);
+      if (aBrk > 0.4) {
+        const soB = (0.55 * (as.brakeSlide || 1) * (aBrkF / spec.brake) * latFrac * (1 + 1.3 * fwd) * (1 - 0.6 * back) + this.rearLock * (1.2 + 1.6 * latFrac)) * (rearUp ? 0 : 1);
+        stepOut += soB;
+        // a light, braking rear has little side grip left: it lets go and the bike backs in
+        capY *= 1 - clamp(soB * 0.38, 0, 0.5);
+      }
       const restore = 2.0 + catchK + 0.8 * back * (aBrk > 0.4 ? 1 : 0);
       omega += turnSign * stepOut * as.slide * smoothstep(5, 12, vf) - restore * this.slipAngle * smoothstep(3, 8, vf);
+      if (as.saMax && Math.abs(this.slipAngle) > as.saMax * 0.8) omega -= Math.sign(this.slipAngle) * (Math.abs(this.slipAngle) - as.saMax * 0.8) * 22;
 
       // ---- integrate
       const tau = 0.075;
