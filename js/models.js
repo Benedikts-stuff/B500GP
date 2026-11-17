@@ -156,7 +156,7 @@
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vLivP; varying vec3 vLivN;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvLivP = position; vLivN = normal;');
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + LIVERY_GLSL)
-        .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = liveryColor();');
+        .replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb = liveryColor();\n#ifdef USE_COLOR\ndiffuseColor.rgb *= vColor;\n#endif');
     };
     m.customProgramCacheKey = () => 'apex-livery';
     return m;
@@ -346,10 +346,38 @@
     const shadow = new THREE.Mesh(new THREE.PlaneGeometry(wb + 0.9, 0.62), contactShadowMat()); shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.034; shadow.renderOrder = 3; rootG.add(shadow);
     const wheelR = new THREE.Mesh(wheelGeometry(Rr, wR, RIMS[spec.id] || 0x222, true), mats.gloss); wheelR.position.set(-hx, Rr, 0); bodyG.add(wheelR);
 
+    // ---- Blender superbike (faired bikes): swap the procedural parts for the modelled ones, keep the rig
+    const BMOD = !naked && AX.Assets && AX.Assets.has('bike/strada_body');
+    if (BMOD) {
+      const sx = wb / 1.45, Sx = new THREE.Matrix4().makeScale(sx, 1, 1);
+      paint.vertexColors = true;
+      const catMat = (n) => /^P_/.test(n) ? paint : /^X_/.test(n) ? mats.metal : /^G_/.test(n) ? mats.gloss : /^S_/.test(n) ? mats.screen : mats.matte;
+      const merged = (name, pre) => {
+        const groups = new Map();
+        for (const p of AX.Assets.get(name).parts) { const k = (p.material.name || 'M_').slice(0, 2); (groups.get(k) || groups.set(k, []).get(k)).push(p.geometry); }
+        const out = [];
+        groups.forEach((list, k) => {
+          let n = 0, ni = 0; list.forEach((g) => { n += g.attributes.position.count; ni += g.index.count; });
+          const Pp = new Float32Array(n * 3), Nn = new Float32Array(n * 3), Cc = new Float32Array(n * 3).fill(1), I = new Uint32Array(ni); let o = 0, oi = 0;
+          for (const g of list) { Pp.set(g.attributes.position.array, o * 3); Nn.set(g.attributes.normal.array, o * 3); if (g.attributes.color) Cc.set(g.attributes.color.array, o * 3); const ix = g.index.array; for (let q = 0; q < ix.length; q++) I[oi + q] = ix[q] + o; o += g.attributes.position.count; oi += ix.length; }
+          const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(Pp, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(Nn, 3)); geo.setAttribute('color', new THREE.BufferAttribute(Cc, 3)); geo.setIndex(new THREE.BufferAttribute(I, 1));
+          if (pre) geo.applyMatrix4(pre); geo.computeBoundingSphere();
+          out.push(new THREE.Mesh(geo, catMat(k + '_')));
+        });
+        return out;
+      };
+      for (const c of susG.children.slice()) if (c.isMesh && c !== brakeLight) susG.remove(c);
+      for (const c of steerG.children.slice()) if (c.isMesh) steerG.remove(c);
+      merged('bike/strada_body', Sx).forEach((m) => susG.add(m));
+      merged('bike/strada_front', new THREE.Matrix4().multiplyMatrices(inv, Sx)).forEach((m) => steerG.add(m));
+      for (const [w, nm] of [[wheelF, 'bike/strada_wheelF'], [wheelR, 'bike/strada_wheelR']]) { w.geometry = new THREE.BufferGeometry(); merged(nm).forEach((m) => w.add(m)); }
+      brakeLight.position.set(-0.812 * sx, 0.995, 0); brakeLight.scale.set(1, 0.8, 0.85);
+    }
+
     // number roundels on the tail sides
     const numTex = numberTexture(rider.num, rider.c3 === '#ffffff' ? '#ffffff' : '#f4f4f0', '#111111');
     const numMat = new THREE.MeshBasicMaterial({ map: numTex, transparent: true, toneMapped: true });
-    for (const z of [-1, 1]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.15), numMat); m.position.set(-0.5, 0.86 + tH * 0.5, z * 0.128); m.rotation.y = z > 0 ? 0 : Math.PI; m.rotation.x = z * -0.25; susG.add(m); }
+    for (const z of [-1, 1]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.15), numMat); m.position.set(BMOD ? -0.5 * wb / 1.45 : -0.5, BMOD ? 0.875 : 0.86 + tH * 0.5, z * (BMOD ? 0.137 : 0.128)); m.rotation.y = z > 0 ? 0 : Math.PI; m.rotation.x = z * -0.25; susG.add(m); }
 
     // ---- rider
     const riderRig = buildRider(spec, rider, mats, numTex, { barX, barY, barZ });

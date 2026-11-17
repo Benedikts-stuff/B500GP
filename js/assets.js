@@ -88,6 +88,11 @@
         const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
         if (nor) g.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
         if (uv) g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+        if (p.attributes.COLOR_0 != null) {      // vertex colours (e.g. baked ambient occlusion), kept as RGB
+          const ca = readAccessor(j, bin, p.attributes.COLOR_0), nc = j.accessors[p.attributes.COLOR_0].type === 'VEC4' ? 4 : 3, cc = new Float32Array(pos.length);
+          for (let k = 0; k < pos.length / 3; k++) { cc[k * 3] = ca[k * nc]; cc[k * 3 + 1] = ca[k * nc + 1]; cc[k * 3 + 2] = ca[k * nc + 2]; }
+          g.setAttribute('color', new THREE.BufferAttribute(cc, 3));
+        }
         g.setIndex(idx ? Array.from(idx) : Array.from({ length: pos.length / 3 }, (_, k) => k));
         g.applyMatrix4(world); if (!nor) g.computeVertexNormals();
         const key = p.material != null ? p.material : -1; (groups.get(key) || groups.set(key, []).get(key)).push(g);
@@ -99,12 +104,13 @@
     const parts = []; const box = new THREE.Box3();
     for (const [mi, list] of groups) {
       let n = 0, ni = 0; list.forEach((g) => { n += g.attributes.position.count; ni += g.index.count; });
-      const P = new Float32Array(n * 3), N = new Float32Array(n * 3), U = new Float32Array(n * 2), I = n > 65535 ? new Uint32Array(ni) : new Uint16Array(ni); let o = 0, oi = 0;
+      const hasC = list.some((g) => g.attributes.color);
+      const P = new Float32Array(n * 3), N = new Float32Array(n * 3), U = new Float32Array(n * 2), C = hasC ? new Float32Array(n * 3).fill(1) : null, I = n > 65535 ? new Uint32Array(ni) : new Uint16Array(ni); let o = 0, oi = 0;
       for (const g of list) {
-        const c = g.attributes.position.count, ix = g.index.array; P.set(g.attributes.position.array, o * 3); N.set(g.attributes.normal.array, o * 3); if (g.attributes.uv) U.set(g.attributes.uv.array, o * 2);
+        const c = g.attributes.position.count, ix = g.index.array; P.set(g.attributes.position.array, o * 3); N.set(g.attributes.normal.array, o * 3); if (g.attributes.uv) U.set(g.attributes.uv.array, o * 2); if (C && g.attributes.color) C.set(g.attributes.color.array, o * 3);
         for (let k = 0; k < ix.length; k++) I[oi + k] = ix[k] + o; o += c; oi += ix.length; g.dispose();
       }
-      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(N, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(U, 2)); geo.setIndex(new THREE.BufferAttribute(I, 1));
+      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(N, 3)); geo.setAttribute('uv', new THREE.BufferAttribute(U, 2)); geo.setIndex(new THREE.BufferAttribute(I, 1)); if (C) geo.setAttribute('color', new THREE.BufferAttribute(C, 3));
       geo.computeBoundingBox(); geo.computeBoundingSphere(); box.union(geo.boundingBox);
       parts.push({ geometry: geo, material: await makeMaterial(j, bin, mi) });
     }

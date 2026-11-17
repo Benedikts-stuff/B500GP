@@ -317,7 +317,7 @@
               const U = Math.min(U1, Math.max(U0, tx * TW + u)), V = r * TH + v; P(U, V, d, tmp);
               Pp.push(tmp[0], tmp[1], tmp[2]); C.push(col[0] * ao, col[1] * ao, col[2] * ao); UV.push(U * 0.7, V * 0.7);
             };
-            for (let k = 0; k < m; k++) put(st.o[k][0], st.o[k][1], -0.01, 0.42);
+            for (let k = 0; k < m; k++) put(st.o[k][0], st.o[k][1], -0.025, 0.42);
             for (let k = 0; k < m; k++) put(st.i[k][0], st.i[k][1], pr, 0.92);
             put(st.c[0], st.c[1], pr + bu, 1.05);
             // winding: the polygon is CCW in (U, V); on side 1 the wall faces -n, which mirrors it
@@ -385,7 +385,8 @@
     // skirt so the coarse ring never shows through the seam
     const R1 = 1700, coarse = gridMesh(cx - R1, cz - R1, cx + R1, cz + R1, 28, (x, z) => t.terrainH(x, z), mat, tint,
       (x, z) => (x > gx0 + 3 && x < gx1 - 3 && z > gz0 + 3 && z < gz1 - 3 ? -8 : 0));
-    const cm = new THREE.Mesh(coarse, tm); cm.receiveShadow = true; sc.add(cm);
+    const tmC = tm.clone(); tmC.onBeforeCompile = tm.onBeforeCompile; tmC.customProgramCacheKey = tm.customProgramCacheKey; tmC.polygonOffset = true; tmC.polygonOffsetFactor = 2; tmC.polygonOffsetUnits = 4;
+    const cm = new THREE.Mesh(coarse, tmC); cm.receiveShadow = true; sc.add(cm);
     /* ---- corridor strip: high-resolution terrain along both sides of the road, joined to wall tops / road shoulders */
     {
       const P = [], UV = [], MAT = [], C = [], idx = []; const lats = [0, 0.6, 1.6, 3, 4.8, 7, 9.5, 12.5];
@@ -419,7 +420,9 @@
       // steep bits of the strip (embankments, cuttings) get scree / rock from their real normals
       const Nn = g.attributes.normal.array, Ma = g.attributes.aMat.array;
       for (let k = 0; k < Nn.length / 3; k++) { const ny = Nn[k * 3 + 1]; Ma[k * 3] = Math.max(Ma[k * 3], smoothstep(0.74, 0.55, ny)); Ma[k * 3 + 2] = Math.max(Ma[k * 3 + 2], smoothstep(0.88, 0.7, ny) * 0.6); }
-      const cm2 = new THREE.Mesh(g, tm); cm2.receiveShadow = true; sc.add(cm2); this.corridor = g; this.corridorMesh = cm2;
+      // drawn slightly in front of the regular terrain: where both lie at the same height the strip wins instead of flickering
+      const tmS = tm.clone(); tmS.onBeforeCompile = tm.onBeforeCompile; tmS.customProgramCacheKey = tm.customProgramCacheKey; tmS.polygonOffset = true; tmS.polygonOffsetFactor = -1; tmS.polygonOffsetUnits = -2;
+      const cm2 = new THREE.Mesh(g, tmS); cm2.receiveShadow = true; sc.add(cm2); this.corridor = g; this.corridorMesh = cm2;
     }
     // ground height as rendered: corridor strip next to the road, fine grid further out (props must sit on what you see)
     const stripAt = (i, x, z) => {
