@@ -764,6 +764,7 @@
       this.sky.position.set(focus.x, focus.y || 0, focus.z);
       if (this.clouds) this.clouds.rotation.y = time * 0.0025;
       if (AX.windT) AX.windT.value = time;
+      if (this.skyFog && AX.passFog) { const f = AX.passFog, y = focus.y || 0, k = Math.min(1, Math.max(0, (y - f.h0) / (f.h1 - f.h0))); this.skyFog.value = k * k * (3 - 2 * k) * 0.92; if (this.backdrop) this.backdrop.visible = k < 0.9; }
       if (this.passLod) for (let k = 0; k < this.passLod.length; k++) { const l = this.passLod[k]; const dx = l.p.x - focus.x, dy = l.p.y - (focus.y || 0), dz = l.p.z - focus.z; l.obj.visible = dx * dx + dy * dy + dz * dz < l.r * l.r; }
       for (let k = 0; k < this.flags.length; k++) {
         const g = this.flags[k].geometry, p = g.attributes.position;

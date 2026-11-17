@@ -7,6 +7,29 @@
   const { GeoBuilder, roundedBox, M, lin, tubeBetween } = AX.Models;
   const W = AX.worldTex;
   const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+  /* height fog for the pass: the upper part of the mountain sits in a cloud layer. Active only for the pass
+     (its scene fog reaches further than any circuit's, fogFar > 3500), so the circuits are unaffected. */
+  const FOG_H0 = 55.0, FOG_H1 = 150.0;
+  {
+    const C = THREE.ShaderChunk;
+    C.fog_pars_vertex = C.fog_pars_vertex + '\n#ifdef USE_FOG\n\tvarying vec3 vFogWP;\n#endif';
+    C.fog_vertex = C.fog_vertex + '\n#ifdef USE_FOG\n\tvFogWP = cameraPosition + (vec4(mvPosition.xyz, 0.0) * viewMatrix).xyz;\n#endif';
+    C.fog_pars_fragment = C.fog_pars_fragment + '\n#ifdef USE_FOG\n\tvarying vec3 vFogWP;\n#endif';
+    C.fog_fragment = C.fog_fragment.replace('gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );', `gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );
+	#ifndef FOG_EXP2
+	{
+		float hOn = step(3500.0, fogFar);
+		float hf = smoothstep(${FOG_H0.toFixed(1)}, ${FOG_H1.toFixed(1)}, vFogWP.y + min(cameraPosition.y - vFogWP.y, 0.0) * 0.0);
+		float camIn = smoothstep(${FOG_H0.toFixed(1)}, ${FOG_H1.toFixed(1)}, cameraPosition.y);
+		// the denser the fog the camera sits in, the shorter the view distance
+		float reach = mix(900.0, 170.0, camIn);
+		float df = 1.0 - exp(-fogDepth / reach * 2.2);
+		float h = hOn * clamp(max(hf * smoothstep(20.0, 260.0, fogDepth), camIn * df), 0.0, 0.94);
+		gl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(0.80, 0.83, 0.86), h);
+	}
+	#endif`);
+  }
+  AX.passFog = { h0: FOG_H0, h1: FOG_H1 };
   const PK = root.APEX_PASS || null;                    // baked texture set + wall stone tile (tools/texgen.py)
   const texCache = {};
   function ptex(key, kind, aniso, rep) {
@@ -781,6 +804,12 @@
     // sky drawn behind everything (the mountains reach past the sky sphere)
     this.sky.material.depthTest = false; this.sky.renderOrder = -10; this.sky.scale.setScalar(0.5);
     sc.fog = new THREE.Fog(lin(th.fog), 260, 3600);
+    {
+      const sm = this.sky.material; sm.uniforms.uFogC = { value: new THREE.Color(0.80, 0.83, 0.86) }; sm.uniforms.uFogA = { value: 0 };
+      sm.fragmentShader = sm.fragmentShader.replace('uniform vec3 uHor;', 'uniform vec3 uHor; uniform vec3 uFogC; uniform float uFogA;')
+        .replace('gl_FragColor=vec4(pow(c,vec3(1.0/2.2)),1.0);', 'vec3 o=pow(c,vec3(1.0/2.2)); o=mix(o,uFogC,uFogA*(1.0-0.35*h)*mix(1.0,0.75,h)); gl_FragColor=vec4(o,1.0);');
+      sm.needsUpdate = true; this.skyFog = sm.uniforms.uFogA;
+    }
     const b = t.bounds, cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
     const yMin = Math.min(...t.py), yMax = Math.max(...t.py);
     const KKpre = !!(AX.Assets && AX.Assets.has('kaykit/Tree_4_A'));
@@ -933,7 +962,7 @@
         C[k * 3] = col.r; C[k * 3 + 1] = col.g; C[k * 3 + 2] = col.b;
       }
       g.setAttribute('color', new THREE.BufferAttribute(C, 3));
-      const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: true, fog: false })); sc.add(m);
+      const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: true })); sc.add(m); this.backdrop = m;
     } else {
       const P = [], C = [], idx = [], NA = 200, NR = 22; const rock = lin(0x7c7a76), snow = lin(0xf3f5f9), green = lin(0x4d7a3c);
       for (let r = 0; r < NR; r++) {
@@ -952,7 +981,7 @@
     }
 
     /* ---- clouds: low-poly puffs drifting around the peaks and over the valley */
-    if (KK) {
+    if (false) {
       const puff = new THREE.IcosahedronGeometry(1, 1), cg = new GeoBuilder();
       const cloud = (n, rng2) => { const gb = new GeoBuilder(); for (let k = 0; k < n; k++) { const r = 0.55 + rng2() * 0.7; gb.add(puff, M((k - n / 2) * 0.9 + rng2() * 0.5, rng2() * 0.35 * r, (rng2() - 0.5) * 1.2, 0, rng2() * 3, 0, r * 1.3, r * 0.9, r), 0xffffff); } return gb.build(); };
       const cmat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1, emissive: lin(0x9fb3c8), emissiveIntensity: 0.35, fog: false });
