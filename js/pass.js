@@ -346,6 +346,110 @@
     this.wallStones = nStones;
   };
 
+
+  /* flag textures */
+  function flagTex(kind) {
+    return W.canvasTex(192, 128, (g, w, h) => {
+      if (kind === 'ch') { g.fillStyle = '#d52b1e'; g.fillRect(0, 0, w, h); g.fillStyle = '#fff'; const c = h * 0.6, b = c / 3.2; g.fillRect(w / 2 - b / 2, h / 2 - c / 2, b, c); g.fillRect(w / 2 - c / 2, h / 2 - b / 2, c, b); }
+      else if (kind === 'gr') { g.fillStyle = '#d52b1e'; g.fillRect(0, 0, w, h); g.fillStyle = '#fff'; g.fillRect(0, h * 0.5, w, h * 0.5); }        // red/white halves (canton style)
+      else if (kind === 'ur') { g.fillStyle = '#f4d21a'; g.fillRect(0, 0, w, h); g.fillStyle = '#16171a'; g.beginPath(); g.arc(w / 2, h / 2, h * 0.28, 0, 6.3); g.fill(); }
+      else if (kind === 'blue') { g.fillStyle = '#1f5fbf'; g.fillRect(0, 0, w, h); g.fillStyle = '#fff'; g.fillRect(0, h * 0.42, w, h * 0.16); }
+      else { for (let x = 0; x < 12; x++) for (let y = 0; y < 8; y++) { g.fillStyle = (x + y) % 2 ? '#f4f4f0' : '#141518'; g.fillRect(x * w / 12, y * h / 8, w / 12 + 1, h / 8 + 1); } }
+    });
+  }
+  AX.World.prototype._passEvent = function (blds, roadClear, rng, q) {
+    const t = this.track, sc = this.scene, N = t.n, th = this.theme;
+    const lin2 = (h) => new THREE.Color(h).convertSRGBToLinear();
+    /* spectators: tinted shirt + untinted legs/head/hair, two instanced batches with identical transforms (person faces +x) */
+    const body = new GeoBuilder(), rest = new GeoBuilder();
+    body.add(roundedBox(0.26, 0.5, 0.42, 0.08, 2), M(0, 1.16, 0), 0xffffff);
+    for (const z of [-0.25, 0.25]) body.add(roundedBox(0.12, 0.46, 0.12, 0.05, 2), M(0.02, 1.13, z), 0xffffff);
+    for (const z of [-0.1, 0.1]) rest.add(roundedBox(0.16, 0.86, 0.16, 0.05, 2), M(0, 0.45, z), 0x2a3346);
+    rest.add(roundedBox(0.2, 0.22, 0.2, 0.08, 3), M(0.0, 1.55, 0), 0xe6b996);
+    rest.add(roundedBox(0.21, 0.08, 0.21, 0.04, 2), M(-0.01, 1.66, 0), 0x3a2a1e);
+    const bodyS = new W.Scatter(body.build(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 }), 1e6);
+    const restS = new W.Scatter(rest.build(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 }), 1e6);
+    const shirts = ['#d52b1e', '#d52b1e', '#ffffff', '#1f5fbf', '#f4a21a', '#22252b', '#19b36b', '#f0d21a', '#7b3fe0', '#e8e4dc'];
+    let nSpec = 0;
+    const crowd = (i0, i1, density) => {
+      for (let i = Math.max(5, i0); i < Math.min(N - 5, i1); i++) for (const s of [0, 1]) {
+        if (rng() > density) continue;
+        const sg = s ? 1 : -1, wall = t.barType[s][i] === 2;
+        const lat = wall ? t.bar[s][i] + 0.06 * t.wallH[s][i] + rng.range(0.7, 2.2) : t.bar[s][i] + rng.range(0.9, 3.2);
+        const x = t.px[i] + t.nx[i] * sg * lat + rng.range(-0.4, 0.4), z = t.pz[i] + t.nz[i] * sg * lat + rng.range(-0.4, 0.4);
+        if (!roadClear(x, z, t.hw + 0.8)) continue;
+        const y = this.heightAt(x, z); if (Math.abs(y - (wall ? t.py[i] + t.wallH[s][i] : t.py[i])) > 3.5) continue;
+        const ry = Math.atan2(-(t.pz[i] - z), t.px[i] - x) + rng.range(-0.5, 0.5), h = rng.range(0.92, 1.08);
+        bodyS.add(x, y - 0.03, z, ry, h, h, h, rng.pick(shirts)); restS.add(x, y - 0.03, z, ry, h, h, h); nSpec++;
+        if (nSpec % 4 === 0) blds.push([x, z, 1.2]);
+      }
+    };
+    const sI = t.startIdx, fI = t.finishIdx;
+    crowd(sI - 30, sI + 70, 0.32 * q + 0.1);
+    crowd(fI - 160, fI + 25, 0.28 * q + 0.08);
+    // a few small groups on the hairpins (the classic spectator spots)
+    t.corners.forEach((c) => { if (c.radius < 30 && rng() < 0.7) crowd(c.apex - 8, c.apex + 8, 0.35 * q + 0.1); });
+    bodyS.build(sc, true, true); restS.build(sc, true, true); this.spectators = nSpec;
+
+    /* flags on poles: Swiss flags and canton colours at the start and the summit */
+    const pole = new THREE.MeshStandardMaterial({ color: lin2(0xe2e4e8), roughness: 0.4, metalness: 0.6 }), poleG = new THREE.CylinderGeometry(0.045, 0.06, 6.5, 8);
+    const fmat = {}; ['ch', 'gr', 'ur', 'blue', 'chk'].forEach((k) => { fmat[k] = new THREE.MeshStandardMaterial({ map: flagTex(k), side: THREE.DoubleSide, roughness: 0.85 }); });
+    const flagAt = (i, s, d, kind) => {
+      const sg = s ? 1 : -1, x = t.px[i] + t.nx[i] * sg * d, z = t.pz[i] + t.nz[i] * sg * d; if (!roadClear(x, z, t.hw + 0.6)) return;
+      const y = this.heightAt(x, z), g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = -t.yaw[i] + rng.range(-0.3, 0.3);
+      const p = new THREE.Mesh(poleG, pole); p.position.y = 3.25; p.castShadow = true; g.add(p);
+      const fg = new THREE.PlaneGeometry(1.8, 1.2, 8, 2); fg.translate(0.9, 0, 0);
+      const f = new THREE.Mesh(fg, fmat[kind]); f.position.set(0.05, 5.85, 0); f.castShadow = true; g.add(f); this.flags.push(f);
+      sc.add(g); blds.push([x, z, 1]);
+    };
+    const kinds = ['ch', 'gr', 'ch', 'ur', 'ch', 'blue'];
+    for (let k = 0; k < 6; k++) flagAt(sI - 14 + k * 9, k % 2, t.bar[k % 2][sI] + 2.2 + (t.barType[k % 2][sI] === 2 ? 0.6 + 0.06 * t.wallH[k % 2][sI] : 0), kinds[k]);
+    for (let k = 0; k < 10; k++) { const i = fI - 60 + k * 9, s = k % 2; flagAt(i, s, t.bar[s][i] + 2.0 + (t.barType[s][i] === 2 ? 0.6 + 0.06 * t.wallH[s][i] : 0), k === 4 || k === 5 ? 'chk' : kinds[k % 6]); }
+
+    /* tents (Kenney racing kit) beside the start and the summit */
+    if (this.kenney) {
+      const tent = (i, s, d, name, rot) => {
+        const sg = s ? 1 : -1, x = t.px[i] + t.nx[i] * sg * d, z = t.pz[i] + t.nz[i] * sg * d; if (!roadClear(x, z, t.hw + 3)) return false;
+        let lo = 1e9, hi = -1e9; for (const [ox, oz] of [[-2, -2], [2, -2], [-2, 2], [2, 2]]) { const y = this.heightAt(x + ox, z + oz); lo = Math.min(lo, y); hi = Math.max(hi, y); }
+        if (hi - lo > 1.2) return false;
+        this.kitPlace(name, x, lo, z, -t.yaw[i] + (rot || 0), 6.5, { tint: (m) => { if (m.name === 'red') m.color = lin2(0xd52b1e); m.roughness = 0.85; } }); blds.push([x, z, 4]); return true;
+      };
+      let nt = 0; for (let k = 0; k < 40 && nt < 3; k++) if (tent(sI - 20 + rng.int(0, 60), rng.int(0, 1), t.hw + rng.range(7, 14), rng.pick(['kenney/tentRoof', 'kenney/tentRoofDouble', 'kenney/tent']), Math.PI / 2)) nt++;
+      nt = 0; for (let k = 0; k < 40 && nt < 3; k++) if (tent(fI + rng.int(-40, 30), rng.int(0, 1), t.hw + rng.range(7, 16), rng.pick(['kenney/tentRoof', 'kenney/tentRoofDouble', 'kenney/tent']), Math.PI / 2)) nt++;
+    }
+
+    /* summit: the pass hotel (a big alp hut) beside the finish, and a summit cross on the highest rock nearby */
+    if (AX.Assets.has('pass/hut')) {
+      let placed = false;
+      for (let k = 0; k < 400 && !placed; k++) {
+        const i = fI + rng.int(-10, 40), s = rng.int(0, 1), sg = s ? 1 : -1, d = t.bar[s][i] + rng.range(14, 26);
+        const x = t.px[i] + t.nx[i] * sg * d, z = t.pz[i] + t.nz[i] * sg * d; if (!roadClear(x, z, t.hw + 12)) continue;
+        let lo = 1e9, hi = -1e9; for (const [ox, oz] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, 0]]) { const y = this.heightAt(x + ox * 11, z + oz * 11); lo = Math.min(lo, y); hi = Math.max(hi, y); }
+        if (hi - lo > 4) continue;
+        const ry = Math.atan2(-(t.pz[i] - z), t.px[i] - x);
+        this.ms('pass/hut', { cell: 1e6 }).add(x, lo - 0.2, z, ry, 1.5); blds.push([x, z, 13]); placed = true;
+      }
+    }
+    {
+      // highest terrain point within ~120 m of the summit, off the road
+      let best = null;
+      for (let k = 0; k < 600; k++) {
+        const a = rng() * 6.283, r = 25 + rng() * 100, x = t.px[fI] + Math.cos(a) * r, z = t.pz[fI] + Math.sin(a) * r;
+        if (!roadClear(x, z, t.hw + 10)) continue; const y = this.heightAt(x, z); if (!best || y > best[2]) best = [x, z, y];
+      }
+      if (best) {
+        const [x, z, y] = best, g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rng() * 6.28;
+        const wood = new THREE.MeshStandardMaterial({ color: lin2(0x6e4a2e), roughness: 0.9 }), metal = new THREE.MeshStandardMaterial({ color: lin2(0xd8c27a), roughness: 0.35, metalness: 0.8 });
+        const cross = new GeoBuilder(); cross.add(roundedBox(0.3, 5.2, 0.3, 0.05, 2), M(0, 2.6 + 1.2, 0), 0xffffff); cross.add(roundedBox(0.3, 0.3, 2.4, 0.05, 2), M(0, 4.3 + 1.2, 0), 0xffffff);
+        const cm = new THREE.Mesh(cross.build(), wood); cm.castShadow = true; g.add(cm);
+        const box = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.3, 0.2), metal); box.position.set(0.2, 2.8, 0); g.add(box);   // summit book box
+        sc.add(g);
+        if (AX.Assets.has('kaykit/Rock_3_M')) this.ms('kaykit/Rock_3_M', { tint: (m) => { m.roughness = 1; } }).add(x, y - 1.4, z, rng() * 6.28, 1.0, 0.9, '#d8d4cc');
+        blds.push([x, z, 4]);
+      }
+    }
+  };
+
   AX.World.prototype._buildPass = function () {
     const t = this.track, sc = this.scene, th = this.theme, N = t.n, w = t.hw, an = this.aniso, rng = AX.RNG(t.def.seed || 9);
     const q = this.q === 'low' ? 0.4 : this.q === 'medium' ? 0.7 : 1;
@@ -615,6 +719,9 @@
         }
       }
     }
+
+    /* ---- race day: spectators along the barriers at the start and the last stretch, flags, tents, summit hotel and summit cross */
+    if (KK) this._passEvent(blds, roadClear, rng, q);
 
     /* ---- forest (nature-kit pines near the road, cheap cones further out), boulders, grass tufts */
     const kit = this.kits, pines = [1, 2, 3, 4, 5].map((k) => 'nature/Pine_' + k);
