@@ -251,7 +251,7 @@
     }
     // footpeg feeler touching down at full lean: a few sparks from the inside
     if (Math.abs(b.lean) > 1.0 && b.speed > 8 && b.surf <= SURF.KERB && r() < (Math.abs(b.lean) - 1.0) * 6) {
-      const sgn = Math.sign(b.lean), px = b.x - cx * 0.2 * sc + sz * sgn * 0.42 * sc, pz = b.z - sz * 0.2 * sc - cx * sgn * 0.42 * sc;
+      const sgn = -Math.sign(b.lean), px = b.x - cx * 0.2 * sc + sz * sgn * 0.42 * sc, pz = b.z - sz * 0.2 * sc - cx * sgn * 0.42 * sc;
       G.sparks.spawn(px, 0.06 + ys, pz, -b.vx * 0.25 + (r() - 0.5) * 3, 0.6 + r() * 1.6, -b.vz * 0.25 + (r() - 0.5) * 3, 0.18 + r() * 0.15, 0.08, 1, 0.8, 0.35, 1, 0, 1, 10);
     }
     if ((b.surf === SURF.GRASS || b.surf === SURF.GRAVEL) && b.speed > 5 && r() < 0.7) {
@@ -277,14 +277,50 @@
   let povOn = false;
   function setPov(on) {
     if (on === povOn) return; povOn = on; const v = G.vis[0]; if (!v) return;
-    v.rider.group.visible = !on; camera.near = on ? 0.06 : 0.3; camera.updateProjectionMatrix();
+    const rig = v.rider; rig.pov = on; rig.torso.visible = !on; rig.helmet.visible = !on;
+    if (on && !v.dash) makeDash(v); if (v.dash) v.dash.visible = on;
+    camera.near = on ? 0.05 : 0.3; camera.updateProjectionMatrix();
+  }
+  /* digital dash on the top yoke: gear, speed, rev bar with shift lights (only in the helmet cam) */
+  function makeDash(v) {
+    const c = document.createElement('canvas'); c.width = 256; c.height = 128; const tx = new THREE.CanvasTexture(c); tx.encoding = THREE.sRGBEncoding;
+    const naked = v.spec.style.fairing === 'naked';
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.085), new THREE.MeshBasicMaterial({ map: tx, toneMapped: false }));
+    const frame = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.105, 0.03), new THREE.MeshBasicMaterial({ color: 0x0b0c0e }));
+    const g = new THREE.Group(); g.add(frame); m.position.z = 0.016; g.add(m);
+    g.position.set(naked ? 0.52 : 0.45, naked ? 1.06 : 1.035, 0); g.scale.setScalar(0.8); g.rotation.set(0, -Math.PI / 2, 0); g.rotateX(-0.55);
+    v.susG.add(g); v.dash = g; v.dashCtx = c.getContext('2d'); v.dashTex = tx; v.dashT = 0;
+  }
+  function drawDash(v, p, dt) {
+    if (!v.dash) return; v.dashT -= dt; if (v.dashT > 0) return; v.dashT = 1 / 20;
+    const g = v.dashCtx, W = 256, H = 128, n = clamp((p.rpm - p.spec.idle) / (p.spec.redline - p.spec.idle), 0, 1);
+    g.fillStyle = '#05070a'; g.fillRect(0, 0, W, H);
+    for (let k = 0; k < 20; k++) { const on = k / 20 < n; g.fillStyle = on ? (k > 16 ? '#ff3b30' : k > 12 ? '#ffb000' : '#4cd964') : '#1a1d22'; g.fillRect(10 + k * 11.8, 10, 9, 18); }
+    if (n > 0.93 && (G.time * 12 | 0) % 2) { g.fillStyle = '#3aa0ff'; g.fillRect(10, 10, 236, 18); }
+    g.fillStyle = '#f2f4f6'; g.font = '700 64px "Helvetica Neue", Arial, sans-serif'; g.textAlign = 'left'; g.textBaseline = 'alphabetic'; g.fillText(String(Math.round(p.speed * 3.6)), 12, 104);
+    g.font = '600 14px "Helvetica Neue", Arial, sans-serif'; g.fillStyle = '#8a929c'; g.fillText('KM/H', 14, 122); g.fillText('GEAR', 196, 122);
+    g.font = '700 70px "Helvetica Neue", Arial, sans-serif'; g.fillStyle = '#ffffff'; g.textAlign = 'right'; g.fillText(p.speed < 0.5 && p.throttle < 0.05 ? 'N' : String(p.gear + 1), 244, 106);
+    if (p.spin > 0.2 || p.rearLock > 0.2) { g.fillStyle = '#ffb000'; g.font = '700 14px Arial'; g.textAlign = 'left'; g.fillText('TC', 130, 122); }
+    v.dashTex.needsUpdate = true;
   }
   function povCamera(p, dt) {
-    const v = G.vis[0]; v.root.updateMatrixWorld(true); _hp.set(-0.02, 1.17, 0).applyMatrix4(v.leanG.matrixWorld);   // just behind the screen, in the bike's lean frame
+    const v = G.vis[0], rig = v.rider; v.root.updateMatrixWorld(true);
+    // the eyes sit in the rider's helmet: the view moves with hanging off, tucking in and sitting up
+    // follow the head partly: down when tucked, up when sitting up, a little to the inside when hanging off,
+    // but stay behind the screen so the dash and the bars are always in view
+    const hp = rig.helmet.position; const nk = rig.naked; _hp.set(Math.min(hp.x - 0.1, nk ? 0.0 : 0.1), hp.y + (nk ? -0.05 : 0.03), hp.z * 0.25); v.susG.localToWorld(_hp);
     G.povLean = damp(G.povLean || 0, p.lean, 10, dt); G.povPitch = damp(G.povPitch || 0, p.pitch, 10, dt);
-    _e.set(0, -p.yaw, Math.atan(p.slope || 0) + G.povPitch * 0.85 - 0.12, 'YZX'); _q.setFromEuler(_e);
-    _q2.setFromAxisAngle(V3Y, -Math.PI / 2); _q.multiply(_q2);
-    _q2.setFromAxisAngle(V3Z, -G.povLean * 0.4); _q.multiply(_q2);
+    G.povHang = damp(G.povHang || 0, p.hangIn || 0, 6, dt);
+    // the head looks into the corner and is held more level than the bike (more so when hanging off)
+    G.povLook = damp(G.povLook || 0, clamp(p.lean * 0.32 + p.steer * 0.06, -0.45, 0.45), 4, dt);
+    const tuck = Math.max(0, p.fb || 0), sit = Math.max(0, -(p.fb || 0));
+    _e.set(0, -p.yaw + G.povLook * 0, Math.atan(p.slope || 0) + G.povPitch * 0.85 - (rig.naked ? 0.33 : 0.19) - tuck * 0.05 + sit * 0.04 + (p.brake || 0) * 0.03, 'YZX'); _q.setFromEuler(_e);
+    _q2.setFromAxisAngle(V3Y, -Math.PI / 2 - G.povLook); _q.multiply(_q2);
+    _q2.setFromAxisAngle(V3Z, -G.povLean * (0.62 - 0.22 * Math.max(0, G.povHang))); _q.multiply(_q2);
+    // engine buzz and road rumble through the bars
+    const buzz = 0.0012 * clamp(p.rpm / p.spec.redline, 0, 1) + (p.surf === AX.SURF.KERB ? 0.004 : 0) + (p.headShake || 0) * 0.004;
+    _hp.y += Math.sin(G.time * 83) * buzz; _hp.x += Math.sin(G.time * 71) * buzz * 0.5;
+    drawDash(v, p, dt);
     camera.position.copy(_hp); camera.quaternion.copy(_q);
     const fov = 70 + clamp(p.speed / 68, 0, 1) * 10; if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = damp(camera.fov, fov, 6, dt); camera.updateProjectionMatrix(); }
     G.camLook.set(p.x, p.y || 0, p.z); G.camPos.copy(camera.position); post.tilt = 0;

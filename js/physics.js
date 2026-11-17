@@ -127,7 +127,7 @@
         this.steer = approach(this.steer, tgt, rate, rate, dt);
         // keys are on/off: roll the throttle on and off at a rate that suits the assist level
         this.throttle = approach(this.throttle, inp.throttle, as.thrUp || 5.5, as.thrDn || 11, dt);
-        this.brake = approach(this.brake, inp.brake, 7.5, 13, dt);
+        this.brake = approach(this.brake, inp.brake, as.stop < 0 ? 4.5 : 7.5, 13, dt);
       }
       this.rearBrake = approach(this.rearBrake, clamp(inp.rearBrake || 0, 0, 1), 6, 12, dt);
 
@@ -203,6 +203,7 @@
       const bEff = cgB * cp - spec.cgH * sp, hEff = spec.cgH * cp + cgB * sp;
       const aeroHold = (spec.style.winglets ? 0.0011 : 0.0006) * vf * vf;
       const aBal = G * bEff / hEff + aeroHold;
+      const aDemRaw = aDem;               // what the engine delivers before wheelie control / instinct trim it
       if (as.wcBase != null && this.throttle > 0) {
         const tp = lerp(as.wcBase, as.wcBack, smoothstep(0.2, 0.9, back)) * (1 - smoothstep(0.15, 0.8, fwd));
         const lim = aBal + 56 * (tp - this.pitch) - 17 * this.pitchVel;
@@ -225,7 +226,11 @@
       }
       // slide control: past the assist's angle the power is taken away
       const sa0 = Math.abs(this.slipAngle);
-      if (sa0 > as.catchSa) aDem *= Math.max(0.15, 1 - (sa0 - as.catchSa) * 6);
+      const kbPro = as.stop < 0 && !inp.analog, catchSa = kbPro ? 0.46 : as.catchSa, catchK = kbPro ? 0.7 : as.catchK;
+      // the wheelie control and the rider's instinct only shape the wheelie height: up to 85 % of the drive still goes into the road
+      let aDemP = aDem;
+      if (as.tc > 0) { const limT = Gr * Kx * Math.sqrt(Math.max(0, as.tc * as.tc - latFrac * latFrac)); const keep = 0.85 * (1 - 0.15 * frontLight); aDem = Math.max(aDem, Math.min(aDemRaw * keep, limT)); } else aDem = Math.max(aDem, aDemRaw * 0.85 * (1 - 0.15 * frontLight));
+      if (sa0 > catchSa) { const k = Math.max(0.15, 1 - (sa0 - catchSa) * 6); aDem *= k; aDemP *= k; }
       const rearUp = this.pitch < -0.02;
       // with the front in the air the whole bike sits on the rear tyre: more drive grip before it spins
       const KxR = Kx * (1 + 0.3 * frontLight);
@@ -266,7 +271,7 @@
           const ratio = capY / Math.abs(ayDem);
           omega *= lerp(1, ratio, 0.72); ayDem = vf * omega;
           f.frontSkid = clamp((1 / ratio - 1) * 2.2, 0, 1);
-          if (!as.abs && (frontLock || ratio < 0.72) && Math.abs(this.lean) > 0.42 && vf > 9) { this.tuckT += dt; if (this.tuckT > 0.22) return this.crash('lowside'); }
+          if (!as.abs && (frontLock || ratio < (kbPro ? 0.62 : 0.72)) && Math.abs(this.lean) > 0.42 && vf > 9) { this.tuckT += dt; if (this.tuckT > (kbPro ? 0.4 : 0.22)) return this.crash('lowside'); }
         } else this.tuckT = 0;
       } else {
         this.tuckT = 0;
@@ -284,7 +289,7 @@
       const turnSign = Math.abs(ayDem) > 0.5 ? Math.sign(ayDem) : (Math.abs(this.steer) > 0.05 ? Math.sign(this.steer) : 0);
       let stepOut = 2.2 * Math.max(0, Math.min(uRear, 1.9) - 1) * (this.throttle > 0.2 ? 1 : 0);
       if (aBrk > 0.4) stepOut += (0.55 * (aBrkF / spec.brake) * latFrac * (1 + 1.3 * fwd) * (1 - 0.6 * back) + this.rearLock * (1.2 + 1.6 * latFrac)) * (rearUp ? 0 : 1);
-      const restore = 2.0 + as.catchK + 0.8 * back * (aBrk > 0.4 ? 1 : 0);
+      const restore = 2.0 + catchK + 0.8 * back * (aBrk > 0.4 ? 1 : 0);
       omega += turnSign * stepOut * as.slide * smoothstep(5, 12, vf) - restore * this.slipAngle * smoothstep(3, 8, vf);
 
       // ---- integrate
@@ -307,7 +312,7 @@
 
       // ---- pitch: wheelie about the rear contact, stoppie about the front. One state at a time, so a stoppie
       //      that rebounds lands on the rear wheel instead of snapping back, and a stoppie past the tipping point goes over.
-      const J = 0.95; const aNet = aDrive - aBrk - (this.pitch > 0 ? dab : 0);
+      const J = 0.95; const aNet = (rearUp ? 0 : Math.min(aDemP, Gr * KxR)) - aBrk - (this.pitch > 0 ? dab : 0);
       const qB = (pq) => { const cq = Math.cos(pq), sq = Math.sin(pq); const bf = (spec.wheelbase - cgB) * cq - spec.cgH * sq, hf = spec.cgH * cq + (spec.wheelbase - cgB) * sq; return [bf, hf]; };
       if (this.pitch > 0 || (this.pitch === 0 && (aNet > aBal || this.pitchVel > 0))) {
         this.pitchVel += ((aNet - aBal) * hEff / J - 0.6 * this.pitchVel) * dt;
@@ -337,10 +342,10 @@
 
       // ---- slide limits
       const sa = Math.abs(this.slipAngle);
-      if (vf > 7 && sa > 0.62) return this.crash('lowside');
+      if (vf > 7 && sa > (kbPro ? 0.74 : 0.62)) return this.crash('lowside');
       // highside: a big slide and the throttle snapped shut, the rear finds grip all at once
-      if (as.highside && vf > 14 && sa > 0.3 && Math.abs(this.lean) > 0.35 && this.thrPrev2 > 0.6 && this.throttle < 0.1) return this.crash('highside');
-      if (!as.leanLimit && vf > 8 && Math.abs(Math.tan(this.lean)) * G > GrL * 1.18 && sa > 0.2) return this.crash('lowside');
+      if (as.highside && vf > 14 && sa > (kbPro ? 0.38 : 0.3) && Math.abs(this.lean) > 0.35 && this.thrPrev2 > 0.6 && this.throttle < 0.1) return this.crash('highside');
+      if (!as.leanLimit && vf > 8 && Math.abs(Math.tan(this.lean)) * G > GrL * (kbPro ? 1.3 : 1.18) && sa > (kbPro ? 0.28 : 0.2)) return this.crash('lowside');
 
       // ---- marks, squeal: only real wheelspin, a sliding rear or a locked tyre leave rubber
       const brakeSkid = aBrk > 0.4 ? clamp((sa - 0.05) * 6, 0, 1) : 0;
