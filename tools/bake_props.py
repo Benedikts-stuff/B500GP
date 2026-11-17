@@ -27,7 +27,7 @@ def bake(obj, size, ao_samples=64):
     target(imgs['ao']); sc.cycles.samples = ao_samples
     bpy.ops.object.bake(type='AO', margin=6, use_clear=True)
     c = np.array(imgs['col'].pixels[:]).reshape(-1, 4); a = np.array(imgs['ao'].pixels[:]).reshape(-1, 4)
-    out = c.copy(); out[:, :3] = c[:, :3] * (0.42 + 0.58 * a[:, :1])
+    out = c.copy(); out[:, :3] = c[:, :3] * (0.55 + 0.45 * a[:, :1])
     fin = bpy.data.images.get(obj.name + '_baked') 
     if fin: bpy.data.images.remove(fin)
     fin = bpy.data.images.new(obj.name + '_baked', size, size, alpha=False)

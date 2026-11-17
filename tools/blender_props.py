@@ -62,8 +62,7 @@ def stone_mat(name, a, b, c, scale=2.2):
         vec = mapping(nt, v, (1, 1, 1.8)); nt.links.new(vec, vo.inputs['Vector'])
         vo2 = nt.nodes.new('ShaderNodeTexVoronoi'); vo2.inputs['Scale'].default_value = scale; nt.links.new(vec, vo2.inputs['Vector'])
         tone = ramp(nt, vo2.outputs['Color'], [(0, lin(a)), (0.5, lin(b)), (1, lin(c))])
-        tone = mix(nt, tone, noise(nt, v, 9), 0.25, 'MULTIPLY')
-        joint = ramp(nt, vo.outputs['Distance'], [(0.0, (0.03, 0.028, 0.025)), (0.06, (1, 1, 1))])
+        joint = ramp(nt, vo.outputs['Distance'], [(0.0, (0.3, 0.29, 0.27)), (0.05, (1, 1, 1))])
         return mix(nt, tone, joint, 1.0, 'MULTIPLY')
     return node_mat(name, build)
 
@@ -74,19 +73,18 @@ def wood_mat(name, a, b, horizontal=True, plank=0.22):
         axis = sep.outputs['Z'] if horizontal else sep.outputs['X']
         div = nt.nodes.new('ShaderNodeMath'); div.operation = 'DIVIDE'; div.inputs[1].default_value = plank; nt.links.new(axis, div.inputs[0])
         fr = nt.nodes.new('ShaderNodeMath'); fr.operation = 'FRACT'; nt.links.new(div.outputs[0], fr.inputs[0])
-        gap = ramp(nt, fr.outputs[0], [(0.0, (0.12, 0.1, 0.08)), (0.06, (1, 1, 1)), (0.94, (1, 1, 1)), (1.0, (0.35, 0.3, 0.26))])
+        gap = ramp(nt, fr.outputs[0], [(0.0, (0.45, 0.4, 0.36)), (0.05, (1, 1, 1)), (0.95, (1, 1, 1)), (1.0, (0.7, 0.66, 0.62))])
         fl = nt.nodes.new('ShaderNodeMath'); fl.operation = 'FLOOR'; nt.links.new(div.outputs[0], fl.inputs[0])
         wn = nt.nodes.new('ShaderNodeTexWhiteNoise'); wn.noise_dimensions = '1D'; nt.links.new(fl.outputs[0], wn.inputs['W'])
         tone = ramp(nt, wn.outputs['Value'], [(0, lin(a)), (1, lin(b))])
         grain = noise(nt, mapping(nt, v, (0.4, 0.4, 14) if horizontal else (14, 0.4, 0.4)), 4, 6, 0.7)
-        tone = mix(nt, tone, ramp(nt, grain, [(0.3, (0.72, 0.7, 0.68)), (0.7, (1.08, 1.06, 1.04))]), 1.0, 'MULTIPLY')
         return mix(nt, tone, gap, 1.0, 'MULTIPLY')
     return node_mat(name, build)
 
 def flat_mat(name, hexc, nscale=6, amt=0.12):
     def build(nt, v):
-        n = noise(nt, v, nscale)
-        return mix(nt, lin(hexc), ramp(nt, n, [(0.3, (1 - amt, 1 - amt, 1 - amt)), (0.7, (1 + amt, 1 + amt, 1 + amt))]), 1.0, 'MULTIPLY')
+        rgb = nt.nodes.new('ShaderNodeRGB'); rgb.outputs[0].default_value = (*lin(hexc), 1)
+        return rgb.outputs[0]
     return node_mat(name, build)
 
 def slate_mat(name):
@@ -95,15 +93,15 @@ def slate_mat(name):
         br.inputs['Mortar Size'].default_value = 0.012; br.offset = 0.5
         br.inputs['Color1'].default_value = (*lin('4c4d52'), 1); br.inputs['Color2'].default_value = (*lin('64656a'), 1); br.inputs['Mortar'].default_value = (0.02, 0.02, 0.025, 1)
         nt.links.new(mapping(nt, v, (1, 1, 1)), br.inputs['Vector'])
-        return mix(nt, br.outputs['Color'], ramp(nt, noise(nt, v, 3), [(0.3, (0.8, 0.8, 0.8)), (0.7, (1.1, 1.1, 1.08))]), 1.0, 'MULTIPLY')
+        return br.outputs['Color']
     return node_mat(name, build)
 
 def tin_mat(name):
     def build(nt, v):
         w = nt.nodes.new('ShaderNodeTexWave'); w.wave_type = 'BANDS'; w.bands_direction = 'X'; w.inputs['Scale'].default_value = 6
         nt.links.new(mapping(nt, v, (1, 1, 1)), w.inputs['Vector'])
-        rib = ramp(nt, w.outputs['Fac'], [(0.0, (0.6, 0.6, 0.62)), (0.5, (1.1, 1.1, 1.1)), (1.0, (0.6, 0.6, 0.62))])
-        rust = ramp(nt, noise(nt, v, 1.5, 6, 0.65), [(0.45, lin('7c7f84')), (0.62, lin('8a5a3a')), (0.75, lin('6b3e25'))])
+        rib = ramp(nt, w.outputs['Fac'], [(0.0, (0.8, 0.8, 0.82)), (0.5, (1.05, 1.05, 1.05)), (1.0, (0.8, 0.8, 0.82))])
+        rust = ramp(nt, noise(nt, v, 0.6, 1, 0.3), [(0.4, lin('7d8186')), (0.6, lin('8c6a52'))])
         return mix(nt, rust, rib, 1.0, 'MULTIPLY')
     return node_mat(name, build)
 

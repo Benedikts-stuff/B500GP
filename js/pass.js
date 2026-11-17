@@ -155,6 +155,30 @@
     };
     m.customProgramCacheKey = () => 'apex-terrain' + (nm ? 'N' : ''); return m;
   }
+  /* Art-of-Rally style ground: clean colour fields from the vertex colours, flat rock bands, scree and snow,
+     no high-frequency textures (they shimmer at grazing angles and read as noise) */
+  function rallyTerrainMaterial() {
+    const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+    m.onBeforeCompile = (sh) => {
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 aMat; varying vec3 vMat; varying vec3 vWP;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvMat = aMat; vWP = (modelMatrix * vec4(position, 1.0)).xyz;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vMat; varying vec3 vWP;')
+        .replace('#include <common>', '#include <common>\nfloat hh2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\nfloat vn2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hh2(i), hh2(i + vec2(1, 0)), f.x), mix(hh2(i + vec2(0, 1)), hh2(i + vec2(1, 1)), f.x), f.y); }')
+        .replace('#include <color_fragment>', `#include <color_fragment>
+          float gv = vn2(vWP.xz * 0.28) * 0.6 + vn2(vWP.xz * 0.9 + 17.0) * 0.4;
+          diffuseColor.rgb *= 0.86 + gv * 0.26;
+          float band = smoothstep(0.35, 0.65, sin(vWP.y * 0.9 + sin(vWP.x * 0.045 + vWP.z * 0.03) * 2.2) * 0.5 + 0.5);
+          vec3 rock = mix(vec3(0.290, 0.278, 0.255), vec3(0.245, 0.234, 0.215), band);
+          vec3 scree = vec3(0.385, 0.355, 0.300);
+          diffuseColor.rgb = mix(diffuseColor.rgb, scree, vMat.z);
+          diffuseColor.rgb = mix(diffuseColor.rgb, rock, smoothstep(0.25, 0.75, vMat.x));
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.89, 0.94), vMat.y);`);
+    };
+    m.customProgramCacheKey = () => 'apex-rally-terrain'; return m;
+  }
+  const s2l = (c) => Math.pow(c / 255, 2.2);
+  const C3 = (r, g, b) => [s2l(r), s2l(g), s2l(b)];
+  const mix3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
   // builds a regular grid; h(x, z) -> height, mat(x, z, h, slope) -> [rock, snow, scree], tint(x, z) -> colour mult
   function gridMesh(x0, z0, x1, z1, step, h, mat, tint, lower) {
     const nx = Math.ceil((x1 - x0) / step) + 1, nz = Math.ceil((z1 - z0) / step) + 1;
@@ -210,8 +234,13 @@
     const WT = PK.wall, TW = WT.w, TH = WT.h, ST = WT.stones, B = 0.45;      // B: wall foundation below road level
     const q = this.q === 'low' ? 0 : this.q === 'medium' ? 1 : 2;
     const faceMat = new THREE.MeshStandardMaterial({ map: ptex('wall', 'a', an), normalMap: ptex('wall', 'n', an), roughness: 0.95, side: THREE.DoubleSide });
-    const stoneMat = new THREE.MeshStandardMaterial({ map: ptex('granite', 'a', an), normalMap: ptex('granite', 'n', an), normalScale: new THREE.Vector2(0.8, 0.8), vertexColors: true, roughness: 0.88 });
-    const capMat = new THREE.MeshStandardMaterial({ map: ptex('granite', 'a', an), normalMap: ptex('granite', 'n', an), color: lin(0xc9c4ba), roughness: 0.9, side: THREE.DoubleSide });
+    if (AX.Assets && AX.Assets.has('kaykit/Tree_4_A')) faceMat.color = new THREE.Color(0.72, 0.72, 0.72);
+    const flat = AX.Assets && AX.Assets.has('kaykit/Tree_4_A');
+    const stoneMat = flat ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 })
+      : new THREE.MeshStandardMaterial({ map: ptex('granite', 'a', an), normalMap: ptex('granite', 'n', an), normalScale: new THREE.Vector2(0.8, 0.8), vertexColors: true, roughness: 0.88 });
+    const capMat = flat ? new THREE.MeshStandardMaterial({ color: lin(0xcdc8be), roughness: 0.95, side: THREE.DoubleSide })
+      : new THREE.MeshStandardMaterial({ map: ptex('granite', 'a', an), normalMap: ptex('granite', 'n', an), color: lin(0xc9c4ba), roughness: 0.9, side: THREE.DoubleSide });
+    if (flat) { faceMat.normalMap = null; }
     const s2l = (c) => Math.pow(c / 255, 2.2);
     const H = (h) => ((h * 2654435761) >>> 0) / 4294967296;
     this.passLod = this.passLod || [];
@@ -281,8 +310,8 @@
             if (cU < cu0 || cU >= cu1 || cU < U0 + 0.1 || cU > U1 - 0.1) continue;
             const hh = L(wallH, at(cU)); if (cV > hh + B - 0.04) continue;
             const rnd = H(tx * 7919 + r * 104729 + si * 31337 + s * 7 + ra), rnd2 = H(tx * 31 + r * 7 + si * 131 + ra * 3);
-            const pr = st.p * (0.8 + rnd2 * 0.45), bu = st.b, tone = 0.84 + rnd * 0.3, warm = (H(si * 17 + tx * 3 + r) - 0.5) * 0.08;
-            const col = [s2l(st.col[0] * tone * (1 + warm)), s2l(st.col[1] * tone), s2l(st.col[2] * tone * (1 - warm))];
+            const pr = st.p * (0.8 + rnd2 * 0.45), bu = st.b, tone = 0.9 + rnd * 0.2, warm = (H(si * 17 + tx * 3 + r) - 0.5) * 0.08;
+            const dim = flat ? 0.82 : 1, col = [s2l(st.col[0] * tone * dim * (1 + warm)), s2l(st.col[1] * tone * dim), s2l(st.col[2] * tone * dim * (1 - warm))];
             const m = st.o.length, base = Pp.length / 3;
             const put = (u, v, d, ao) => {
               const U = Math.min(U1, Math.max(U0, tx * TW + u)), V = r * TH + v; P(U, V, d, tmp);
@@ -322,7 +351,7 @@
     const q = this.q === 'low' ? 0.4 : this.q === 'medium' ? 0.7 : 1;
     // sky drawn behind everything (the mountains reach past the sky sphere)
     this.sky.material.depthTest = false; this.sky.renderOrder = -10; this.sky.scale.setScalar(0.5);
-    sc.fog = new THREE.Fog(lin(th.fog), 380, 5200);
+    sc.fog = new THREE.Fog(lin(th.fog), 260, 3600);
     const b = t.bounds, cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
     const yMin = Math.min(...t.py), yMax = Math.max(...t.py);
     const tree = yMax + 160;                                           // treeline
@@ -335,13 +364,21 @@
       const alp = smoothstep(tree - 40, tree + 80, y);
       return [Math.max(steep, alp * smoothstep(0.92, 0.8, ny)), snow, Math.max(alp * 0.6, smoothstep(0.45, 0.75, nz2(x * 2.2, z * 2.2)) * 0.25)];
     };
-    const tint = (x, z, y) => { const k = 0.82 + nz2(x * 1.7, z * 1.7) * 0.35, d = smoothstep(yMax - 20, tree + 40, y) * 0.25; return [k * (1 + d * 0.3), k * (1 - d * 0.1), k * (1 - d * 0.4)]; };
+    const KK = !!(AX.Assets && AX.Assets.has('kaykit/Tree_4_A'));          // KayKit vegetation present -> Art-of-Rally look
+    const G_MID = C3(84, 126, 60), G_LT = C3(112, 148, 70), G_DRY = C3(146, 148, 86), G_FOR = C3(56, 92, 46), G_ALP = C3(140, 142, 94);
+    const tint = KK ? (x, z, y) => {
+      const n1 = nz2(x * 0.55 + 7, z * 0.55 + 3), n2 = nz2(x * 2.5, z * 2.5), n3 = nz2(x * 1.3 + 40, z * 1.3 - 11);
+      let c = mix3(G_MID, G_LT, smoothstep(0.42, 0.72, n1));
+      c = mix3(c, G_DRY, smoothstep(0.62, 0.8, n3) * 0.6);
+      c = mix3(c, G_FOR, smoothstep(0.36, 0.5, n2) * 0.75);                 // darker floor where the forest stands
+      return mix3(c, G_ALP, smoothstep(tree - 60, tree + 80, y));
+    } : (x, z, y) => { const k = 0.82 + nz2(x * 1.7, z * 1.7) * 0.35, d = smoothstep(yMax - 20, tree + 40, y) * 0.25; return [k * (1 + d * 0.3), k * (1 - d * 0.1), k * (1 - d * 0.4)]; };
     const M0 = 110, gx0 = b.minX - M0, gz0 = b.minZ - M0, gx1 = b.maxX + M0, gz1 = b.maxZ + M0;
     const fineStep = this.q === 'low' ? 3 : 2.2;
     const self = this, roadSide = (x, z) => { const i = t.nearest(x, z, -1); return [i, t.lateral(i, x, z)]; };
     // terrain right behind a retaining wall sits on the wall top, in front of it at shoulder height
     const hFine = (x, z) => { const h = t.terrainH(x, z); return t.lastRoadD < 8.6 ? h - 5 : h; };
-    const tm = PK ? terrainMaterial(ptex('meadow', 'a', an), ptex('rock', 'a', an), ptex('scree', 'a', an), { grass: ptex('meadow', 'n', an), rock: ptex('rock', 'n', an), scree: ptex('scree', 'n', an) })
+    const tm = KK ? rallyTerrainMaterial() : PK ? terrainMaterial(ptex('meadow', 'a', an), ptex('rock', 'a', an), ptex('scree', 'a', an), { grass: ptex('meadow', 'n', an), rock: ptex('rock', 'n', an), scree: ptex('scree', 'n', an) })
       : terrainMaterial(meadowTex(an), rockTex(an), gravelTex2(an)); this.terrainMat = tm;
     const fine = gridMesh(gx0, gz0, gx1, gz1, fineStep, hFine, mat, tint);
     const fm = new THREE.Mesh(fine, tm); fm.receiveShadow = true; sc.add(fm); this.terrainFine = fine.userData;
@@ -352,6 +389,7 @@
     /* ---- corridor strip: high-resolution terrain along both sides of the road, joined to wall tops / road shoulders */
     {
       const P = [], UV = [], MAT = [], C = [], idx = []; const lats = [0, 0.6, 1.6, 3, 4.8, 7, 9.5, 12.5];
+      const NC = lats.length; this.strip = [0, 1].map(() => ({ lat: new Float32Array(N * NC), y: new Float32Array(N * NC), nc: NC }));
       for (const s of [0, 1]) {
         const sg = s ? 1 : -1, cols = lats.length, base0 = P.length / 3;
         for (let i = 0; i < N; i++) {
@@ -367,12 +405,12 @@
             let y = k === 0 ? h0 : lerp(h0, nat, f);
             if (wall && k > 0) y = Math.max(y, h0 + (nat - h0) * f);
             if (!wall && k === 1) y = Math.min(y, h0 - 0.15);
-            P.push(x, y, z); UV.push(x / 7, z / 7);
+            P.push(x, y, z); UV.push(x / 7, z / 7); this.strip[s].lat[i * cols + k] = lat; this.strip[s].y[i * cols + k] = y;
             const m = mat(x, z, y, 0.9), tn = tint(x, z, y); MAT.push(k === 0 && !wall ? 0.0 : m[0], m[1], k <= 1 && !wall ? 0.5 : m[2]); C.push(tn[0], tn[1], tn[2]);
           }
           if (i > 0) for (let k = 0; k < cols - 1; k++) {
             const a = base0 + (i - 1) * cols + k, b2 = base0 + i * cols + k;
-            if (s) idx.push(a, b2, a + 1, a + 1, b2, b2 + 1); else idx.push(a, a + 1, b2, a + 1, b2 + 1, b2);
+            if (s) idx.push(a, a + 1, b2, a + 1, b2 + 1, b2); else idx.push(a, b2, a + 1, a + 1, b2, b2 + 1);
           }
         }
       }
@@ -381,18 +419,68 @@
       // steep bits of the strip (embankments, cuttings) get scree / rock from their real normals
       const Nn = g.attributes.normal.array, Ma = g.attributes.aMat.array;
       for (let k = 0; k < Nn.length / 3; k++) { const ny = Nn[k * 3 + 1]; Ma[k * 3] = Math.max(Ma[k * 3], smoothstep(0.74, 0.55, ny)); Ma[k * 3 + 2] = Math.max(Ma[k * 3 + 2], smoothstep(0.88, 0.7, ny) * 0.6); }
-      const cm2 = new THREE.Mesh(g, tm); cm2.receiveShadow = true; sc.add(cm2); this.corridor = g;
+      const cm2 = new THREE.Mesh(g, tm); cm2.receiveShadow = true; sc.add(cm2); this.corridor = g; this.corridorMesh = cm2;
     }
-    this.heightAt = (x, z) => {
+    // ground height as rendered: corridor strip next to the road, fine grid further out (props must sit on what you see)
+    const stripAt = (i, x, z) => {
+      const lat = t.lateral(i, x, z), sd = lat >= 0 ? 1 : 0, a = Math.abs(lat), S = this.strip[sd], nc = S.nc, o = i * nc;
+      if (a < S.lat[o] || a > S.lat[o + nc - 1]) return null;
+      for (let k = 0; k < nc - 1; k++) if (a <= S.lat[o + k + 1]) { const f = (a - S.lat[o + k]) / Math.max(1e-4, S.lat[o + k + 1] - S.lat[o + k]); return S.y[o + k] + (S.y[o + k + 1] - S.y[o + k]) * f; }
+      return null;
+    };
+    const gridAt = (x, z) => {
       const u = this.terrainFine; const fx = (x - u.x0) / u.step, fz = (z - u.z0) / u.step;
       if (fx < 0 || fz < 0 || fx >= u.nx - 1 || fz >= u.nz - 1) return t.terrainH(x, z);
-      const hh = t.terrainH(x, z); if (t.lastRoadD < 14) return hh;
       const i = Math.floor(fx), j = Math.floor(fz), a = fx - i, c = fz - j, H = u.H, k = j * u.nx + i;
       return (H[k] * (1 - a) + H[k + 1] * a) * (1 - c) + (H[k + u.nx] * (1 - a) + H[k + u.nx + 1] * a) * c;
     };
+    this.heightAt = (x, z) => {
+      const hh = t.terrainH(x, z), d = t.lastRoadD;
+      if (d < 22) {
+        const i = t.nearest(x, z, -1);
+        // blend the two strip rows around the point
+        const j = Math.min(N - 1, Math.max(0, i + (((x - t.px[i]) * (t.px[Math.min(N - 1, i + 1)] - t.px[i]) + (z - t.pz[i]) * (t.pz[Math.min(N - 1, i + 1)] - t.pz[i])) >= 0 ? 1 : -1)));
+        const yi = stripAt(i, x, z);
+        if (yi != null) {
+          const yj = stripAt(j, x, z); if (yj == null) return yi;
+          const dx = t.px[j] - t.px[i], dz = t.pz[j] - t.pz[i], L2 = dx * dx + dz * dz || 1, f = clamp(((x - t.px[i]) * dx + (z - t.pz[i]) * dz) / L2, 0, 1);
+          return yi + (yj - yi) * f;
+        }
+        if (d < 8.6) return hh;
+      }
+      return gridAt(x, z);
+    };
 
     /* ---- far peaks */
-    {
+    if (KK) {
+      // Art-of-Rally style backdrop: faceted ridged peaks, forest at the foot, snow fields on the gentler high faces, baked blue haze
+      const NA = 440, NR = 34, P = [], idx = [], base = t.planeH(cx, cz) + 40, rr = [];
+      for (let r = 0; r < NR; r++) {
+        const rad = 1500 + Math.pow(r / (NR - 1), 1.25) * 4200; rr.push(rad);
+        for (let a = 0; a < NA; a++) {
+          const ang = a / NA * Math.PI * 2, x = cx + Math.cos(ang) * rad, z = cz + Math.sin(ang) * rad;
+          const r1 = AX.trackUtil.ridge(x * 0.0007, z * 0.0007), r2 = AX.trackUtil.ridge(x * 0.0022 + 5, z * 0.0022 + 9);
+          const amp = smoothstep(1650, 2900, rad) * (900 + 700 * smoothstep(2500, 5000, rad));
+          const hh = base + (Math.pow(r1, 2.1) * 0.78 + Math.pow(r2, 2.0) * 0.22) * amp + (t.terrainH(x, z) - base) * (1 - smoothstep(1500, 2050, rad));
+          P.push(x, hh, z);
+        }
+      }
+      for (let r = 0; r < NR - 1; r++) for (let a = 0; a < NA; a++) { const p = r * NA + a, q2 = r * NA + (a + 1) % NA; idx.push(p, q2, p + NA, q2, q2 + NA, p + NA); }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setIndex(idx); g.computeVertexNormals();
+      const Nn = g.attributes.normal.array, C = new Float32Array(P.length);
+      const forest = lin(0x35553a), meadow = lin(0x6f8f4c), rock = lin(0x8d8f93), rockD = lin(0x6b6e75), snow = lin(0xf2f5fa), haze = lin(th.fog), col = new THREE.Color();
+      for (let k = 0; k < P.length / 3; k++) {
+        const r = Math.floor(k / NA), a = k % NA, y = P[k * 3 + 1] - base, ny = Nn[k * 3 + 1], j = W.hash2(a, r);
+        if (y > 620 + j * 260 && ny > 0.55) col.copy(snow);
+        else if (y > 260 + j * 120) col.copy(rock).lerp(rockD, smoothstep(0.75, 0.45, ny));
+        else if (y > 120 + j * 80) col.copy(meadow).lerp(rock, 0.3);
+        else col.copy(forest);
+        col.lerp(haze, smoothstep(1700, 5800, rr[r]) * 0.72);
+        C[k * 3] = col.r; C[k * 3 + 1] = col.g; C[k * 3 + 2] = col.b;
+      }
+      g.setAttribute('color', new THREE.BufferAttribute(C, 3));
+      const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: true, fog: false })); sc.add(m);
+    } else {
       const P = [], C = [], idx = [], NA = 200, NR = 22; const rock = lin(0x7c7a76), snow = lin(0xf3f5f9), green = lin(0x4d7a3c);
       for (let r = 0; r < NR; r++) {
         const rad = 1550 + Math.pow(r / (NR - 1), 1.3) * 3600;
@@ -410,10 +498,12 @@
     }
 
     /* ---- road */
-    const roadMat = PK ? new THREE.MeshStandardMaterial({ map: ptex('asphalt', 'a', an), normalMap: ptex('asphalt', 'n', an), normalScale: new THREE.Vector2(0.7, 0.7), roughness: 0.86 })
+    const roadMat = KK ? new THREE.MeshStandardMaterial({ map: W.pixelTex(256, (u, v) => { const k = (W.fbm(u * 3, v * 3, 3, 3) - 0.5) * 9; return [86 + k, 88 + k, 94 + k]; }, null, an), roughness: 0.82 })
+      : PK ? new THREE.MeshStandardMaterial({ map: ptex('asphalt', 'a', an), normalMap: ptex('asphalt', 'n', an), normalScale: new THREE.Vector2(0.7, 0.7), roughness: 0.86 })
       : new THREE.MeshStandardMaterial({ map: W.asphaltTex(th.asphalt, an), roughness: 0.9 });
     sc.add(Object.assign(new THREE.Mesh(rib(t, () => -w, () => w, { yA: () => 0.02, vLen: w * 2 }), roadMat), { receiveShadow: true }));
-    const shoulder = PK ? new THREE.MeshStandardMaterial({ map: ptex('gravel', 'a', an), normalMap: ptex('gravel', 'n', an), roughness: 1 })
+    const shoulder = KK ? new THREE.MeshStandardMaterial({ map: W.pixelTex(128, (u, v) => { const k = (W.fbm(u * 4, v * 4, 4, 3) - 0.5) * 18; return [176 + k, 164 + k, 138 + k]; }, null, an), roughness: 1 })
+      : PK ? new THREE.MeshStandardMaterial({ map: ptex('gravel', 'a', an), normalMap: ptex('gravel', 'n', an), roughness: 1 })
       : new THREE.MeshStandardMaterial({ map: gravelTex2(an), roughness: 1 });
     for (const sg of [-1, 1]) {
       const s = sg > 0 ? 1 : 0;
@@ -529,7 +619,74 @@
       mat.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', THREE.ShaderChunk.normal_fragment_begin.replace('normal = normal * faceDirection;', '')); }; mat.customProgramCacheKey = () => 'apex-foliage'; } };
     const hsl = (h, s, l) => '#' + new THREE.Color().setHSL(h, s, l).getHexString();
     let nTrees = 0;
-    if (kit) {
+    if (KK) {
+      /* ---- KayKit vegetation (Art-of-Rally look): firs in clumps, boulders, rock outcrops on the steep bits, grass clumps along the verges */
+      const kt = (mat) => { mat.roughness = 1; mat.metalness = 0; };
+      // shorten the bare trunk below the lowest branches (the KayKit firs stand on tall stilts otherwise)
+      for (const nm of ['kaykit/Tree_4_A', 'kaykit/Tree_4_B', 'kaykit/Tree_4_C']) {
+        const md = AX.Assets.get(nm); if (!md || md._squashed) continue; md._squashed = true;
+        for (const p of md.parts) {
+          const P = p.geometry.attributes.position, U = p.geometry.attributes.uv; if (!U) continue;
+          let c0 = 1e9; for (let k = 0; k < P.count; k++) if (U.getY(k) < 0.25) c0 = Math.min(c0, P.getY(k));
+          const lift = c0 * 0.55;
+          for (let k = 0; k < P.count; k++) { const y = P.getY(k); P.setY(k, y < c0 ? y * 0.45 : y - lift); }
+          P.needsUpdate = true; p.geometry.computeBoundingBox(); p.geometry.computeBoundingSphere();
+        }
+        md.box.max.y -= 0; // footprint unchanged
+      }
+      const firs = ['kaykit/Tree_4_A', 'kaykit/Tree_4_B', 'kaykit/Tree_4_B', 'kaykit/Tree_4_C', 'kaykit/Tree_4_C'];
+      const firTint = () => hsl(0.33 + rng.range(-0.04, 0.03), rng.range(0.12, 0.35), rng.range(0.62, 0.86));
+      for (let n = 0; n < 16000 * q && nTrees < 1300 * q; n++) {
+        const i0 = rng.int(0, N - 1), s0 = rng.int(0, 1), sg0 = s0 ? 1 : -1, d0 = t.bar[s0][i0] + 1.5 + Math.pow(rng(), 1.3) * 48;
+        const x = t.px[i0] + t.nx[i0] * sg0 * d0, z = t.pz[i0] + t.nz[i0] * sg0 * d0; const y = this.heightAt(x, z); const d = t.lastRoadD;
+        if (!(d > w + 3.2)) continue; if (y > tree) continue; if (nearBld(x, z, 3)) continue;
+        if (nz2(x * 2.5, z * 2.5) < 0.38 + smoothstep(tree - 120, tree, y) * 0.3) continue;
+        const ny = Math.abs(this.heightAt(x + 1.5, z) - y) + Math.abs(this.heightAt(x, z + 1.5) - y); if (ny > 1.8) continue;
+        const nm = firs[rng.int(0, firs.length - 1)], big = /Tree_4/.test(nm) ? rng.range(1.25, 2.1) : rng.range(1.3, 1.9);
+        const ym = Math.min(y, this.heightAt(x + 0.7, z), this.heightAt(x - 0.7, z), this.heightAt(x, z + 0.7), this.heightAt(x, z - 0.7));
+        this.ms(nm, { tint: kt, cell: 220 }).add(x, ym - 0.15, z, rng() * 6.28, big, big * rng.range(0.95, 1.15), firTint());
+        nTrees++;
+      }
+      // a few dead snags near the tree line
+      for (let n = 0; n < 60 * q; n++) {
+        const i = rng.int(20, N - 20), s = rng.int(0, 1), sg = s ? 1 : -1, d = t.bar[s][i] + rng.range(4, 30);
+        const x = t.px[i] + t.nx[i] * sg * d, z = t.pz[i] + t.nz[i] * sg * d; if (!roadClear(x, z, w + 3) || nearBld(x, z, 3)) continue;
+        const y = this.heightAt(x, z); if (y < tree - 150) continue;
+        this.ms(rng() < 0.5 ? 'kaykit/Tree_Bare_2_B' : 'kaykit/Tree_Bare_2_C', { tint: kt }).add(x, y - 0.2, z, rng() * 6.28, rng.range(1.2, 1.8), null, hsl(0.07, 0.15, 0.75));
+      }
+      // boulders scattered along the road
+      const bould = ['kaykit/Rock_1_G', 'kaykit/Rock_1_H', 'kaykit/Rock_1_J', 'kaykit/Rock_1_K', 'kaykit/Rock_3_E', 'kaykit/Rock_3_G', 'kaykit/Rock_3_J', 'kaykit/Rock_3_K'];
+      for (let n = 0; n < 1600 * q; n++) {
+        const i = rng.int(20, N - 20), s = rng.int(0, 1), sg = s ? 1 : -1, d = t.bar[s][i] + rng.range(1.5, 18);
+        const x = t.px[i] + t.nx[i] * sg * d, z = t.pz[i] + t.nz[i] * sg * d; const y = this.heightAt(x, z);
+        if (!roadClear(x, z, w + 2.4) || nearBld(x, z, 2)) continue;
+        const steep = Math.abs(this.heightAt(x + 2, z) - y) + Math.abs(this.heightAt(x, z + 2) - y);
+        if (t.barType[s][i] === 2 ? rng() > 0.3 : (steep < 1.0 || rng() > 0.35)) continue;
+        const sc2 = rng.range(0.5, 1.2), lo = Math.min(y, this.heightAt(x + 1.2 * sc2, z), this.heightAt(x - 1.2 * sc2, z), this.heightAt(x, z + 1.2 * sc2), this.heightAt(x, z - 1.2 * sc2)); this.ms(bould[rng.int(0, bould.length - 1)], { tint: kt }).add(x, lo - 0.3 * sc2, z, rng() * 6.28, sc2, null, hsl(0.09, rng.range(0.02, 0.08), rng.range(0.8, 1)));
+      }
+      // rock outcrops: big blocky pieces sunk into the steep slopes, so cliffs read as rock instead of grey paint
+      const crag = ['kaykit/Rock_2_E', 'kaykit/Rock_2_F', 'kaykit/Rock_2_G', 'kaykit/Rock_2_H', 'kaykit/Rock_3_M', 'kaykit/Rock_3_Q', 'kaykit/Rock_3_R'];
+      let nCrag = 0;
+      for (let n = 0; n < 9000 && nCrag < 520 * q; n++) {
+        const i = rng.int(10, N - 10), s = rng.int(0, 1), sg = s ? 1 : -1, d = t.bar[s][i] + rng.range(3, 70);
+        const sc3 = rng.range(1.3, 2.7), x = t.px[i] + t.nx[i] * sg * d, z = t.pz[i] + t.nz[i] * sg * d; if (!roadClear(x, z, w + 3 + 2.2 * sc3) || nearBld(x, z, 5)) continue;
+        const y = this.heightAt(x, z), gx = this.heightAt(x + 2, z) - this.heightAt(x - 2, z), gz = this.heightAt(x, z + 2) - this.heightAt(x, z - 2);
+        const slope = Math.hypot(gx, gz) / 4; if (slope < 0.75) continue;
+        this.ms(crag[rng.int(0, crag.length - 1)], { tint: kt }).add(x, y - 1.1 * sc3, z, Math.atan2(gz, gx) + rng.range(-0.6, 0.6), sc3, sc3 * rng.range(0.8, 1.3), hsl(0.08, rng.range(0.02, 0.07), rng.range(0.78, 0.95)));
+        nCrag++;
+      }
+      this.cragCount = nCrag;
+      // grass clumps and bushes on the verges and meadows
+      const gr = ['kaykit/Grass_1_A', 'kaykit/Grass_2_A', 'kaykit/Grass_1_A', 'kaykit/Grass_1_B', 'kaykit/Grass_2_B'], bu = ['kaykit/Bush_4_B', 'kaykit/Bush_4_C', 'kaykit/Bush_1_C', 'kaykit/Bush_4_D'];
+      for (let n = 0; n < 5200 * q; n++) {
+        const i = rng.int(10, N - 10), s = rng.int(0, 1), sg = s ? 1 : -1;
+        const d = t.barType[s][i] === 2 ? t.bar[s][i] + rng.range(1.0, 12) : t.bar[s][i] + rng.range(0.3, 4 + Math.pow(rng(), 2) * 14);
+        const x = t.px[i] + t.nx[i] * sg * d, z = t.pz[i] + t.nz[i] * sg * d; if (!roadClear(x, z, w + 1.2)) continue;
+        const y = this.heightAt(x, z), r = rng();
+        if (r < 0.88) this.ms(gr[Math.min(4, Math.floor(rng() * 5))], { tint: kt, cast: false }).add(x, y - 0.05, z, rng() * 6.28, rng.range(0.8, 1.5), null, hsl(0.25 + rng.range(-0.03, 0.04), rng.range(0.25, 0.5), rng.range(0.78, 0.95)));
+        else this.ms(bu[rng.int(0, 3)], { tint: kt }).add(x, Math.min(y, this.heightAt(x + 0.8, z), this.heightAt(x - 0.8, z), this.heightAt(x, z + 0.8), this.heightAt(x, z - 0.8)) - 0.1, z, rng() * 6.28, rng.range(0.7, 1.3), null, hsl(0.3, rng.range(0.15, 0.35), rng.range(0.6, 0.8)));
+      }
+    } else if (kit) {
       for (let n = 0; n < 14000 * q && nTrees < 1050 * q; n++) {
         const i0 = rng.int(0, N - 1), s0 = rng.int(0, 1), sg0 = s0 ? 1 : -1, d0 = t.bar[s0][i0] + 1.5 + Math.pow(rng(), 1.3) * 42;
         const x = t.px[i0] + t.nx[i0] * sg0 * d0, z = t.pz[i0] + t.nz[i0] * sg0 * d0; const y = this.heightAt(x, z); const d = t.lastRoadD;
@@ -564,7 +721,7 @@
     }
     // cheap distant forest on the coarse terrain
     {
-      const gb = new GeoBuilder(); const dk = lin(0x24492a), lt = lin(0x2f5c32);
+      const gb = new GeoBuilder(); const dk = KK ? lin(0x274d33) : lin(0x24492a), lt = KK ? lin(0x33613d) : lin(0x2f5c32);
       gb.add(new THREE.CylinderGeometry(0.25, 0.35, 2, 4, 1, true), M(0, 1, 0), 0x4a3524); gb.add(new THREE.ConeGeometry(2.4, 5, 6, 1, true), M(0, 4, 0), dk); gb.add(new THREE.ConeGeometry(1.7, 4, 6, 1, true), M(0, 6.6, 0), lt);
       const g = gb.build(); g.computeBoundingSphere(); const far = new W.Scatter(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }), 1e6);
       let nf = 0;

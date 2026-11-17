@@ -273,7 +273,7 @@ def wall_tile(seed=7):
         stones.append(dict(o=[list(map(float, v)) for v in outer], i=[list(map(float, v)) for v in inner], c=[float(x) for x in c], p=float(protr), b=float(bulge), col=[int(x) for x in np.clip(col, 0, 255)]))
     return stones
 
-def wall_texture(stones, NX=1024, NY=512):
+def wall_texture(stones, NX=1024, NY=512, flat=False):
     from PIL import ImageDraw
     big = Image.new('I', (NX * 3, NY * 3), -1); dr = ImageDraw.Draw(big)
     sx, sy = NX / TW, NY / TH
@@ -293,6 +293,7 @@ def wall_texture(stones, NX=1024, NY=512):
     h = np.where(inside, np.minimum(dist / 0.045, 1) * P[idc] + np.minimum(dist / 0.2, 1) ** 1.5 * B[idc], -0.03)
     g, _ = granite(NX, 33)
     gr = np.asarray(Image.fromarray((np.clip(g, 0, 1) * 255).astype(np.uint8)).resize((NX, NY)), np.float32) / 255
+    if flat: gr = np.full_like(gr, 0.78)
     col = np.where(inside[..., None], C[idc] * gr / 0.78, srgb([58, 54, 48]))
     hh = blur(h, 0.7)
     ao = np.clip(1 - np.maximum(blur(hh, 8) - hh, 0) * 9, 0.35, 1)
@@ -316,7 +317,7 @@ if __name__ == '__main__':
     if 'granite' in which: res['granite'] = granite()
     stones = None
     if 'wall' in which:
-        stones = wall_tile(); res['wall'] = wall_texture(stones)
+        stones = wall_tile(); res['wall'] = wall_texture(stones, flat=True)
         json.dump(stones, open(f'{OUT}/wall.json', 'w'))
         print('stones', len(stones), 'avg verts', np.mean([len(s['o']) for s in stones]))
     for k, (a, n) in res.items(): save(k, a, n)
