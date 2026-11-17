@@ -113,7 +113,7 @@ P_body = mat('P_body', 'ffffff')
 M_dark = mat('M_dark', '1c1e22'); M_seat = mat('M_seat', '18191c'); M_engine = mat('M_engine', '2e3136'); M_tyre = mat('M_tyre', '1a1a1c')
 M_carbon = mat('M_carbon', '23252a'); M_red = mat('M_red', 'c8281e'); M_gold = mat('M_gold', 'c79a2a'); M_disc = mat('M_disc', 'a9adb2')
 X_alu = mat('X_alu', 'b9bdc2'); X_steel = mat('X_steel', 'd6d8db'); X_ti = mat('X_ti', '8f8676'); X_rim = mat('X_rim', '25272b')
-G_light = mat('G_light', 'f4f8ff'); G_tail = mat('G_tail', 'ff2a1a'); S_screen = mat('S_screen', '10151c')
+X_wheel = mat('X_wheel', 'c4c8cd'); G_light = mat('G_light', 'f4f8ff'); G_tail = mat('G_tail', 'ff2a1a'); S_screen = mat('S_screen', '10151c')
 
 # ------------------------------------------------------------------ BODY
 # tank
@@ -202,6 +202,7 @@ for s in (-1, 1):
     top = (sx - 0.03, sy + 0.03, z); mid = (sx + d.x * 0.34, sy + d.y * 0.34, z); bot = (fx, fy + 0.02, z)
     tube('forkU%d' % s, [top, mid], 0.032, M_gold, 'front', seg=16)
     tube('forkL%d' % s, [mid, bot], 0.026, X_steel, 'front', seg=16)
+    cyl('axleclamp%d' % s, 0.03, 0.04, (fx, fy, s * 0.105), X_steel, 'front', seg=14)
     box('caliper%d' % s, (0.09, 0.05, 0.035), (fx - 0.10, fy + 0.10, s * 0.083), M_red, 'front', rot=(0, 0, 1.1), bevel=0.012)
     box('lever%d' % s, (0.14, 0.008, 0.016), (BARX + 0.06, BARY + 0.005, s * (BARZ - 0.02)), X_alu, 'front', rot=(0, s * 0.35, 0), bevel=0.003)
     tube('clipon%d' % s, [(sx - 0.03, BARY + 0.01, s * 0.1), (BARX - 0.02, BARY - 0.02, s * (BARZ + 0.02))], 0.014, M_dark, 'front', seg=8)
@@ -213,22 +214,35 @@ loft('fender', [dict(x=fx + 0.20, y=fy + 0.24, w=0.07, ht=0.008, hb=0.008), dict
 
 # ------------------------------------------------------------------ WHEELS
 def wheel(asm, R, W, cx, cy, discs, nsp=5):
-    c = (cx, cy, 0)
-    tyre = [(R - 0.09, -W * 0.62), (R - 0.03, -W * 0.98), (R - 0.008, -W * 0.85), (R, -W * 0.45), (R + 0.002, 0), (R, W * 0.45), (R - 0.008, W * 0.85), (R - 0.03, W * 0.98), (R - 0.09, W * 0.62)]
-    lathe(asm + '_tyre', tyre, M_tyre, asm, 48, c, 70)
-    rim = [(R - 0.085, -W * 0.62), (R - 0.07, -W * 0.68), (R - 0.088, -W * 0.5), (R - 0.095, 0), (R - 0.088, W * 0.5), (R - 0.07, W * 0.68), (R - 0.085, W * 0.62)]
-    lathe(asm + '_rim', rim, X_rim, asm, 48, c, 40)
-    lathe(asm + '_hub', [(0.0, -W * 0.7), (0.05, -W * 0.7), (0.06, -W * 0.3), (0.06, W * 0.3), (0.05, W * 0.7), (0.0, W * 0.7)], X_rim, asm, 18, c, 40)
-    rimstripe = [(R - 0.093, -W * 0.36), (R - 0.0925, W * 0.36)]
+    c = (cx, cy, 0); H = 0.095 if R < 0.32 else 0.105            # tyre height (sidewall)
+    Rc = R - H / 2; rr = R - H                                    # tyre cross-section centre, rim bead radius
+    # round tyre: elliptical cross-section wrapped onto the rim
+    prof = []
+    for k in range(17):
+        t = math.radians(-112 + 224 * k / 16)
+        prof.append((Rc + (H / 2) * math.cos(t), W * 0.97 * math.sin(t)))
+    lathe(asm + '_tyre', prof, M_tyre, asm, 72, c, 80)
+    # rim: flanges, barrel and a bright lip so the wheel reads from the chase camera
+    rim = [(rr - 0.004, -W * 0.92), (rr + 0.012, -W * 0.9), (rr + 0.012, -W * 0.78), (rr - 0.006, -W * 0.72), (rr - 0.022, -W * 0.55),
+           (rr - 0.026, 0.0), (rr - 0.022, W * 0.55), (rr - 0.006, W * 0.72), (rr + 0.012, W * 0.78), (rr + 0.012, W * 0.9), (rr - 0.004, W * 0.92)]
+    lathe(asm + '_rim', rim, X_wheel, asm, 72, c, 45)
+    lathe(asm + '_rimin', [(rr - 0.026, -W * 0.5), (rr - 0.034, -W * 0.35), (rr - 0.034, W * 0.35), (rr - 0.026, W * 0.5)], X_wheel, asm, 72, c, 45)
+    # hub
+    lathe(asm + '_hub', [(0.0, -W * 0.75), (0.038, -W * 0.75), (0.05, -W * 0.6), (0.058, -W * 0.3), (0.058, W * 0.3), (0.05, W * 0.6), (0.038, W * 0.75), (0.0, W * 0.75)], X_wheel, asm, 24, c, 45)
+    # five broad, slightly tapered spokes
+    r0, r1 = 0.052, rr - 0.03
     for k in range(nsp):
-        a = k / nsp * math.pi * 2
-        for off in (-0.16, 0.16):
-            b = a + off
-            p0 = (cx + math.cos(a) * 0.055, cy + math.sin(a) * 0.055, 0); p1 = (cx + math.cos(b) * (R - 0.09), cy + math.sin(b) * (R - 0.09), 0)
-            tube('%s_sp%d%s' % (asm, k, off), [p0, p1], [0.014, 0.009], X_rim, asm, seg=6)
+        a = k / nsp * math.pi * 2 + 0.3; L = r1 - r0; m = (r0 + r1) / 2
+        p = (cx + math.cos(a) * m, cy + math.sin(a) * m, 0)
+        box('%s_sp%d' % (asm, k), (L + 0.02, 0.034, W * 0.5), p, X_wheel, asm, rot=(0, 0, a), bevel=0.008)
+    # brake discs on aluminium carriers
     for z in discs:
-        r0, r1 = (0.10, 0.16) if len(discs) > 1 else (0.07, 0.115)
-        lathe(asm + '_disc%.2f' % z, [(r0, z - 0.003), (r1, z - 0.003), (r1, z + 0.003), (r0, z + 0.003), (r0, z - 0.003)], M_disc, asm, 36, c, 30)
+        d0, d1 = (0.105, 0.16) if len(discs) > 1 else (0.075, 0.115)
+        lathe(asm + '_disc%.2f' % z, [(d0, z - 0.0035), (d1, z - 0.0035), (d1, z + 0.0035), (d0, z + 0.0035), (d0, z - 0.0035)], M_disc, asm, 48, c, 30)
+        lathe(asm + '_carrier%.2f' % z, [(0.05, z - 0.004), (d0 + 0.006, z - 0.004), (d0 + 0.006, z + 0.004), (0.05, z + 0.004), (0.05, z - 0.004)], M_gold, asm, 24, c, 30)
+        for k in range(6):
+            a = k / 6 * math.pi * 2
+            cyl('%s_bolt%.2f_%d' % (asm, z, k), 0.007, 0.012, (cx + math.cos(a) * (d0 + 0.0), cy + math.sin(a) * (d0 + 0.0), z), X_steel, asm, seg=8, bevel=0)
 wheel('wheelF', RF, WF, HX, RF, [-0.083, 0.083], 5)
 wheel('wheelR', RR, WR, -HX, RR, [0.09], 5)
 
