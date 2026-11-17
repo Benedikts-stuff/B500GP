@@ -83,9 +83,9 @@
       this.mBlur = new THREE.ShaderMaterial({ uniforms: { t: { value: null }, d: { value: new THREE.Vector2() } }, vertexShader: vs, depthTest: false, depthWrite: false,
         fragmentShader: 'uniform sampler2D t; uniform vec2 d; varying vec2 vUv; void main(){ vec3 c=texture2D(t,vUv).rgb*0.227; c+=(texture2D(t,vUv+d*1.385).rgb+texture2D(t,vUv-d*1.385).rgb)*0.316; c+=(texture2D(t,vUv+d*3.231).rgb+texture2D(t,vUv-d*3.231).rgb)*0.070; gl_FragColor=vec4(c,1.0); }' });
       this.mFinal = new THREE.ShaderMaterial({
-        uniforms: { t: { value: null }, b: { value: null }, px: { value: new THREE.Vector2() }, uTilt: { value: 1 }, uFocus: { value: 0.5 }, uBloom: { value: 0.5 }, uVig: { value: 0.32 }, uSat: { value: 1.12 } },
+        uniforms: { t: { value: null }, b: { value: null }, ao: { value: null }, uAO: { value: 0 }, px: { value: new THREE.Vector2() }, uTilt: { value: 1 }, uFocus: { value: 0.5 }, uBloom: { value: 0.5 }, uVig: { value: 0.32 }, uSat: { value: 1.12 } },
         vertexShader: vs, depthTest: false, depthWrite: false,
-        fragmentShader: `uniform sampler2D t; uniform sampler2D b; uniform vec2 px; uniform float uTilt; uniform float uFocus; uniform float uBloom; uniform float uVig; uniform float uSat; varying vec2 vUv;
+        fragmentShader: `uniform sampler2D t; uniform sampler2D b; uniform sampler2D ao; uniform float uAO; uniform vec2 px; uniform float uTilt; uniform float uFocus; uniform float uBloom; uniform float uVig; uniform float uSat; varying vec2 vUv;
           void main(){
             float r = uTilt * smoothstep(0.24, 0.6, abs(vUv.y - uFocus)) * 1.7;
             vec3 c = texture2D(t, vUv).rgb;
@@ -96,6 +96,7 @@
               c += texture2D(t, vUv + o * vec2( 1.9,  -1.3)).rgb * 0.1; c += texture2D(t, vUv + o * vec2(-1.9,   1.3)).rgb * 0.1;
               c += texture2D(t, vUv + o * vec2( 1.3,   1.9)).rgb * 0.1; c += texture2D(t, vUv + o * vec2(-1.3,  -1.9)).rgb * 0.1;
             }
+            if (uAO > 0.0) c *= mix(1.0, texture2D(ao, vUv).r, uAO);
             c += texture2D(b, vUv).rgb * uBloom;
             float l = dot(c, vec3(0.299, 0.587, 0.114)); c = mix(vec3(l), c, uSat);
             // split toning: cool shadows, warm highlights (filmic, a little like late afternoon)
@@ -106,6 +107,33 @@
             vec2 q = vUv - 0.5; c *= 1.0 - uVig * smoothstep(0.25, 0.95, dot(q, q) * 2.0);
             gl_FragColor = vec4(c, 1.0);
           }` });
+      /* screen-space ambient occlusion: depth pre-pass (near field only) at half resolution, SAO-style sampling, small blur */
+      this.aoOn = false; this.aoFar = 220; this.depthMat = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
+      this.mAO = new THREE.ShaderMaterial({ uniforms: { d: { value: null }, invP: { value: new THREE.Matrix4() }, P: { value: new THREE.Matrix4() }, near: { value: 0.3 }, far: { value: 220 }, rad: { value: 1.1 }, px: { value: new THREE.Vector2() } },
+        vertexShader: vs, depthTest: false, depthWrite: false,
+        fragmentShader: `#include <packing>
+          uniform sampler2D d; uniform mat4 invP; uniform mat4 P; uniform float near; uniform float far; uniform float rad; uniform vec2 px; varying vec2 vUv;
+          float depthAt(vec2 uv){ return unpackRGBAToDepth(texture2D(d, uv)); }
+          vec3 viewPos(vec2 uv, float dz){ vec4 c = vec4(uv * 2.0 - 1.0, dz * 2.0 - 1.0, 1.0); vec4 v = invP * c; return v.xyz / v.w; }
+          void main(){
+            float dz = depthAt(vUv); if (dz >= 0.9999) { gl_FragColor = vec4(1.0); return; }
+            vec3 p = viewPos(vUv, dz);
+            vec3 pr = viewPos(vUv + vec2(px.x, 0.0), depthAt(vUv + vec2(px.x, 0.0))), pu = viewPos(vUv + vec2(0.0, px.y), depthAt(vUv + vec2(0.0, px.y)));
+            vec3 n = normalize(cross(pr - p, pu - p));
+            // projected sampling radius (pixels shrink with distance)
+            float sr = rad * P[0][0] / max(0.5, -p.z) * 0.5;
+            float occ = 0.0; float ang = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) * 6.2832;
+            for (int i = 0; i < 12; i++) {
+              float fi = (float(i) + 0.5) / 12.0; float a = ang + fi * 6.2832 * 3.0; vec2 o = vec2(cos(a), sin(a)) * sr * fi;
+              vec2 su = vUv + o; float sd = depthAt(su); if (sd >= 0.9999) continue;
+              vec3 q = viewPos(su, sd) - p; float l2 = dot(q, q);
+              occ += max(0.0, dot(n, q) / sqrt(l2 + 1e-4) - 0.06) * max(0.0, 1.0 - l2 / (rad * rad * 4.0));
+            }
+            float a = clamp(1.0 - occ / 12.0 * 2.2, 0.0, 1.0);
+            gl_FragColor = vec4(vec3(a), 1.0);
+          }` });
+      this.mAOBlur = new THREE.ShaderMaterial({ uniforms: { t: { value: null }, d: { value: new THREE.Vector2() } }, vertexShader: vs, depthTest: false, depthWrite: false,
+        fragmentShader: 'uniform sampler2D t; uniform vec2 d; varying vec2 vUv; void main(){ float c = texture2D(t, vUv).r * 0.4; c += (texture2D(t, vUv + d).r + texture2D(t, vUv - d).r) * 0.2; c += (texture2D(t, vUv + d * 2.0).r + texture2D(t, vUv - d * 2.0).r) * 0.1; gl_FragColor = vec4(vec3(c), 1.0); }' });
       this.setSize(1, 1, 1);
     }
     setSize(w, h, samples) {
@@ -115,6 +143,10 @@
       else this.rt = new THREE.WebGLRenderTarget(w, h, opt);
       const o2 = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, depthBuffer: false, stencilBuffer: false };
       const bw = Math.max(2, w >> 2), bh = Math.max(2, h >> 2); this.a = new THREE.WebGLRenderTarget(bw, bh, o2); this.bb = new THREE.WebGLRenderTarget(bw, bh, o2);
+      if (this.dRT) { this.dRT.dispose(); this.aoA.dispose(); this.aoB.dispose(); }
+      const hw = Math.max(2, w >> 1), hh = Math.max(2, h >> 1);
+      this.dRT = new THREE.WebGLRenderTarget(hw, hh, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, format: THREE.RGBAFormat, depthBuffer: true, stencilBuffer: false });
+      this.aoA = new THREE.WebGLRenderTarget(hw, hh, o2); this.aoB = new THREE.WebGLRenderTarget(hw, hh, o2); this.hw = hw; this.hh = hh;
       this.w = w; this.h = h; this.bw = bw; this.bh = bh; this.mFinal.uniforms.px.value.set(1 / w, 1 / h);
     }
     pass(mat, target) { this.quad.material = mat; this.r.setRenderTarget(target); this.r.render(this.scene, this.cam); }
@@ -123,12 +155,26 @@
       if (!this.enabled) { r.setRenderTarget(null); r.render(scene, camera); return; }
       r.setRenderTarget(this.rt); r.render(scene, camera);
       const sh = r.shadowMap.autoUpdate; r.shadowMap.autoUpdate = false;
+      if (this.aoOn) {
+        // near-field depth only: a short far plane culls the distant world from this extra pass
+        const far0 = camera.far, fog = scene.fog, bg = scene.background; camera.far = this.aoFar; camera.updateProjectionMatrix();
+        scene.overrideMaterial = this.depthMat; scene.fog = null; const cc = r.getClearColor(new THREE.Color()), ca = r.getClearAlpha(); r.setClearColor(0xffffff, 1);
+        const vis = []; scene.traverse((o) => { if ((o.isPoints || o.isSprite || (o.material && o.material.transparent && !o.isInstancedMesh)) && o.visible) { vis.push(o); o.visible = false; } });
+        r.setRenderTarget(this.dRT); r.clear(); r.render(scene, camera);
+        vis.forEach((o) => { o.visible = true; }); r.setClearColor(cc, ca);
+        scene.overrideMaterial = null; scene.fog = fog;
+        const u = this.mAO.uniforms; u.d.value = this.dRT.texture; u.P.value.copy(camera.projectionMatrix); u.invP.value.copy(camera.projectionMatrixInverse); u.near.value = camera.near; u.far.value = camera.far; u.px.value.set(1 / this.hw, 1 / this.hh);
+        camera.far = far0; camera.updateProjectionMatrix();
+        this.pass(this.mAO, this.aoA);
+        this.mAOBlur.uniforms.t.value = this.aoA.texture; this.mAOBlur.uniforms.d.value.set(1.2 / this.hw, 0); this.pass(this.mAOBlur, this.aoB);
+        this.mAOBlur.uniforms.t.value = this.aoB.texture; this.mAOBlur.uniforms.d.value.set(0, 1.2 / this.hh); this.pass(this.mAOBlur, this.aoA);
+      }
       this.mBright.uniforms.t.value = this.rt.texture; this.pass(this.mBright, this.a);
       for (let k = 0; k < 2; k++) {
         this.mBlur.uniforms.t.value = this.a.texture; this.mBlur.uniforms.d.value.set((1 + k) / this.bw, 0); this.pass(this.mBlur, this.bb);
         this.mBlur.uniforms.t.value = this.bb.texture; this.mBlur.uniforms.d.value.set(0, (1 + k) / this.bh); this.pass(this.mBlur, this.a);
       }
-      const u = this.mFinal.uniforms; u.t.value = this.rt.texture; u.b.value = this.a.texture; u.uTilt.value = this.tilt; u.uFocus.value = this.focusY;
+      const u = this.mFinal.uniforms; u.t.value = this.rt.texture; u.b.value = this.a.texture; u.ao.value = this.aoA.texture; u.uAO.value = this.aoOn ? 0.85 : 0; u.uTilt.value = this.tilt; u.uFocus.value = this.focusY;
       this.pass(this.mFinal, null); r.shadowMap.autoUpdate = sh;
     }
   }

@@ -34,7 +34,7 @@
   const S = Object.assign({ lang: (navigator.language || 'de').toLowerCase().startsWith('de') ? 'de' : 'en', bike: 'strada', track: 'pass', mode: 'tt', laps: 3, opp: 5, diff: 1, assist: 'pro', cam: 'chase', quality: 'medium', vol: 0.8 },
     (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } })());
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* private mode */ } };
-  const recKey = (track, bike) => 'apex2_best_' + track + '_' + bike;
+  const recKey = (track, bike) => 'apex2_best_' + track + '_' + bike + (track === 'pass' ? '_v2' : '');   // v2: the pass was re-routed, old records and ghosts no longer fit
   const loadRec = (track, bike) => { try { return JSON.parse(localStorage.getItem(recKey(track, bike))); } catch (e) { return null; } };
   const DIFF = [{ base: 0.855, spread: 0.035 }, { base: 0.9, spread: 0.035 }, { base: 0.94, spread: 0.032 }, { base: 0.975, spread: 0.028 }];
 
@@ -60,6 +60,7 @@
     const w = window.innerWidth, h = window.innerHeight; const cap = S.quality === 'high' ? 1.5 : S.quality === 'medium' ? 1.0 : 0.8;
     const pr = Math.max(0.5, Math.min(window.devicePixelRatio || 1, cap) * G.dyn); renderer.setPixelRatio(pr); renderer.setSize(w, h, false);
     camera.aspect = w / h; camera.updateProjectionMatrix(); G.pr = pr;
+    post.aoOn = S.quality === 'high'; post.aoFar = 200;
     post.enabled = true; post.setSize(Math.round(w * pr), Math.round(h * pr), S.quality === 'low' ? 0 : pr <= 1.1 ? 4 : 2);
   }
   window.addEventListener('resize', resize);

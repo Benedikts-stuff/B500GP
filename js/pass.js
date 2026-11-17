@@ -390,7 +390,7 @@
     let nSpec = 0;
     const crowd = (i0, i1, density) => {
       for (let i = Math.max(5, i0); i < Math.min(N - 5, i1); i++) for (const s of [0, 1]) {
-        if (rng() > density) continue;
+        if (rng() > density) continue; if (this.galleryRange && i > this.galleryRange[0] && i < this.galleryRange[1]) continue;
         const sg = s ? 1 : -1, wall = t.barType[s][i] === 2;
         const lat = wall ? t.bar[s][i] + 0.06 * t.wallH[s][i] + rng.range(0.7, 2.2) : t.bar[s][i] + rng.range(0.9, 3.2);
         const x = t.px[i] + t.nx[i] * sg * lat + rng.range(-0.4, 0.4), z = t.pz[i] + t.nz[i] * sg * lat + rng.range(-0.4, 0.4);
@@ -514,6 +514,54 @@
         blds.push([x, z, 4]);
       }
     }
+  };
+
+
+  /* avalanche gallery (Lawinengalerie): concrete roof on the retaining wall, open pillars on the valley side, grass on top */
+  AX.World.prototype._passGallery = function () {
+    const t = this.track, sc = this.scene, N = t.n, fI = t.finishIdx, L = 95;
+    let best = null;
+    for (let a = Math.max(200, fI - 330); a < fI - 150 - L; a += 5) {
+      let km = 0; const w = [0, 0];
+      for (let i = a; i < a + L; i++) { km = Math.max(km, Math.abs(t.k[i])); for (const s of [0, 1]) if (t.barType[s][i] === 2) w[s]++; }
+      const s = w[0] > w[1] ? 0 : 1; if (w[s] < 0.7 * L || km > 0.03) continue; if (!best || km < best.km) best = { a, km, s };
+    }
+    if (!best) return;
+    const a = best.a, b = a + L, s = best.s, sg = s ? 1 : -1, o = 1 - s, H = 5.3, T = 0.75;
+    this.galleryRange = [a - 6, b + 6];
+    const concrete = new THREE.MeshStandardMaterial({ color: lin(0xc4bfb4), roughness: 0.92, side: THREE.DoubleSide, emissive: lin(0x3a3936) });
+    const dark = new THREE.MeshStandardMaterial({ color: lin(0x9a958c), roughness: 0.95, side: THREE.DoubleSide });
+    const grass = new THREE.MeshStandardMaterial({ color: lin(0x6e9a4a), roughness: 1, side: THREE.DoubleSide });
+    const ribbon = (prof, mat, i0, i1) => {   // prof: [[signed lateral (+ = wall side), height], ...] per index
+      const P = [], idx = []; let rows = 0;
+      for (let i = i0; i <= i1; i++) {
+        const pr = prof(i);
+        for (const [lat, h] of pr) P.push(t.px[i] + t.nx[i] * sg * lat, t.py[i] + h, t.pz[i] + t.nz[i] * sg * lat);
+        if (rows) { const m = pr.length, r0 = (rows - 1) * m, r1 = rows * m; for (let k = 0; k < m - 1; k++) idx.push(r0 + k, r1 + k, r0 + k + 1, r0 + k + 1, r1 + k, r1 + k + 1); }
+        rows++;
+      }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setIndex(idx); g.computeVertexNormals();
+      const m = new THREE.Mesh(g, mat); m.castShadow = true; m.receiveShadow = true; sc.add(m); return m;
+    };
+    const back = (i) => t.bar[s][i] + 0.06 * t.wallH[s][i] - 0.08, front = (i) => t.bar[o][i] + 0.55;
+    // back wall from the retaining wall up to the roof
+    ribbon((i) => [[back(i), t.wallH[s][i] + 0.1], [back(i) - 0.02, H]], dark, a, b);
+    // roof slab with a deep front beam
+    // the slab's underside sits in the shade: a fixed shaded concrete tone instead of the olive ground bounce light
+    const ceil = new THREE.MeshBasicMaterial({ color: lin(0x7d7a74), side: THREE.DoubleSide });
+    ribbon((i) => [[back(i) + 0.4, H], [back(i) + 0.4, H + T], [-front(i) - 0.35, H + T], [-front(i) - 0.35, H - 0.75], [-front(i) + 0.25, H - 0.75], [-front(i) + 0.25, H]], concrete, a, b);
+    ribbon((i) => [[-front(i) + 0.25, H + 0.002], [back(i) + 0.4, H + 0.002]], ceil, a, b);
+    // earth and grass on top, rounding off towards the slope
+    ribbon((i) => [[back(i) + 3.5, H + T + 1.6], [back(i) + 0.6, H + T + 0.9], [-front(i) + 0.4, H + T + 0.25], [-front(i) - 0.35, H + T]], grass, a, b);
+    // pillars on the valley side, and lamps under the roof
+    const pil = new THREE.BoxGeometry(0.55, H + 0.3, 0.55), pm = concrete, lampM = new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 1.3, 0.7) });
+    for (let i = a + 2; i <= b - 2; i += 6) {
+      const lat = -(t.bar[o][i] + 0.15), p = new THREE.Mesh(pil, pm);
+      p.position.set(t.px[i] + t.nx[i] * sg * lat, t.py[i] + (H + 0.3) / 2 - 0.3, t.pz[i] + t.nz[i] * sg * lat); p.rotation.y = -t.yaw[i]; p.castShadow = true; p.receiveShadow = true; sc.add(p);
+      if ((i - a) % 12 === 2) { const l = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.08, 0.18), lampM), ll = 0.2; l.position.set(t.px[i] + t.nx[i] * sg * ll, t.py[i] + H - 0.05, t.pz[i] + t.nz[i] * sg * ll); l.rotation.y = -t.yaw[i]; sc.add(l); }
+    }
+    // portal faces at both ends
+    for (const i of [a, b]) ribbon(() => [[back(i) + 0.4, H + T + 0.02], [-front(i) - 0.35, H + T + 0.02]], concrete, i, i);
   };
 
   AX.World.prototype._buildPass = function () {
@@ -741,6 +789,8 @@
       }
     }
 
+    if (KK) this._passGallery();
+
     /* ---- W-beam guardrails + posts on the valley side */
     const galv = new THREE.MeshStandardMaterial({ color: lin(0xb5bac0), roughness: 0.35, metalness: 0.75, envMap: this.env, envMapIntensity: 0.9, side: THREE.DoubleSide });
     const postGeo = (() => { const gb = new GeoBuilder(); gb.add(new THREE.BoxGeometry(0.1, 1.15, 0.14), M(0, 0.2, 0), 0xa9aeb4); gb.add(new THREE.BoxGeometry(0.04, 0.32, 0.18), M(0.07, 0.62, 0), 0x8f949a); const g = gb.build(); g.computeBoundingSphere(); return g; })();
@@ -860,6 +910,19 @@
         this.ms(nm, { tint: kt, cell: 220 }).add(x, ym - 0.15, z, rng() * 6.28, big, big * rng.range(0.95, 1.15), firTint());
         nTrees++;
       }
+      // the lower S-bends run through dense forest close to the road: only the next corner is in view
+      {
+        const firstHairpin = t.corners.find((c) => c.radius < 30), iEnd = firstHairpin ? firstHairpin.apex - 40 : 600;
+        let nf = 0;
+        for (let n = 0; n < 6000 * q && nf < 700 * q; n++) {
+          const i0 = rng.int(0, iEnd), s0 = rng.int(0, 1), sg0 = s0 ? 1 : -1, wall = t.barType[s0][i0] === 2;
+          const d0 = (wall ? t.bar[s0][i0] + 0.06 * t.wallH[s0][i0] + 1.2 : t.bar[s0][i0] + 1.6) + Math.pow(rng(), 1.6) * 16;
+          const x = t.px[i0] + t.nx[i0] * sg0 * d0, z = t.pz[i0] + t.nz[i0] * sg0 * d0; if (!roadClear(x, z, w + 2.6) || nearBld(x, z, 2.5)) continue;
+          const y = this.heightAt(x, z), ym = Math.min(y, this.heightAt(x + 0.7, z), this.heightAt(x - 0.7, z), this.heightAt(x, z + 0.7), this.heightAt(x, z - 0.7));
+          const nm = firs[rng.int(0, firs.length - 1)], big = rng.range(1.3, 2.2);
+          this.ms(nm, { tint: kt, cell: 220 }).add(x, ym - 0.15, z, rng() * 6.28, big, big * rng.range(0.95, 1.15), firTint()); nf++; nTrees++;
+        }
+      }
       // above the tree line: dwarf firs, juniper-like bushes, grass clumps and loose rocks so the alpine meadow is not bare
       {
         const dw = ['kaykit/Tree_4_A', 'kaykit/Tree_4_B'], bu2 = ['kaykit/Bush_4_B', 'kaykit/Bush_4_C', 'kaykit/Bush_1_C'], gr2 = ['kaykit/Grass_1_B', 'kaykit/Grass_2_B', 'kaykit/Grass_1_C'], rk2 = ['kaykit/Rock_3_E', 'kaykit/Rock_3_G', 'kaykit/Rock_1_G', 'kaykit/Rock_3_J'];
@@ -910,8 +973,8 @@
           const gx = this.heightAt(jx + 2.5, jz) - this.heightAt(jx - 2.5, jz), gz = this.heightAt(jx, jz + 2.5) - this.heightAt(jx, jz - 2.5), slope = Math.hypot(gx, gz) / 5;
           if (slope < 0.95 || rng() > 0.8) continue;
           t.terrainH(jx, jz); if (t.lastRoadD < t.hw + 7 || t.lastRoadD > 170) continue;
-          const y = this.heightAt(jx, jz), sc3 = rng.range(2.4, 4.6);
-          this.ms(crag[rng.int(0, crag.length - 1)], { tint: kt }).add(jx, y - 1.0 * sc3, jz, Math.atan2(gz, gx) + rng.range(-0.5, 0.5), sc3, sc3 * rng.range(0.9, 1.5), hsl(0.07, rng.range(0.04, 0.12), rng.range(0.7, 0.9)));
+          const sc3 = rng.range(2.4, 4.6), rr = 1.3 * sc3, y = Math.min(this.heightAt(jx, jz), this.heightAt(jx + rr, jz), this.heightAt(jx - rr, jz), this.heightAt(jx, jz + rr), this.heightAt(jx, jz - rr));
+          this.ms(crag[rng.int(0, crag.length - 1)], { tint: kt }).add(jx, y - 0.6 * sc3, jz, Math.atan2(gz, gx) + rng.range(-0.5, 0.5), sc3, sc3 * rng.range(0.9, 1.5), hsl(0.07, rng.range(0.04, 0.12), rng.range(0.7, 0.9)));
           nCrag++;
         }
       }
