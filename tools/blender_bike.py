@@ -217,20 +217,21 @@ def wheel(asm, R, W, cx, cy, discs, nsp=5):
     c = (cx, cy, 0); H = 0.095 if R < 0.32 else 0.105            # tyre height (sidewall)
     Rc = R - H / 2; rr = R - H                                    # tyre cross-section centre, rim bead radius
     # round tyre: elliptical cross-section wrapped onto the rim
-    prof = []
-    for k in range(17):
-        t = math.radians(-112 + 224 * k / 16)
+    # tyre: round crown, sidewalls running down into the rim so the bead sits between the rim flanges
+    prof = [(rr + 0.003, -W * 0.80), (rr + 0.016, -W * 0.86)]
+    for k in range(15):
+        t = math.radians(-100 + 200 * k / 14)
         prof.append((Rc + (H / 2) * math.cos(t), W * 0.97 * math.sin(t)))
+    prof += [(rr + 0.016, W * 0.86), (rr + 0.003, W * 0.80)]
     lathe(asm + '_tyre', prof, M_tyre, asm, 72, c, 80)
-    # rim: flanges, barrel and a bright lip so the wheel reads from the chase camera
-    rim = [(rr - 0.004, -W * 0.92), (rr + 0.012, -W * 0.9), (rr + 0.012, -W * 0.78), (rr - 0.006, -W * 0.72), (rr - 0.022, -W * 0.55),
-           (rr - 0.026, 0.0), (rr - 0.022, W * 0.55), (rr - 0.006, W * 0.72), (rr + 0.012, W * 0.78), (rr + 0.012, W * 0.9), (rr - 0.004, W * 0.92)]
-    lathe(asm + '_rim', rim, X_wheel, asm, 72, c, 45)
-    lathe(asm + '_rimin', [(rr - 0.026, -W * 0.5), (rr - 0.034, -W * 0.35), (rr - 0.034, W * 0.35), (rr - 0.026, W * 0.5)], X_wheel, asm, 72, c, 45)
+    # rim as a solid ring: flanges holding the tyre, a visible side face and the inner barrel (rim bed) between the spokes
+    rim = [(rr + 0.014, -W * 0.93), (rr + 0.014, -W * 0.82), (rr - 0.002, -W * 0.79), (rr - 0.002, W * 0.79), (rr + 0.014, W * 0.82), (rr + 0.014, W * 0.93),
+           (rr - 0.018, W * 0.90), (rr - 0.036, W * 0.72), (rr - 0.036, -W * 0.72), (rr - 0.018, -W * 0.90), (rr + 0.014, -W * 0.93)]
+    lathe(asm + '_rim', rim, X_wheel, asm, 72, c, 35)
     # hub
     lathe(asm + '_hub', [(0.0, -W * 0.75), (0.038, -W * 0.75), (0.05, -W * 0.6), (0.058, -W * 0.3), (0.058, W * 0.3), (0.05, W * 0.6), (0.038, W * 0.75), (0.0, W * 0.75)], X_wheel, asm, 24, c, 45)
     # five broad, slightly tapered spokes
-    r0, r1 = 0.052, rr - 0.03
+    r0, r1 = 0.052, rr - 0.032
     for k in range(nsp):
         a = k / nsp * math.pi * 2 + 0.3; L = r1 - r0; m = (r0 + r1) / 2
         p = (cx + math.cos(a) * m, cy + math.sin(a) * m, 0)
