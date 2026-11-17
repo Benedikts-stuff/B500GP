@@ -733,7 +733,7 @@
       const rk = ['kaykit/Rock_1_G', 'kaykit/Rock_1_H', 'kaykit/Rock_3_E', 'kaykit/Rock_3_G', 'kaykit/Rock_1_J'], fern = ['kaykit/Bush_4_B', 'kaykit/Bush_1_C', 'kaykit/Grass_2_B'];
       const kt = (m) => { m.roughness = 1; m.metalness = 0; };
       for (let k = 0; k < S.x.length; k++) {
-        if (Math.hypot(S.x[k] - t.px[i], S.z[k] - t.pz[i]) < 11) continue;
+        if (Math.hypot(S.x[k] - t.px[i], S.z[k] - t.pz[i]) < 24) continue;
         for (let r = 0; r < 3; r++) {
           const off = rng.range(-1, 1) * (S.W + 3), k1 = Math.min(S.x.length - 1, k + 1), dx = S.x[k1] - S.x[k], dz = S.z[k1] - S.z[k], l = Math.hypot(dx, dz) || 1;
           const x = S.x[k] - dz / l * off + rng.range(-2, 2), z = S.z[k] + dx / l * off + rng.range(-2, 2), y = this.heightAt(x, z);
@@ -744,6 +744,35 @@
     }
     for (let k = 0; k < S.x.length; k++) blds.push([S.x[k], S.z[k], S.W + 2.5]);
     this.streamPts = S;
+  };
+
+
+  /* straw bales in front of the barriers on the outside of the corners, as at real hill climbs */
+  AX.World.prototype._passBales = function (rng, q) {
+    const t = this.track, sc = this.scene, N = t.n;
+    const gb = new GeoBuilder();
+    gb.add(roundedBox(1.1, 0.48, 0.5, 0.07, 2), M(0, 0.24, 0), 0xffffff);
+    for (const x of [-0.3, 0.3]) gb.add(roundedBox(0.03, 0.5, 0.52, 0.01, 1), M(x, 0.24, 0), 0xb08a3a);   // twine
+    const bales = new W.Scatter(gb.build(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }), 1e6);
+    const straw = ['#e3c473', '#d9b862', '#e8cc80', '#cfae58'];
+    let n = 0;
+    t.corners.forEach((c) => {
+      const outS = c.dir > 0 ? 0 : 1, sg = outS ? 1 : -1;
+      const span = c.radius < 30 ? 26 : c.radius < 60 ? 18 : 0; if (!span) return;
+      for (let i = t.wr(c.apex - span); i <= t.wr(c.apex + span * 0.6); i++) {
+        const d = t.bar[outS][i] - 0.38;
+        // keep a little gap so the row reads as single bales, two high on the hairpins
+        if ((i - c.apex) % 1 !== 0) continue;
+        const ry = -t.yaw[i];
+        for (let lvl = 0; lvl < (c.radius < 30 ? 2 : 1); lvl++) {
+          const off = lvl ? 0.55 : 0, x = t.px[i] + t.nx[i] * sg * d, z = t.pz[i] + t.nz[i] * sg * d;
+          if (lvl && (i % 2)) continue;
+          bales.add(x + Math.cos(t.yaw[i]) * off, t.py[i] - 0.06 + lvl * 0.48, z + Math.sin(t.yaw[i]) * off, ry + rng.range(-0.05, 0.05), 1, rng.range(0.95, 1.05), 1, straw[rng.int(0, 3)]);
+          n++;
+        }
+      }
+    });
+    bales.build(sc, true, true); this.bales = n;
   };
 
   AX.World.prototype._buildPass = function () {
@@ -976,7 +1005,12 @@
 
     /* ---- W-beam guardrails + posts on the valley side */
     const galv = new THREE.MeshStandardMaterial({ color: lin(0xb5bac0), roughness: 0.35, metalness: 0.75, envMap: this.env, envMapIntensity: 0.9, side: THREE.DoubleSide });
-    const postGeo = (() => { const gb = new GeoBuilder(); gb.add(new THREE.BoxGeometry(0.1, 1.15, 0.14), M(0, 0.2, 0), 0xa9aeb4); gb.add(new THREE.BoxGeometry(0.04, 0.32, 0.18), M(0.07, 0.62, 0), 0x8f949a); const g = gb.build(); g.computeBoundingSphere(); return g; })();
+    // post behind the rail (local +x = away from the road), a spacer block bolting the W-beam to it
+    const postGeo = (() => { const gb = new GeoBuilder();
+      gb.add(new THREE.BoxGeometry(0.1, 1.35, 0.14), M(0.07, 0.25, 0), 0xa9aeb4);
+      gb.add(new THREE.BoxGeometry(0.15, 0.32, 0.12), M(-0.045, 0.71, 0), 0x8f949a);
+      gb.add(new THREE.BoxGeometry(0.03, 0.06, 0.06), M(-0.12, 0.71, 0), 0x6f747a);
+      const g = gb.build(); g.computeBoundingSphere(); return g; })();
     const posts = new W.Scatter(postGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.6 }), 1e6);
     const profile = [[0.0, 0.52], [0.07, 0.56], [0.03, 0.645], [0.08, 0.71], [0.03, 0.775], [0.07, 0.86], [0.0, 0.9]];
     for (const s of [0, 1]) {
@@ -984,7 +1018,7 @@
       const prof = profile.map(([dl, h]) => [(i) => t.bar[s][i] - 0.1 - dl, () => h]);
       sc.add(Object.assign(new THREE.Mesh(sweep(t, s, prof, isR, 4), galv), { castShadow: true, receiveShadow: true }));
       const sg = s ? 1 : -1;
-      for (let i = 8; i < N - 8; i += 4) if (isR(i)) posts.add(t.px[i] + t.nx[i] * sg * (t.bar[s][i] + 0.02), t.py[i] - 0.45, t.pz[i] + t.nz[i] * sg * (t.bar[s][i] + 0.02), -t.yaw[i] + (s ? 0 : Math.PI));
+      for (let i = 8; i < N - 8; i += 4) if (isR(i)) posts.add(t.px[i] + t.nx[i] * sg * t.bar[s][i], t.py[i], t.pz[i] + t.nz[i] * sg * t.bar[s][i], -t.yaw[i] + Math.PI / 2 + (s ? Math.PI : 0));
     }
     posts.build(sc, true, true);
 
@@ -1060,6 +1094,7 @@
     if (KK) this._passEvent(blds, roadClear, rng, q);
     if (KK) this._passRoadside(blds, roadClear, rng, q, tree);
     if (KK) this._passStream(blds, rng, q);
+    if (KK) this._passBales(rng, q);
 
     /* ---- forest (nature-kit pines near the road, cheap cones further out), boulders, grass tufts */
     const kit = this.kits, pines = [1, 2, 3, 4, 5].map((k) => 'nature/Pine_' + k);
