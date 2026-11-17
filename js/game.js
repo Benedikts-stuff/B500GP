@@ -537,7 +537,8 @@
     const t = G.track, i = p.idx, lat = t.lateral(i, p.x, p.z); let wall = 0;
     for (const s of [0, 1]) if (t.barType[s][i] === 2) { const d = t.bar[s][i] - (s ? lat : -lat); wall = Math.max(wall, AX.clamp(1 - d / 6, 0, 1) * AX.clamp(t.wallH[s][i] / 2, 0.4, 1)); }
     const yMax = t.py[t.finishIdx] || 0, alt = AX.clamp((p.y - t.py[0]) / Math.max(1, yMax - t.py[0]), 0, 1);
-    return { wall, ambient: 1, forest: 0.7 * (1 - alt), meadow: 0.25 + 0.6 * alt };
+    const water = t.stream ? AX.clamp(1 - (t.streamDist(p.x, p.z) - 4) / 55, 0, 1) : 0;
+    return { wall, water, ambient: 1, forest: 0.7 * (1 - alt), meadow: 0.25 + 0.6 * alt };
   }
 
   /* ------------------------------------------------------------------ boot */

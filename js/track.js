@@ -50,7 +50,7 @@
   }
   AX.TRACKS.pass = {
     id: 'pass', name: 'SCHWARZHORNPASS', sub: { de: 'Bergrennen · 10 Kehren', en: 'Hill climb · 10 hairpins' },
-    width: 7.2, theme: 'pass', seed: 51, open: true, baseH: 0,
+    width: 7.2, theme: 'pass', seed: 51, open: true, baseH: 0, stream: true,
     // grade (rise per metre) by distance from the bottom
     grade: [[420, 0.045], [1700, 0.085], [2150, 0.065], [99999, 0.02]],
     build: () => turtle(0, 0, -Math.PI / 2, [
@@ -135,7 +135,7 @@
       OPEN = this.open;
       try {
         this._sample();
-        if (this.open) { this._heights(); this._terrainSetup(); }
+        if (this.open) { this._heights(); this._terrainSetup(); if (this.def.stream) this._streamSetup(); }
         this._zones();
         this._racingLine();
         this._corners();
@@ -299,7 +299,51 @@
       const far = smoothstep(60, 500, dmin); h += (ridge(x * 0.003, z * 0.003) * 70 - 20) * far;
       if (dmin < this.hw + 1.2) h = hNear - 0.12;
       else if (dmin < this.hw + 4) h = lerpN(hNear - 0.12, h, smoothstep(this.hw + 1.2, this.hw + 4, dmin));
+      this.lastCarve = false; if (this.stream) h = this._carve(x, z, h);
       return h;
+    }
+
+    /* ---------- a mountain stream crossing under the road (stone bridge) */
+    _streamSetup() {
+      const N = this.n; let best = -1, bk = 1e9;
+      for (let i = 230; i < Math.min(N - 50, 620); i += 4) { let k = 0; for (let j = -18; j <= 18; j++) k += Math.abs(this.k[i + j]); if (k < bk) { bk = k; best = i; } }
+      if (best < 0) return;
+      const i = best, nx = this.nx[i], nz = this.nz[i], tx = -nz, tz = nx, hb = this.py[i];
+      const side = this.terrainH(this.px[i] + nx * 45, this.pz[i] + nz * 45) > this.terrainH(this.px[i] - nx * 45, this.pz[i] - nz * 45) ? 1 : -1;   // uphill side
+      const P = [];
+      for (let u = 150; u >= -180; u -= 6) {
+        const m = Math.abs(u) < 14 ? 0 : Math.sin(u * 0.045) * 7 * smoothstep(14, 40, Math.abs(u));       // meanders away from the bridge
+        const x = this.px[i] + nx * side * u + tx * m, z = this.pz[i] + nz * side * u + tz * m;
+        P.push([x, z, this.terrainH(x, z), u]);
+      }
+      // bed: natural ground minus a depth that is deepest under the bridge, always running downhill
+      const S = { x: [], z: [], b: [], minX: 1e9, maxX: -1e9, minZ: 1e9, maxZ: -1e9, idx: i, hRoad: hb, W: 3.2, bank: 9 };
+      let prev = 1e9;
+      for (const [x, z, h, u] of P) {
+        const depth = 2.4 + 2.3 * (1 - smoothstep(6, 30, Math.abs(u)));
+        let b = Math.min(h - depth, Math.abs(u) < 10 ? hb - 4.6 : 1e9); b = Math.min(b, prev - 0.08); prev = b;
+        S.x.push(x); S.z.push(z); S.b.push(b);
+        S.minX = Math.min(S.minX, x); S.maxX = Math.max(S.maxX, x); S.minZ = Math.min(S.minZ, z); S.maxZ = Math.max(S.maxZ, z);
+      }
+      const pad = S.W + S.bank + 2; S.minX -= pad; S.maxX += pad; S.minZ -= pad; S.maxZ += pad;
+      this.stream = S;
+    }
+    _carve(x, z, h) {
+      const S = this.stream; if (x < S.minX || x > S.maxX || z < S.minZ || z > S.maxZ) return h;
+      let dBest = 1e9, bBest = 0; const X = S.x, Z = S.z, B = S.b;
+      for (let k = 0; k < X.length - 1; k++) {
+        const ax = X[k], az = Z[k], dx = X[k + 1] - ax, dz = Z[k + 1] - az, l2 = dx * dx + dz * dz || 1;
+        const f = clamp(((x - ax) * dx + (z - az) * dz) / l2, 0, 1), ex = ax + dx * f - x, ez = az + dz * f - z, d = ex * ex + ez * ez;
+        if (d < dBest) { dBest = d; bBest = B[k] + (B[k + 1] - B[k]) * f; }
+      }
+      const d = Math.sqrt(dBest), W = S.W, bank = S.bank; if (d > W + bank) return h; this.lastCarve = d < W + bank * 0.7;
+      const bed = bBest - 0.6 * (1 - smoothstep(0, W, d));      // a slightly rounded bed
+      return Math.min(h, bed + (h - bed) * smoothstep(W * 0.6, W + bank, d) * smoothstep(W * 0.6, W + bank, d) + (d < W ? 0 : 0));
+    }
+    streamDist(x, z) {   // distance to the stream line (for sound), 1e9 when there is none
+      const S = this.stream; if (!S) return 1e9; let best = 1e9;
+      for (let k = 0; k < S.x.length; k += 2) { const dx = S.x[k] - x, dz = S.z[k] - z; best = Math.min(best, dx * dx + dz * dz); }
+      return Math.sqrt(best);
     }
 
     _zones() {

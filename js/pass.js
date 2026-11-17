@@ -663,6 +663,89 @@
     this.snowBridges = nB;
   };
 
+
+  /* the mountain stream: stone arch bridge carrying the road, flowing water with white water on the cascades, rocks and ferns on the banks */
+  AX.World.prototype._passStream = function (blds, rng, q) {
+    const t = this.track, S = t.stream, sc = this.scene, an = this.aniso; if (!S) return;
+    const i = S.idx, T = new THREE.Vector3(Math.cos(t.yaw[i]), 0, Math.sin(t.yaw[i])), Nn = new THREE.Vector3(t.nx[i], 0, t.nz[i]), UP = new THREE.Vector3(0, 1, 0);
+    const O = new THREE.Vector3(t.px[i], t.py[i], t.pz[i]), drop = S.hRoad - S.b[S.x.length >> 1];
+    const stone = new THREE.MeshStandardMaterial({ map: PK ? ptex('wall', 'a', an, [1 / 3.2, 1 / 1.6]) : null, color: PK ? lin(0xb8b2a8) : lin(0x8f8a82), roughness: 0.95, side: THREE.DoubleSide });
+    const capM = new THREE.MeshStandardMaterial({ color: lin(0xcdc8be), roughness: 0.95 });
+    const R = 3.3, base = -5.6, spring = -4.3;            // arch radius, footing and springing line below the road
+    for (const s of [0, 1]) {
+      const sg = s ? 1 : -1, lat = t.bar[s][i] + 0.2;
+      // arch face: wall with a round-headed opening, extruded outwards
+      const sh = new THREE.Shape(); sh.moveTo(-12, base); sh.lineTo(12, base); sh.lineTo(12, 0.02); sh.lineTo(-12, 0.02); sh.lineTo(-12, base);
+      const hole = new THREE.Path(); hole.moveTo(-R, base + 0.3); hole.lineTo(-R, spring); hole.absarc(0, spring, R, Math.PI, 0, true); hole.lineTo(R, base + 0.3); hole.lineTo(-R, base + 0.3); sh.holes.push(hole);
+      const g = new THREE.ExtrudeGeometry(sh, { depth: 0.55, bevelEnabled: false, curveSegments: 20 });
+      const Z = Nn.clone().multiplyScalar(sg), Mx = new THREE.Matrix4().makeBasis(T, UP, Z).setPosition(O.clone().addScaledVector(Z, lat));
+      g.applyMatrix4(Mx); g.computeVertexNormals();
+      const m = new THREE.Mesh(g, stone); m.castShadow = true; m.receiveShadow = true; sc.add(m);
+      // parapet with coping
+      const pg = new THREE.BoxGeometry(24, 1.0, 0.45); pg.translate(0, 0.5, 0.22); pg.applyMatrix4(Mx);
+      const pm = new THREE.Mesh(pg, stone); pm.castShadow = true; pm.receiveShadow = true; sc.add(pm);
+      const cg = new THREE.BoxGeometry(24.2, 0.12, 0.6); cg.translate(0, 1.06, 0.22); cg.applyMatrix4(Mx); const cm = new THREE.Mesh(cg, capM); cm.castShadow = true; sc.add(cm);
+    }
+    // the vault under the road
+    {
+      const L0 = -(t.bar[0][i] + 0.2), L1 = t.bar[1][i] + 0.2, P = [], idx = [], seg = 20;
+      for (let k = 0; k <= seg; k++) {
+        const a = Math.PI * k / seg, u = Math.cos(a) * R, v = spring + Math.sin(a) * R;
+        for (const L of [L0, L1]) { const p = O.clone().addScaledVector(T, u).addScaledVector(UP, v).addScaledVector(Nn, L); P.push(p.x, p.y, p.z); }
+        if (k) { const a0 = (k - 1) * 2, a1 = k * 2; idx.push(a0, a0 + 1, a1, a1, a0 + 1, a1 + 1); }
+      }
+      for (const side of [-1, 1]) for (const L of [L0, L1]) { const p = O.clone().addScaledVector(T, side * R).addScaledVector(UP, base); P.push(p.x, p.y, p.z); }
+      const n0 = (seg + 1) * 2; idx.push(0, 1, n0 + 2, n0 + 2, 1, n0 + 3); idx.push(seg * 2, seg * 2 + 1, n0, n0, seg * 2 + 1, n0 + 1);
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setIndex(idx); g.computeVertexNormals();
+      const vm = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: lin(0x6f6a62), roughness: 1, side: THREE.DoubleSide })); vm.receiveShadow = true; sc.add(vm);
+    }
+    // water ribbon following the bed, with foam on the steep cascades
+    {
+      const X = S.x, Zz = S.z, B = S.b, n = X.length, P = [], UV = [], F = [], idx = []; let acc = 0;
+      for (let k = 0; k < n; k++) {
+        const k0 = Math.max(0, k - 1), k1 = Math.min(n - 1, k + 1), dx = X[k1] - X[k0], dz = Zz[k1] - Zz[k0], l = Math.hypot(dx, dz) || 1, px2 = -dz / l, pz2 = dx / l;
+        const slope = (B[k0] - B[k1]) / l, wW = S.W * (0.8 + 0.25 * Math.sin(k * 0.7)), y = B[k] + 0.32;
+        if (k) acc += Math.hypot(X[k] - X[k - 1], Zz[k] - Zz[k - 1]);
+        P.push(X[k] - px2 * wW, y, Zz[k] - pz2 * wW, X[k] + px2 * wW, y, Zz[k] + pz2 * wW); UV.push(0, acc / 5, 1, acc / 5); const f = clamp((slope - 0.06) * 6, 0, 1); F.push(f, f);
+        if (k) { const a = (k - 1) * 2, b = k * 2; idx.push(a, b, a + 1, a + 1, b, b + 1); }
+      }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); g.setAttribute('aFoam', new THREE.Float32BufferAttribute(F, 1)); g.setIndex(idx); g.computeVertexNormals();
+      AX.windT = AX.windT || { value: 0 };
+      const wm = new THREE.MeshStandardMaterial({ color: lin(0x2f7486), roughness: 0.12, metalness: 0.1, transparent: true, opacity: 0.9, envMap: this.env, envMapIntensity: 1.2, side: THREE.DoubleSide });
+      wm.onBeforeCompile = (sh) => {
+        sh.uniforms.uT = AX.windT;
+        sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aFoam; varying float vFoam; varying vec2 vUv2;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvFoam = aFoam; vUv2 = uv;');
+        sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uT; varying float vFoam; varying vec2 vUv2;\nfloat wh(vec2 p){ return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }\nfloat wn(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(wh(i), wh(i + vec2(1, 0)), f.x), mix(wh(i + vec2(0, 1)), wh(i + vec2(1, 1)), f.x), f.y); }')
+          .replace('#include <color_fragment>', `#include <color_fragment>
+            vec2 fu = vec2(vUv2.x * 5.0, vUv2.y * 3.0 - uT * (1.6 + vFoam * 3.0));
+            float streak = smoothstep(0.62, 0.95, wn(fu) * 0.7 + wn(fu * 2.3 + 4.0) * 0.3);
+            float edge = smoothstep(0.18, 0.0, min(vUv2.x, 1.0 - vUv2.x));
+            float foam = clamp(streak * (0.12 + vFoam * 0.8) + edge * 0.45 + vFoam * 0.5 * wn(fu * 1.7), 0.0, 1.0);
+            diffuseColor.rgb *= 0.85 + 0.3 * wn(fu * 0.6);
+            diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.92, 0.96, 0.98), foam); diffuseColor.a = mix(diffuseColor.a, 1.0, foam);`)
+          .replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\nnormal = normalize(normal + vec3(wn(vUv2 * 9.0 - uT) - 0.5, 0.0, wn(vUv2 * 9.0 + 3.0 - uT) - 0.5) * 0.35);');
+      };
+      wm.customProgramCacheKey = () => 'apex-water';
+      const m = new THREE.Mesh(g, wm); m.receiveShadow = true; m.renderOrder = 2; sc.add(m);
+    }
+    // rocks in and along the bed, ferns and bushes on the banks
+    if (AX.Assets.has('kaykit/Rock_1_G')) {
+      const rk = ['kaykit/Rock_1_G', 'kaykit/Rock_1_H', 'kaykit/Rock_3_E', 'kaykit/Rock_3_G', 'kaykit/Rock_1_J'], fern = ['kaykit/Bush_4_B', 'kaykit/Bush_1_C', 'kaykit/Grass_2_B'];
+      const kt = (m) => { m.roughness = 1; m.metalness = 0; };
+      for (let k = 0; k < S.x.length; k++) {
+        if (Math.hypot(S.x[k] - t.px[i], S.z[k] - t.pz[i]) < 11) continue;
+        for (let r = 0; r < 3; r++) {
+          const off = rng.range(-1, 1) * (S.W + 3), k1 = Math.min(S.x.length - 1, k + 1), dx = S.x[k1] - S.x[k], dz = S.z[k1] - S.z[k], l = Math.hypot(dx, dz) || 1;
+          const x = S.x[k] - dz / l * off + rng.range(-2, 2), z = S.z[k] + dx / l * off + rng.range(-2, 2), y = this.heightAt(x, z);
+          if (Math.abs(off) < S.W) { if (rng() < 0.5) this.ms(rk[rng.int(0, 4)], { tint: kt }).add(x, Math.max(y, S.b[k]) - 0.3, z, rng() * 6.28, rng.range(0.5, 1.3), null, '#cfc9be'); }
+          else if (rng() < 0.6) this.ms(fern[rng.int(0, 2)], { tint: kt }).add(x, y - 0.1, z, rng() * 6.28, rng.range(0.8, 1.4), null, '#b9d39a');
+        }
+      }
+    }
+    for (let k = 0; k < S.x.length; k++) blds.push([S.x[k], S.z[k], S.W + 2.5]);
+    this.streamPts = S;
+  };
+
   AX.World.prototype._buildPass = function () {
     const t = this.track, sc = this.scene, th = this.theme, N = t.n, w = t.hw, an = this.aniso, rng = AX.RNG(t.def.seed || 9);
     const q = this.q === 'low' ? 0.4 : this.q === 'medium' ? 0.7 : 1;
@@ -695,7 +778,7 @@
     const fineStep = this.q === 'low' ? 3 : 2.2;
     const self = this, roadSide = (x, z) => { const i = t.nearest(x, z, -1); return [i, t.lateral(i, x, z)]; };
     // terrain right behind a retaining wall sits on the wall top, in front of it at shoulder height
-    const hFine = (x, z) => { const h = t.terrainH(x, z); return t.lastRoadD < 8.6 ? h - 5 : h; };
+    const hFine = (x, z) => { const h = t.terrainH(x, z); return t.lastRoadD < 8.6 && !t.lastCarve ? h - 5 : h; };
     const tm = KK ? rallyTerrainMaterial() : PK ? terrainMaterial(ptex('meadow', 'a', an), ptex('rock', 'a', an), ptex('scree', 'a', an), { grass: ptex('meadow', 'n', an), rock: ptex('rock', 'n', an), scree: ptex('scree', 'n', an) })
       : terrainMaterial(meadowTex(an), rockTex(an), gravelTex2(an)); this.terrainMat = tm;
     const fine = gridMesh(gx0, gz0, gx1, gz1, fineStep, hFine, mat, tint);
@@ -737,10 +820,11 @@
           const span = clamp(Math.min(12.5, tight - start, other * 0.5 + 2), 9.6 - start, 12.5);
           for (let k = 0; k < cols; k++) {
             const lat = start + lats[k] / 12.5 * span, x = t.px[i] + t.nx[i] * sg * lat, z = t.pz[i] + t.nz[i] * sg * lat;
-            const nat = t.terrainH(x, z), f = smoothstep(0, 0.55, lats[k] / 12.5);
+            const nat = t.terrainH(x, z), carved = t.lastCarve, f = smoothstep(0, 0.55, lats[k] / 12.5);
             let y = k === 0 ? h0 : lerp(h0, nat, f);
             if (wall && k > 0) y = Math.max(y, h0 + (nat - h0) * f);
             if (!wall && k === 1) y = Math.min(y, h0 - 0.15);
+            if (carved && nat < y) y = nat;          // the stream's banks open up under the bridge instead of a fill slope
             P.push(x, y, z); UV.push(x / 7, z / 7); this.strip[s].lat[i * cols + k] = lat; this.strip[s].y[i * cols + k] = y;
             const m = mat(x, z, y, 0.9), tn = tint(x, z, y); MAT.push(k === 0 && !wall ? 0.0 : m[0], m[1], k <= 1 && !wall ? 0.5 : m[2]); C.push(tn[0], tn[1], tn[2]);
           }
@@ -975,6 +1059,7 @@
     /* ---- race day: spectators along the barriers at the start and the last stretch, flags, tents, summit hotel and summit cross */
     if (KK) this._passEvent(blds, roadClear, rng, q);
     if (KK) this._passRoadside(blds, roadClear, rng, q, tree);
+    if (KK) this._passStream(blds, rng, q);
 
     /* ---- forest (nature-kit pines near the road, cheap cones further out), boulders, grass tufts */
     const kit = this.kits, pines = [1, 2, 3, 4, 5].map((k) => 'nature/Pine_' + k);

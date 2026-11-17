@@ -116,7 +116,7 @@
       this.dirt = layer('bandpass', 900, 0.8); this.scrape = layer('bandpass', 2600, 1.6); this.crowd = layer('bandpass', 800, 0.5);
       // tyre roar on asphalt, a soft mountain wind bed, and an echo send for rock walls / retaining walls
       this.roll = layer('lowpass', 260, 0.9); this.amb = layer('lowpass', 420, 0.5); this.amb2 = layer('bandpass', 1400, 0.4);
-      this.crowd2 = layer('bandpass', 1900, 0.9);
+      this.crowd2 = layer('bandpass', 1900, 0.9); this.water = layer('bandpass', 1100, 0.35); this.water2 = layer('lowpass', 380, 0.6);
       this.echo = ctx.createDelay(0.5); this.echo.delayTime.value = 0.075; this.echoFb = ctx.createGain(); this.echoFb.gain.value = 0.28; this.echoWet = ctx.createGain(); this.echoWet.gain.value = 0;
       const echoLp = ctx.createBiquadFilter(); echoLp.type = 'lowpass'; echoLp.frequency.value = 2400;
       this.engBus.connect(this.echo); this.echo.connect(echoLp); echoLp.connect(this.echoFb); this.echoFb.connect(this.echo); echoLp.connect(this.echoWet); this.echoWet.connect(this.master);
@@ -168,6 +168,7 @@
       set(this.crowd.g.gain, cr * 0.07 + cr * sp * 0.08, 0.4); set(this.crowd2.g.gain, cr * cr * sp * 0.05, 0.3);
       // rolling tyres, mountain air, echo off nearby walls
       set(this.roll.g.gain, clamp(sp * 1.4, 0, 1) * 0.11 * (s.surf ? 0.4 : 1)); set(this.roll.f.frequency, 160 + sp * 380);
+      const wv = clamp(s.water || 0, 0, 1); set(this.water.g.gain, wv * wv * 0.09, 0.3); set(this.water2.g.gain, wv * wv * 0.07, 0.3); set(this.water.f.frequency, 900 + 300 * Math.sin(t * 2.3) * Math.sin(t * 0.7), 0.1);
       const env = s.ambient == null ? 0 : s.ambient; set(this.amb.g.gain, env * (0.035 + 0.02 * Math.sin(t * 0.37) * Math.sin(t * 0.13)), 0.8); set(this.amb2.g.gain, env * 0.008 * (1 + Math.sin(t * 0.21)), 0.8);
       set(this.echoWet.gain, clamp(s.wall || 0, 0, 1) * 0.42, 0.12); set(this.echo.delayTime, 0.045 + (1 - clamp(s.wall || 0, 0, 1)) * 0.06, 0.2);
       // occasional birds (in the forest) and cowbells (on the meadows), quiet so the engine stays in front
