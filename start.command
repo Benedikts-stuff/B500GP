@@ -3,7 +3,7 @@
 cd "$(dirname "$0")"
 PORT=8642
 if ! lsof -i :$PORT >/dev/null 2>&1; then
-  python3 -m http.server $PORT --bind 127.0.0.1 >/dev/null 2>&1 &
+  python3 serve.py $PORT &
   SERVER=$!
   trap "kill $SERVER 2>/dev/null" EXIT
   sleep 1
