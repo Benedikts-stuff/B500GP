@@ -445,6 +445,23 @@
     }
   };
 
+  /* merge an asset's parts into one BufferGeometry; colour(name) -> THREE.Color multiplies the baked vertex colours */
+  function mergeAsset(name, colour, filter) {
+    const md = AX.Assets && AX.Assets.get(name); if (!md) return null;
+    const list = md.parts.filter((p) => !filter || filter(p.material.name || ''));
+    let n = 0, ni = 0; list.forEach((p) => { n += p.geometry.attributes.position.count; ni += p.geometry.index.count; });
+    if (!n) return null;
+    const P = new Float32Array(n * 3), N = new Float32Array(n * 3), C = new Float32Array(n * 3), I = new Uint32Array(ni); let o = 0, oi = 0;
+    for (const p of list) {
+      const g = p.geometry, c = g.attributes.position.count, cc = colour ? colour(p.material.name || '') : null, gc = g.attributes.color;
+      P.set(g.attributes.position.array, o * 3); N.set(g.attributes.normal.array, o * 3);
+      for (let k = 0; k < c; k++) { const a = gc ? [gc.getX(k), gc.getY(k), gc.getZ(k)] : [1, 1, 1]; C[(o + k) * 3] = a[0] * (cc ? cc.r : 1); C[(o + k) * 3 + 1] = a[1] * (cc ? cc.g : 1); C[(o + k) * 3 + 2] = a[2] * (cc ? cc.b : 1); }
+      const ix = g.index.array; for (let k = 0; k < ix.length; k++) I[oi + k] = ix[k] + o; o += c; oi += ix.length;
+    }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(N, 3)); geo.setAttribute('color', new THREE.BufferAttribute(C, 3)); geo.setIndex(new THREE.BufferAttribute(I, 1));
+    geo.computeBoundingSphere(); return geo;
+  }
+
   function buildRider(spec, rider, mats, numTex, bars) {
     const g = new THREE.Group(); const naked = spec.style.fairing === 'naked';
     const suit = lin(rider.suit), dark = lin(0x16171a), accent = lin(rider.c2), helmetC = lin(rider.helmet);
@@ -457,7 +474,9 @@
     // aero hump on the back (back = local -X after the torso is pitched forward)
     tb.add(loft([{ x: 0.2, y: 0, w: 0.03, ht: 0.02 }, { x: 0.3, y: 0, w: 0.085, ht: 0.06, e: 2.2 }, { x: 0.44, y: 0, w: 0.075, ht: 0.07, e: 2.2 }, { x: 0.53, y: 0, w: 0.03, ht: 0.03 }], 12), M(-0.085, 0, 0, 0, 0, Math.PI / 2), accent);
     tb.add(roundedBox(0.03, 0.2, 0.3, 0.012, 2), M(-0.06, 0.02, 0), dark);
-    const torso = new THREE.Mesh(tb.build(), mats.suit); g.add(torso);
+    const RM = AX.Assets && AX.Assets.has('rider/torso');      // Blender-made rider parts
+    const pick = (n) => /accent/.test(n) ? accent : /dark/.test(n) ? dark : /shell/.test(n) ? helmetC : suit;
+    const torso = new THREE.Mesh(RM ? mergeAsset('rider/torso', pick) : tb.build(), mats.suit); g.add(torso);
     const backNum = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.2), new THREE.MeshBasicMaterial({ map: numTex, transparent: true }));
     backNum.position.set(-0.118, 0.2, 0); backNum.rotation.set(0, -Math.PI / 2, 0); backNum.rotation.z = Math.PI / 2; torso.add(backNum);
     // helmet
@@ -465,12 +484,24 @@
     hb.add(new THREE.SphereGeometry(0.162, 26, 20), M(0, 0, 0, 0, 0, 0, 1.12, 0.98, 0.94), helmetC);
     hb.add(loft([{ x: -0.2, y: 0.03, w: 0.02, ht: 0.01 }, { x: -0.12, y: 0.05, w: 0.07, ht: 0.03 }, { x: 0.0, y: 0.06, w: 0.08, ht: 0.03 }], 10), null, accent);  // spoiler
     hb.add(roundedBox(0.1, 0.07, 0.2, 0.03, 3), M(0.1, -0.075, 0), dark);  // chin bar
-    const helmet = new THREE.Group(); const helmetShell = new THREE.Mesh(hb.build(), mats.gloss); helmet.add(helmetShell);
-    const visor = new THREE.Mesh(new THREE.SphereGeometry(0.1645, 22, 12, -0.95, 1.9, 1.12, 0.6), mats.visor); visor.rotation.y = Math.PI; visor.scale.set(1.12, 0.98, 0.94); helmet.add(visor);
+    const helmet = new THREE.Group();
+    if (RM) {
+      helmet.add(new THREE.Mesh(mergeAsset('rider/helmet', pick, (n) => !/visor/.test(n)), mats.gloss));
+      helmet.add(new THREE.Mesh(mergeAsset('rider/helmet', null, (n) => /visor/.test(n)), mats.visor));
+    } else {
+      helmet.add(new THREE.Mesh(hb.build(), mats.gloss));
+      const visor = new THREE.Mesh(new THREE.SphereGeometry(0.1645, 22, 12, -0.95, 1.9, 1.12, 0.6), mats.visor); visor.rotation.y = Math.PI; visor.scale.set(1.12, 0.98, 0.94); helmet.add(visor);
+    }
     g.add(helmet);
     // limbs: tapered cylinders (unit length along +Y) + joint spheres
     // limbs + joints are drawn through AX.RiderBatch (a few InstancedMeshes shared by every rider); these meshes only carry the pose
-    const limb = (r0, r1, col) => { const key = 'cyl:' + r0 + ':' + r1; const m = new THREE.Mesh(RB.geo(key, () => cylGeo(r0, r1)), mats.suit); m.userData.rb = { key, col }; g.add(m); return m; };
+    const LIMB = { '0.074:0.062': 'uparm', '0.062:0.05': 'foarm', '0.104:0.08': 'thigh', '0.078:0.06': 'shin' };
+    const limb = (r0, r1, col) => {
+      const lm = RM && LIMB[r0 + ':' + r1], key = lm ? 'rider:' + lm : 'cyl:' + r0 + ':' + r1;
+      const m = new THREE.Mesh(RB.geo(key, () => lm ? mergeAsset('rider/' + lm, null, (n) => !/dark/.test(n)) : cylGeo(r0, r1)), mats.suit); m.userData.rb = { key, col }; g.add(m);
+      // boots and gloves: their own instances (always dark), riding along as children of the limb
+      if (lm && (lm === 'shin' || lm === 'foarm')) { const dk = 'rider:' + lm + ':dark', c = new THREE.Mesh(RB.geo(dk, () => mergeAsset('rider/' + lm, null, (n) => /dark/.test(n))), mats.suit); c.userData.rb = { key: dk, col: lm === 'shin' ? 0x1b1c20 : 0x222327 }; m.add(c); }
+      return m; };
     const ball = (r, col, sx, sy, sz) => { const m = new THREE.Mesh(RB.geo('sph', sphGeo), mats.suit); m.userData.rb = { key: 'sph', col, scale: new THREE.Matrix4().makeScale(r * (sx || 1), r * (sy || 1), r * (sz || 1)) }; g.add(m); return m; };
     const parts = { arms: [], legs: [] };
     for (let s = 0; s < 2; s++) {

@@ -284,10 +284,13 @@ for asm, L in ASM.items():
     if asm == 'wheelF': shift = -V(HX, RF, 0)
     if asm == 'wheelR': shift = -V(-HX, RR, 0)
     for o in L: o.location = shift
-    for o in scene.objects: o.select_set(False)
+    for sc2 in bpy.data.scenes:
+        for o in sc2.objects:
+            try: o.select_set(False)
+            except Exception: pass
     for o in L: o.select_set(True)
     vl.objects.active = L[0]
-    bpy.ops.export_scene.gltf(filepath=OUT + 'bike_strada_' + asm + '.glb', export_format='GLB', use_selection=True, export_apply=True,
+    bpy.ops.export_scene.gltf(filepath=OUT + 'bike_strada_' + asm + '.glb', export_format='GLB', use_selection=True, use_active_scene=True, export_apply=True,
                               export_vertex_color='ACTIVE', export_yup=True, export_normals=True, export_texcoords=False, export_materials='EXPORT')
     for o in L: o.location = (0, 0, 0)
     res[asm] = sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in L)
