@@ -114,6 +114,13 @@
       const layer = (type, f, q, dest) => { const s = ctx.createBufferSource(); s.buffer = nb; s.loop = true; s.playbackRate.value = 0.9 + Math.random() * 0.2; const fl = ctx.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const g = ctx.createGain(); g.gain.value = 0; s.connect(fl); fl.connect(g); g.connect(dest || this.fxBus); s.start(); return { f: fl, g }; };
       this.wind = layer('bandpass', 700, 0.6); this.squeal = layer('bandpass', 1900, 7); this.squeal2 = layer('bandpass', 2850, 9); this.scrub = layer('lowpass', 520, 0.7);
       this.dirt = layer('bandpass', 900, 0.8); this.scrape = layer('bandpass', 2600, 1.6); this.crowd = layer('bandpass', 800, 0.5);
+      // tyre roar on asphalt, a soft mountain wind bed, and an echo send for rock walls / retaining walls
+      this.roll = layer('lowpass', 260, 0.9); this.amb = layer('lowpass', 420, 0.5); this.amb2 = layer('bandpass', 1400, 0.4);
+      this.crowd2 = layer('bandpass', 1900, 0.9);
+      this.echo = ctx.createDelay(0.5); this.echo.delayTime.value = 0.075; this.echoFb = ctx.createGain(); this.echoFb.gain.value = 0.28; this.echoWet = ctx.createGain(); this.echoWet.gain.value = 0;
+      const echoLp = ctx.createBiquadFilter(); echoLp.type = 'lowpass'; echoLp.frequency.value = 2400;
+      this.engBus.connect(this.echo); this.echo.connect(echoLp); echoLp.connect(this.echoFb); this.echoFb.connect(this.echo); echoLp.connect(this.echoWet); this.echoWet.connect(this.master);
+      this.birdT = 2 + Math.random() * 3; this.bellT = 6 + Math.random() * 8; this.cheerT = 0;
       // kerb rumble: low noise chopped by the kerb teeth
       this.kerb = layer('lowpass', 210, 1.2); this.kerbChop = ctx.createGain(); this.kerbChop.gain.value = 0; this.kerb.g.disconnect(); this.kerb.g.connect(this.kerbChop); this.kerbChop.connect(this.fxBus); this.kerb.g.gain.value = 1;
       this.kerbOsc = ctx.createOscillator(); this.kerbOsc.type = 'square'; this.kerbOsc.frequency.value = 12; this.kerbDepth = ctx.createGain(); this.kerbDepth.gain.value = 0; this.kerbOsc.connect(this.kerbDepth); this.kerbDepth.connect(this.kerbChop.gain); this.kerbOsc.start();
@@ -157,7 +164,41 @@
       set(this.dirt.g.gain, off * clamp(sp * 3, 0, 1) * 0.42); set(this.dirt.f.frequency, s.surf === AX.SURF.GRAVEL ? 1500 : 480);
       set(this.scrape.g.gain, clamp(s.scrape || 0, 0, 1) * 0.3, 0.03);
       const kb = clamp(s.kerb || 0, 0, 1); set(this.kerbChop.gain, kb * 0.35, 0.02); set(this.kerbDepth.gain, kb * 0.35, 0.02); this.kerbOsc.frequency.setTargetAtTime(clamp((s.speed || 0) / 2.2, 4, 60), t, 0.03);
-      set(this.crowd.g.gain, clamp(s.crowd || 0, 0, 1) * 0.07, 0.4);
+      const cr = clamp(s.crowd || 0, 0, 1);
+      set(this.crowd.g.gain, cr * 0.07 + cr * sp * 0.08, 0.4); set(this.crowd2.g.gain, cr * cr * sp * 0.05, 0.3);
+      // rolling tyres, mountain air, echo off nearby walls
+      set(this.roll.g.gain, clamp(sp * 1.4, 0, 1) * 0.11 * (s.surf ? 0.4 : 1)); set(this.roll.f.frequency, 160 + sp * 380);
+      const env = s.ambient == null ? 0 : s.ambient; set(this.amb.g.gain, env * (0.035 + 0.02 * Math.sin(t * 0.37) * Math.sin(t * 0.13)), 0.8); set(this.amb2.g.gain, env * 0.008 * (1 + Math.sin(t * 0.21)), 0.8);
+      set(this.echoWet.gain, clamp(s.wall || 0, 0, 1) * 0.42, 0.12); set(this.echo.delayTime, 0.045 + (1 - clamp(s.wall || 0, 0, 1)) * 0.06, 0.2);
+      // occasional birds (in the forest) and cowbells (on the meadows), quiet so the engine stays in front
+      if (env > 0) {
+        this.birdT -= dt; this.bellT -= dt;
+        if (this.birdT < 0) { this.birdT = 1.5 + Math.random() * 5; if ((s.forest || 0) > Math.random()) this.bird(env); }
+        if (this.bellT < 0) { this.bellT = 4 + Math.random() * 9; if ((s.meadow || 0) > Math.random()) this.cowbell(env); }
+      }
+      // cheer when the player flashes past a crowd
+      this.cheerT -= dt; if (cr > 0.45 && sp > 0.35 && this.cheerT < 0) { this.cheerT = 2.5 + Math.random() * 2; this.burst(1.4, 1300, 2200, 0.05 * cr, 0.7); this.burst(1.1, 900, 1600, 0.04 * cr, 0.9); }
+    }
+    bird(k) {
+      if (!this.ctx) return; const t0 = this.ctx.currentTime, n = 2 + Math.floor(Math.random() * 4), base = 2600 + Math.random() * 1800, pan = this.ctx.createStereoPanner(); pan.pan.value = Math.random() * 1.6 - 0.8; pan.connect(this.fxBus); pan.connect(this.rev);
+      for (let i = 0; i < n; i++) {
+        const o = this.ctx.createOscillator(), g = this.ctx.createGain(), ts = t0 + i * (0.09 + Math.random() * 0.05), d = 0.05 + Math.random() * 0.05;
+        o.type = 'sine'; o.frequency.setValueAtTime(base * (1 + Math.random() * 0.15), ts); o.frequency.exponentialRampToValueAtTime(base * (0.75 + Math.random() * 0.5), ts + d);
+        g.gain.setValueAtTime(0, ts); g.gain.linearRampToValueAtTime(0.012 * k, ts + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, ts + d);
+        o.connect(g); g.connect(pan); o.start(ts); o.stop(ts + d + 0.02);
+      }
+    }
+    cowbell(k) {
+      if (!this.ctx) return; const t0 = this.ctx.currentTime, pan = this.ctx.createStereoPanner(); pan.pan.value = Math.random() * 1.4 - 0.7; pan.connect(this.fxBus); pan.connect(this.rev);
+      const hits = 1 + Math.floor(Math.random() * 3), f = 520 + Math.random() * 180;
+      for (let h = 0; h < hits; h++) {
+        const ts = t0 + h * (0.35 + Math.random() * 0.3);
+        for (const [mul, amp] of [[1, 1], [2.4, 0.55], [3.9, 0.3], [5.3, 0.15]]) {      // inharmonic partials of a bell
+          const o = this.ctx.createOscillator(), g = this.ctx.createGain(); o.type = 'sine'; o.frequency.value = f * mul;
+          g.gain.setValueAtTime(0, ts); g.gain.linearRampToValueAtTime(0.009 * amp * k, ts + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, ts + 0.9 / mul + 0.25);
+          o.connect(g); g.connect(pan); o.start(ts); o.stop(ts + 1.3);
+        }
+      }
     }
 
     tone(freq, dur, vol, type) {

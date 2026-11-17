@@ -522,8 +522,21 @@
     others.sort((a, b) => a.dist - b.dist); others.length = Math.min(others.length, 3);
     const f = p.fx, t = G.track; const nearPit = p.idx > t.pitFrom || p.idx < t.pitTo ? 1 : 0.25;
     sound.update(dt, { player: { rpm: p.rpm, thr: p.crashed ? 0 : p.throttle, cut: p.limiter || (p.shiftT > 0 && p.shiftDir > 0), pop: G.pop || 0, spec: p.spec, vol: 0.8 }, others, speed: p.speed, vmax: p.spec.dragTop,
-      squeal: p.crashed ? 0 : f.squeal, skid: p.crashed ? 0 : Math.max(f.rearSkid, f.frontSkid), kerb: p.crashed ? 0 : f.kerb, surf: p.surf, scrape: f.scrape ? clamp(p.speed / 15, 0.2, 1) : 0, crowd: nearPit });
+      squeal: p.crashed ? 0 : f.squeal, skid: p.crashed ? 0 : Math.max(f.rearSkid, f.frontSkid), kerb: p.crashed ? 0 : f.kerb, surf: p.surf, scrape: f.scrape ? clamp(p.speed / 15, 0.2, 1) : 0, crowd: t.open ? passCrowd(p) : nearPit, ...(t.open ? passEnv(p) : {}) });
     G.pop = 0;
+  }
+
+  /* pass ambience: crowd near the spectators, echo next to walls, birds in the forest, cowbells on the meadows */
+  function passCrowd(p) {
+    const W = G.world, pts = W && W.crowdPts; if (!pts || !pts.length) return 0; let best = 1e9;
+    for (let k = 0; k < pts.length; k += 2) { const dx = pts[k] - p.x, dz = pts[k + 1] - p.z, d = dx * dx + dz * dz; if (d < best) best = d; }
+    return AX.clamp(1 - Math.sqrt(best) / 45, 0, 1);
+  }
+  function passEnv(p) {
+    const t = G.track, i = p.idx, lat = t.lateral(i, p.x, p.z); let wall = 0;
+    for (const s of [0, 1]) if (t.barType[s][i] === 2) { const d = t.bar[s][i] - (s ? lat : -lat); wall = Math.max(wall, AX.clamp(1 - d / 6, 0, 1) * AX.clamp(t.wallH[s][i] / 2, 0.4, 1)); }
+    const yMax = t.py[t.finishIdx] || 0, alt = AX.clamp((p.y - t.py[0]) / Math.max(1, yMax - t.py[0]), 0, 1);
+    return { wall, ambient: 1, forest: 0.7 * (1 - alt), meadow: 0.25 + 0.6 * alt };
   }
 
   /* ------------------------------------------------------------------ boot */

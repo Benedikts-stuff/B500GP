@@ -387,6 +387,7 @@
         const ry = Math.atan2(-(t.pz[i] - z), t.px[i] - x) + rng.range(-0.5, 0.5), h = rng.range(0.92, 1.08);
         bodyS.add(x, y - 0.03, z, ry, h, h, h, rng.pick(shirts)); restS.add(x, y - 0.03, z, ry, h, h, h); nSpec++;
         if (nSpec % 4 === 0) blds.push([x, z, 1.2]);
+        if (nSpec % 3 === 0) { (this.crowdPts = this.crowdPts || []).push(x, z); }
       }
     };
     const sI = t.startIdx, fI = t.finishIdx;
