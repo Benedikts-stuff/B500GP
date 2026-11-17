@@ -347,9 +347,9 @@
     const wheelR = new THREE.Mesh(wheelGeometry(Rr, wR, RIMS[spec.id] || 0x222, true), mats.gloss); wheelR.position.set(-hx, Rr, 0); bodyG.add(wheelR);
 
     // ---- Blender superbike (faired bikes): swap the procedural parts for the modelled ones, keep the rig
-    const BMOD = !naked && AX.Assets && AX.Assets.has('bike/strada_body');
+    const BV = naked ? 'duetto' : 'strada', BWB = naked ? 1.42 : 1.45, BMOD = !!(AX.Assets && AX.Assets.has('bike/' + BV + '_body'));
     if (BMOD) {
-      const sx = wb / 1.45, Sx = new THREE.Matrix4().makeScale(sx, 1, 1);
+      const sx = wb / BWB, Sx = new THREE.Matrix4().makeScale(sx, 1, 1);
       paint.vertexColors = true;
       const catMat = (n) => /^P_/.test(n) ? paint : /^X_/.test(n) ? mats.metal : /^G_/.test(n) ? mats.gloss : /^S_/.test(n) ? mats.screen : mats.matte;
       const merged = (name, pre) => {
@@ -368,16 +368,16 @@
       };
       for (const c of susG.children.slice()) if (c.isMesh && c !== brakeLight) susG.remove(c);
       for (const c of steerG.children.slice()) if (c.isMesh) steerG.remove(c);
-      merged('bike/strada_body', Sx).forEach((m) => susG.add(m));
-      merged('bike/strada_front', new THREE.Matrix4().multiplyMatrices(inv, Sx)).forEach((m) => steerG.add(m));
-      for (const [w, nm] of [[wheelF, 'bike/strada_wheelF'], [wheelR, 'bike/strada_wheelR']]) { w.geometry = new THREE.BufferGeometry(); merged(nm).forEach((m) => w.add(m)); }
-      brakeLight.position.set(-0.812 * sx, 0.995, 0); brakeLight.scale.set(1, 0.8, 0.85);
+      merged('bike/' + BV + '_body', Sx).forEach((m) => susG.add(m));
+      merged('bike/' + BV + '_front', new THREE.Matrix4().multiplyMatrices(inv, Sx)).forEach((m) => steerG.add(m));
+      for (const [w, nm] of [[wheelF, 'bike/' + BV + '_wheelF'], [wheelR, 'bike/' + BV + '_wheelR']]) { w.geometry = new THREE.BufferGeometry(); merged(nm).forEach((m) => w.add(m)); }
+      brakeLight.position.set((naked ? -0.727 : -0.812) * sx, naked ? 0.912 : 0.995, 0); brakeLight.scale.set(1, 0.8, 0.85);
     }
 
     // number roundels on the tail sides
     const numTex = numberTexture(rider.num, rider.c3 === '#ffffff' ? '#ffffff' : '#f4f4f0', '#111111');
     const numMat = new THREE.MeshBasicMaterial({ map: numTex, transparent: true, toneMapped: true });
-    for (const z of [-1, 1]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.15), numMat); m.position.set(BMOD ? -0.5 * wb / 1.45 : -0.5, BMOD ? 0.875 : 0.86 + tH * 0.5, z * (BMOD ? 0.137 : 0.128)); m.rotation.y = z > 0 ? 0 : Math.PI; m.rotation.x = z * -0.25; susG.add(m); }
+    for (const z of [-1, 1]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.15), numMat); m.position.set(BMOD ? -0.5 * wb / BWB : -0.5, BMOD ? (naked ? 0.85 : 0.875) : 0.86 + tH * 0.5, z * (BMOD ? (naked ? 0.108 : 0.137) : 0.128)); m.rotation.y = z > 0 ? 0 : Math.PI; m.rotation.x = z * -0.25; susG.add(m); }
 
     // ---- rider
     const riderRig = buildRider(spec, rider, mats, numTex, { barX, barY, barZ });
