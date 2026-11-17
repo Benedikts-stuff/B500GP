@@ -564,6 +564,105 @@
     for (const i of [a, b]) ribbon(() => [[back(i) + 0.4, H + T + 0.02], [-front(i) - 0.35, H + T + 0.02]], concrete, i, i);
   };
 
+
+  /* roadside life: worn wheel tracks and patches on the asphalt, delineator posts, postbus stops, kilometre stones,
+     avalanche barriers high on the slopes and a wooden power line along the lower valley road */
+  AX.World.prototype._passRoadside = function (blds, roadClear, rng, q, tree) {
+    const t = this.track, sc = this.scene, N = t.n, w = t.hw;
+    const lin2 = (h) => new THREE.Color(h).convertSRGBToLinear();
+    const soft = W.canvasTex(64, 64, (g, cw, ch) => { const gr = g.createLinearGradient(0, 0, cw, 0); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(0.25, 'rgba(255,255,255,1)'); gr.addColorStop(0.75, 'rgba(255,255,255,1)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, cw, ch); });
+    // worn wheel tracks in both lanes (darker, polished)
+    const nz = (i, k) => 0.5 + 0.5 * Math.sin(i * 0.031 + k) * Math.sin(i * 0.013 + k * 2.1);
+    for (const [c, k] of [[-2.3, 1], [-1.2, 2], [1.2, 3], [2.3, 4]]) {
+      const m = new THREE.Mesh(rib(t, () => c - 0.45, () => c + 0.45, { yA: () => 0.0215, alpha: (i) => 0.1 + 0.12 * nz(i, k), vLen: 6 }), W.decalMaterial(soft, lin2(0x1a1c20), -1));
+      m.renderOrder = 1; sc.add(m);
+    }
+    // repaired patches and sealed cracks
+    const patchMat = W.decalMaterial(soft, lin2(0x2a2c31), -1), crackTex = W.canvasTex(256, 64, (g, cw, ch) => { g.clearRect(0, 0, cw, ch); g.strokeStyle = 'rgba(255,255,255,1)'; g.lineWidth = 3;
+      for (let k = 0; k < 3; k++) { g.beginPath(); let y = ch * (0.2 + 0.3 * k); g.moveTo(0, y); for (let x = 0; x <= cw; x += 16) { y += (Math.sin(x * 0.11 + k * 3) + Math.sin(x * 0.037 + k)) * 3; g.lineTo(x, Math.max(4, Math.min(ch - 4, y))); } g.stroke(); } });
+    const crackMat = W.decalMaterial(crackTex, lin2(0x101114), -1);
+    for (let n = 0; n < 60; n++) {
+      const i0 = rng.int(20, N - 40), L = rng.int(5, 18), c = rng.range(-w + 1, w - 1), hw2 = rng.range(0.6, 1.6), cr = rng() < 0.4;
+      const m = new THREE.Mesh(rib(t, () => c - hw2, () => c + hw2, { yA: () => 0.0218, alpha: () => cr ? 0.55 : 0.45, cond: (i) => i >= i0 && i <= i0 + L, vLen: cr ? L : 30 }), cr ? crackMat : patchMat);
+      m.renderOrder = 1; sc.add(m);
+    }
+
+    // delineator posts on the open (valley) side
+    const dg = new GeoBuilder(); dg.add(roundedBox(0.11, 1.0, 0.13, 0.03, 1), M(0, 0.5, 0), 0xf2f2ee); dg.add(roundedBox(0.115, 0.2, 0.135, 0.02, 1), M(0, 0.88, 0), 0x17181b); dg.add(roundedBox(0.02, 0.12, 0.06, 0.01, 1), M(-0.06, 0.78, 0), 0xf29a1a);
+    const posts = new W.Scatter(dg.build(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6 }), 1e6);
+    for (let i = 10; i < N - 10; i += 25) for (const s of [0, 1]) {
+      if (t.barType[s][i] === 2) continue; const sg = s ? 1 : -1, d = t.bar[s][i] + 0.45, x = t.px[i] + t.nx[i] * sg * d, z = t.pz[i] + t.nz[i] * sg * d;
+      posts.add(x, this.heightAt(x, z) - 0.05, z, -t.yaw[i] + (s ? Math.PI / 2 : -Math.PI / 2));
+    }
+    posts.build(sc, true, false);
+
+    // kilometre stones every 500 m
+    const ks = new GeoBuilder(); ks.add(roundedBox(0.28, 0.5, 0.2, 0.06, 2), M(0, 0.25, 0), 0xe9e6de); ks.add(roundedBox(0.29, 0.1, 0.21, 0.04, 2), M(0, 0.47, 0), 0xc8281e);
+    const kst = new W.Scatter(ks.build(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 }), 1e6);
+    for (let i = 60; i < N - 20; i += 500) { const s = t.barType[1][i] === 2 ? 0 : 1, sg = s ? 1 : -1, d = t.bar[s][i] + 0.8, x = t.px[i] + t.nx[i] * sg * d, z = t.pz[i] + t.nz[i] * sg * d; kst.add(x, this.heightAt(x, z) - 0.05, z, -t.yaw[i] + Math.PI / 2); }
+    kst.build(sc, true, false);
+
+    // postbus stops: yellow sign and a small wooden shelter
+    const pbSign = W.canvasTex(128, 128, (g, cw, ch) => { g.fillStyle = '#f7c600'; g.fillRect(0, 0, cw, ch); g.strokeStyle = '#111'; g.lineWidth = 9; g.beginPath(); g.arc(cw * 0.42, ch * 0.5, 28, 0.3, Math.PI * 1.7); g.stroke(); g.beginPath(); g.moveTo(cw * 0.62, ch * 0.32); g.lineTo(cw * 0.8, ch * 0.22); g.lineTo(cw * 0.8, ch * 0.42); g.closePath(); g.fillStyle = '#111'; g.fill(); });
+    const woodM = new THREE.MeshStandardMaterial({ color: lin2(0x7a5032), roughness: 0.9 }), roofM = new THREE.MeshStandardMaterial({ color: lin2(0x4b4c52), roughness: 0.8 });
+    for (const i0 of [t.startIdx + 120, Math.round(N * 0.42), t.finishIdx + 30]) {
+      for (let k = 0; k < 60; k++) {
+        const i = Math.min(N - 5, i0 + k * 3), s = t.barType[1][i] === 2 ? 0 : 1; if (t.barType[s][i] === 2) continue;
+        const sg = s ? 1 : -1, d = t.bar[s][i] + 2.2, x = t.px[i] + t.nx[i] * sg * d, z = t.pz[i] + t.nz[i] * sg * d;
+        if (!roadClear(x, z, w + 1.5)) continue; const y = this.heightAt(x, z);
+        const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = -t.yaw[i] + (s ? 0 : Math.PI);
+        for (const [px, pz] of [[-1.3, 0.1], [1.3, 0.1], [-1.3, 1.2], [1.3, 1.2]]) { const p = new THREE.Mesh(new THREE.BoxGeometry(0.12, 2.3, 0.12), woodM); p.position.set(px, 1.15, pz); g.add(p); }
+        const back = new THREE.Mesh(new THREE.BoxGeometry(2.7, 1.8, 0.06), woodM); back.position.set(0, 1.1, 1.25); g.add(back);
+        const roof = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.1, 1.7), roofM); roof.position.set(0, 2.35, 0.65); roof.rotation.x = 0.12; g.add(roof);
+        const bench = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.08, 0.4), woodM); bench.position.set(0, 0.5, 0.95); g.add(bench);
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.6, 8), new THREE.MeshStandardMaterial({ color: lin2(0xb0b4b8), metalness: 0.6, roughness: 0.4 })); pole.position.set(-2.1, 1.3, -0.4); g.add(pole);
+        const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.55), new THREE.MeshStandardMaterial({ map: pbSign, roughness: 0.5, side: THREE.DoubleSide })); sign.position.set(-2.1, 2.35, -0.4); g.add(sign);
+        g.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } }); sc.add(g); blds.push([x, z, 2.5]);
+        break;
+      }
+    }
+
+    // avalanche barriers: rows of steel snow bridges along the contour lines high on the steep slopes
+    const sb = new GeoBuilder(), stl = 0x3a3b3f;
+    for (let k = 0; k < 6; k++) sb.add(new THREE.BoxGeometry(4.0, 0.07, 0.07), M(0, 0.35 + k * 0.5, k * 0.29), stl);       // horizontal bars, leaning uphill (+z)
+    for (const x of [-1.8, 1.8]) { sb.add(new THREE.BoxGeometry(0.1, 3.3, 0.1), M(x, 1.55, 0.75, 0.52, 0, 0), stl); sb.add(new THREE.BoxGeometry(0.08, 2.4, 0.08), M(x, 1.0, -0.4, -0.55, 0, 0), stl); }
+    const snow = new W.Scatter(sb.build(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.4 }), 1e6);
+    let nB = 0;
+    for (let n = 0; n < 4000 && nB < 260 * q; n++) {
+      const i = rng.int(N * 0.45 | 0, N - 20), s = rng.int(0, 1), sg = s ? 1 : -1, d = t.bar[s][i] + rng.range(35, 140);
+      let x = t.px[i] + t.nx[i] * sg * d, z = t.pz[i] + t.nz[i] * sg * d; const y0 = this.heightAt(x, z); if (y0 < tree - 80) continue;
+      const gx = this.heightAt(x + 3, z) - this.heightAt(x - 3, z), gz = this.heightAt(x, z + 3) - this.heightAt(x, z - 3), sl = Math.hypot(gx, gz) / 6; if (sl < 0.55 || sl > 1.4) continue;
+      // a row of 3..7 segments along the contour, 2..3 rows stacked uphill
+      const ux = gx / (sl * 6), uz = gz / (sl * 6), cx2 = -uz, cz2 = ux, rows = rng.int(2, 3), segs = rng.int(3, 7);
+      for (let r = 0; r < rows; r++) for (let k = 0; k < segs; k++) {
+        const xx = x + cx2 * (k - segs / 2) * 4.1 + ux * r * 11, zz = z + cz2 * (k - segs / 2) * 4.1 + uz * r * 11; if (!roadClear(xx, zz, w + 20)) continue;
+        let ry = Math.atan2(-cz2, cx2); if (Math.sin(ry) * ux + Math.cos(ry) * uz < 0) ry += Math.PI;
+        snow.add(xx, this.heightAt(xx, zz) - 0.3, zz, ry); nB++;
+      }
+    }
+    snow.build(sc, true, false);
+
+    // wooden power line along the lower valley road
+    const poleG = new GeoBuilder(); poleG.add(new THREE.CylinderGeometry(0.11, 0.15, 9, 7), M(0, 4.5, 0), 0x6b4e36); poleG.add(new THREE.BoxGeometry(0.14, 0.14, 2.0), M(0, 8.4, 0), 0x5e4430);
+    for (const z of [-0.85, 0, 0.85]) poleG.add(new THREE.CylinderGeometry(0.035, 0.035, 0.16, 6), M(0, 8.55, z), 0xd8dcd6);
+    const poles = new W.Scatter(poleG.build(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 }), 1e6);
+    const wires = new GeoBuilder(); let prev = null; const iEnd = Math.round(N * 0.33);
+    for (let i = 20; i < iEnd; i += 42) {
+      const s = t.barType[0][i] === 2 ? 1 : 0, sg = s ? 1 : -1, d = t.bar[s][i] + 7, x = t.px[i] + t.nx[i] * sg * d, z = t.pz[i] + t.nz[i] * sg * d;
+      if (!roadClear(x, z, w + 4)) { prev = null; continue; }
+      const y = this.heightAt(x, z), ry = -t.yaw[i]; poles.add(x, y - 0.2, z, ry); blds.push([x, z, 1]);
+      const tops = [-0.85, 0, 0.85].map((o) => new THREE.Vector3(x + Math.sin(ry) * o * -1 * 0 + Math.cos(-t.yaw[i] + Math.PI / 2) * o, y + 8.62, z + Math.sin(-(-t.yaw[i] + Math.PI / 2)) * o));
+      if (prev && prev[0].distanceTo(tops[0]) < 80) for (let k = 0; k < 3; k++) {
+        const a = prev[k], b = tops[k], seg = 8; let p0 = a.clone();
+        for (let m = 1; m <= seg; m++) { const f = m / seg, p1 = a.clone().lerp(b, f); p1.y -= Math.sin(f * Math.PI) * 0.9; wires.add(tubeBetween(p0, p1, 0.018, 0.018, 4), null, 0x26272a); p0 = p1; }
+      }
+      prev = tops;
+    }
+    poles.build(sc, true, false);
+    if (wires.build) { const wm = new THREE.Mesh(wires.build(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6 })); wm.castShadow = false; sc.add(wm); }
+    this.snowBridges = nB;
+  };
+
   AX.World.prototype._buildPass = function () {
     const t = this.track, sc = this.scene, th = this.theme, N = t.n, w = t.hw, an = this.aniso, rng = AX.RNG(t.def.seed || 9);
     const q = this.q === 'low' ? 0.4 : this.q === 'medium' ? 0.7 : 1;
@@ -875,6 +974,7 @@
 
     /* ---- race day: spectators along the barriers at the start and the last stretch, flags, tents, summit hotel and summit cross */
     if (KK) this._passEvent(blds, roadClear, rng, q);
+    if (KK) this._passRoadside(blds, roadClear, rng, q, tree);
 
     /* ---- forest (nature-kit pines near the road, cheap cones further out), boulders, grass tufts */
     const kit = this.kits, pines = [1, 2, 3, 4, 5].map((k) => 'nature/Pine_' + k);
@@ -885,6 +985,23 @@
     if (KK) {
       /* ---- KayKit vegetation (Art-of-Rally look): firs in clumps, boulders, rock outcrops on the steep bits, grass clumps along the verges */
       const kt = (mat) => { mat.roughness = 1; mat.metalness = 0; };
+      // wind: the tops of trees, bushes and grass sway (amplitude grows with height above the model's base)
+      AX.windT = AX.windT || { value: 0 };
+      const sway = (amp, key) => (mat) => { kt(mat);
+        mat.onBeforeCompile = (sh) => { sh.uniforms.uWindT = AX.windT; sh.uniforms.uSway = { value: amp };
+          sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uWindT; uniform float uSway;')
+            .replace('#include <begin_vertex>', `#include <begin_vertex>
+              #ifdef USE_INSTANCING
+                vec3 ip = vec3(instanceMatrix[3][0], instanceMatrix[3][1], instanceMatrix[3][2]);
+              #else
+                vec3 ip = vec3(0.0);
+              #endif
+              float hgt = max(position.y, 0.0), ph = ip.x * 0.11 + ip.z * 0.13;
+              float gust = 0.7 + 0.3 * sin(uWindT * 0.31 + ip.x * 0.004);
+              transformed.x += (sin(uWindT * 1.6 + ph) * 0.65 + sin(uWindT * 3.7 + ph * 1.9) * 0.2) * uSway * hgt * hgt * gust;
+              transformed.z += cos(uWindT * 1.25 + ph * 1.3) * 0.45 * uSway * hgt * hgt * gust;`); };
+        mat.customProgramCacheKey = () => 'kk-sway-' + key; };
+      const ktTree = sway(0.0016, 't'), ktGrass = sway(0.16, 'g'), ktBush = sway(0.03, 'b');
       // shorten the bare trunk below the lowest branches (the KayKit firs stand on tall stilts otherwise)
       for (const nm of ['kaykit/Tree_4_A', 'kaykit/Tree_4_B', 'kaykit/Tree_4_C']) {
         const md = AX.Assets.get(nm); if (!md || md._squashed) continue; md._squashed = true;
@@ -907,7 +1024,7 @@
         const ny = Math.abs(this.heightAt(x + 1.5, z) - y) + Math.abs(this.heightAt(x, z + 1.5) - y); if (ny > 1.8) continue;
         const nm = firs[rng.int(0, firs.length - 1)], big = /Tree_4/.test(nm) ? rng.range(1.25, 2.1) : rng.range(1.3, 1.9);
         const ym = Math.min(y, this.heightAt(x + 0.7, z), this.heightAt(x - 0.7, z), this.heightAt(x, z + 0.7), this.heightAt(x, z - 0.7));
-        this.ms(nm, { tint: kt, cell: 220 }).add(x, ym - 0.15, z, rng() * 6.28, big, big * rng.range(0.95, 1.15), firTint());
+        this.ms(nm, { tint: ktTree, cell: 220 }).add(x, ym - 0.15, z, rng() * 6.28, big, big * rng.range(0.95, 1.15), firTint());
         nTrees++;
       }
       // the lower S-bends run through dense forest close to the road: only the next corner is in view
@@ -920,7 +1037,7 @@
           const x = t.px[i0] + t.nx[i0] * sg0 * d0, z = t.pz[i0] + t.nz[i0] * sg0 * d0; if (!roadClear(x, z, w + 2.6) || nearBld(x, z, 2.5)) continue;
           const y = this.heightAt(x, z), ym = Math.min(y, this.heightAt(x + 0.7, z), this.heightAt(x - 0.7, z), this.heightAt(x, z + 0.7), this.heightAt(x, z - 0.7));
           const nm = firs[rng.int(0, firs.length - 1)], big = rng.range(1.3, 2.2);
-          this.ms(nm, { tint: kt, cell: 220 }).add(x, ym - 0.15, z, rng() * 6.28, big, big * rng.range(0.95, 1.15), firTint()); nf++; nTrees++;
+          this.ms(nm, { tint: ktTree, cell: 220 }).add(x, ym - 0.15, z, rng() * 6.28, big, big * rng.range(0.95, 1.15), firTint()); nf++; nTrees++;
         }
       }
       // above the tree line: dwarf firs, juniper-like bushes, grass clumps and loose rocks so the alpine meadow is not bare
@@ -931,10 +1048,10 @@
           const x = t.px[i] + t.nx[i] * sg * d, z = t.pz[i] + t.nz[i] * sg * d; const y = this.heightAt(x, z);
           if (y < tree - 60 || !roadClear(x, z, t.hw + 2.0) || nearBld(x, z, 1.5)) continue;
           const r = rng(), ym = Math.min(y, this.heightAt(x + 0.6, z), this.heightAt(x - 0.6, z), this.heightAt(x, z + 0.6), this.heightAt(x, z - 0.6));
-          if (r < 0.05 && y < tree + 30) { const sc4 = rng.range(0.55, 0.95); this.ms(dw[rng.int(0, 1)], { tint: kt, cell: 220 }).add(x, ym - 0.1, z, rng() * 6.28, sc4, sc4 * rng.range(0.8, 1), firTint()); }
-          else if (r < 0.22) this.ms(bu2[rng.int(0, 2)], { tint: kt }).add(x, ym - 0.1, z, rng() * 6.28, rng.range(0.6, 1.2), null, hsl(0.28, rng.range(0.2, 0.4), rng.range(0.55, 0.75)));
+          if (r < 0.05 && y < tree + 30) { const sc4 = rng.range(0.55, 0.95); this.ms(dw[rng.int(0, 1)], { tint: ktTree, cell: 220 }).add(x, ym - 0.1, z, rng() * 6.28, sc4, sc4 * rng.range(0.8, 1), firTint()); }
+          else if (r < 0.22) this.ms(bu2[rng.int(0, 2)], { tint: ktBush }).add(x, ym - 0.1, z, rng() * 6.28, rng.range(0.6, 1.2), null, hsl(0.28, rng.range(0.2, 0.4), rng.range(0.55, 0.75)));
           else if (r < 0.35) this.ms(rk2[rng.int(0, 3)], { tint: kt }).add(x, ym - 0.2, z, rng() * 6.28, rng.range(0.4, 1.0), null, hsl(0.09, 0.05, rng.range(0.8, 0.95)));
-          else this.ms(gr2[rng.int(0, 2)], { tint: kt, cast: false }).add(x, ym - 0.05, z, rng() * 6.28, rng.range(0.8, 1.4), null, hsl(0.2 + rng.range(-0.03, 0.04), rng.range(0.3, 0.5), rng.range(0.75, 0.92)));
+          else this.ms(gr2[rng.int(0, 2)], { tint: ktGrass, cast: false }).add(x, ym - 0.05, z, rng() * 6.28, rng.range(0.8, 1.4), null, hsl(0.2 + rng.range(-0.03, 0.04), rng.range(0.3, 0.5), rng.range(0.75, 0.92)));
         }
       }
       // a few dead snags near the tree line
@@ -986,8 +1103,8 @@
         const d = t.barType[s][i] === 2 ? t.bar[s][i] + rng.range(1.0, 12) : t.bar[s][i] + rng.range(0.3, 4 + Math.pow(rng(), 2) * 14);
         const x = t.px[i] + t.nx[i] * sg * d, z = t.pz[i] + t.nz[i] * sg * d; if (!roadClear(x, z, w + 1.2)) continue;
         const y = this.heightAt(x, z), r = rng();
-        if (r < 0.88) this.ms(gr[Math.min(4, Math.floor(rng() * 5))], { tint: kt, cast: false }).add(x, y - 0.05, z, rng() * 6.28, rng.range(0.8, 1.5), null, hsl(0.25 + rng.range(-0.03, 0.04), rng.range(0.25, 0.5), rng.range(0.78, 0.95)));
-        else this.ms(bu[rng.int(0, 3)], { tint: kt }).add(x, Math.min(y, this.heightAt(x + 0.8, z), this.heightAt(x - 0.8, z), this.heightAt(x, z + 0.8), this.heightAt(x, z - 0.8)) - 0.1, z, rng() * 6.28, rng.range(0.7, 1.3), null, hsl(0.3, rng.range(0.15, 0.35), rng.range(0.6, 0.8)));
+        if (r < 0.88) this.ms(gr[Math.min(4, Math.floor(rng() * 5))], { tint: ktGrass, cast: false }).add(x, y - 0.05, z, rng() * 6.28, rng.range(0.8, 1.5), null, hsl(0.25 + rng.range(-0.03, 0.04), rng.range(0.25, 0.5), rng.range(0.78, 0.95)));
+        else this.ms(bu[rng.int(0, 3)], { tint: ktBush }).add(x, Math.min(y, this.heightAt(x + 0.8, z), this.heightAt(x - 0.8, z), this.heightAt(x, z + 0.8), this.heightAt(x, z - 0.8)) - 0.1, z, rng() * 6.28, rng.range(0.7, 1.3), null, hsl(0.3, rng.range(0.15, 0.35), rng.range(0.6, 0.8)));
       }
     } else if (kit) {
       for (let n = 0; n < 14000 * q && nTrees < 1050 * q; n++) {

@@ -763,6 +763,7 @@
       const fy = focus.y || 0; s.target.position.set(fx, fy, fz); s.position.set(fx + this.sunDir.x * 260, fy + this.sunDir.y * 260, fz + this.sunDir.z * 260); s.target.updateMatrixWorld();
       this.sky.position.set(focus.x, focus.y || 0, focus.z);
       if (this.clouds) this.clouds.rotation.y = time * 0.0025;
+      if (AX.windT) AX.windT.value = time;
       if (this.passLod) for (let k = 0; k < this.passLod.length; k++) { const l = this.passLod[k]; const dx = l.p.x - focus.x, dy = l.p.y - (focus.y || 0), dz = l.p.z - focus.z; l.obj.visible = dx * dx + dy * dy + dz * dz < l.r * l.r; }
       for (let k = 0; k < this.flags.length; k++) {
         const g = this.flags[k].geometry, p = g.attributes.position;
