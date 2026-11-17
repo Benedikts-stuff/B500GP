@@ -123,13 +123,13 @@
             // projected sampling radius (pixels shrink with distance)
             float sr = rad * P[0][0] / max(0.5, -p.z) * 0.5;
             float occ = 0.0; float ang = fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) * 6.2832;
-            for (int i = 0; i < 12; i++) {
-              float fi = (float(i) + 0.5) / 12.0; float a = ang + fi * 6.2832 * 3.0; vec2 o = vec2(cos(a), sin(a)) * sr * fi;
+            for (int i = 0; i < 10; i++) {
+              float fi = (float(i) + 0.5) / 10.0; float a = ang + fi * 6.2832 * 3.0; vec2 o = vec2(cos(a), sin(a)) * sr * fi;
               vec2 su = vUv + o; float sd = depthAt(su); if (sd >= 0.9999) continue;
               vec3 q = viewPos(su, sd) - p; float l2 = dot(q, q);
               occ += max(0.0, dot(n, q) / sqrt(l2 + 1e-4) - 0.06) * max(0.0, 1.0 - l2 / (rad * rad * 4.0));
             }
-            float a = clamp(1.0 - occ / 12.0 * 2.2, 0.0, 1.0);
+            float a = clamp(1.0 - occ / 10.0 * 2.2, 0.0, 1.0);
             gl_FragColor = vec4(vec3(a), 1.0);
           }` });
       this.mAOBlur = new THREE.ShaderMaterial({ uniforms: { t: { value: null }, d: { value: new THREE.Vector2() } }, vertexShader: vs, depthTest: false, depthWrite: false,

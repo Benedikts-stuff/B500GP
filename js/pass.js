@@ -914,7 +914,7 @@
       {
         const firstHairpin = t.corners.find((c) => c.radius < 30), iEnd = firstHairpin ? firstHairpin.apex - 40 : 600;
         let nf = 0;
-        for (let n = 0; n < 6000 * q && nf < 700 * q; n++) {
+        for (let n = 0; n < 4000 * q && nf < 420 * q; n++) {
           const i0 = rng.int(0, iEnd), s0 = rng.int(0, 1), sg0 = s0 ? 1 : -1, wall = t.barType[s0][i0] === 2;
           const d0 = (wall ? t.bar[s0][i0] + 0.06 * t.wallH[s0][i0] + 1.2 : t.bar[s0][i0] + 1.6) + Math.pow(rng(), 1.6) * 16;
           const x = t.px[i0] + t.nx[i0] * sg0 * d0, z = t.pz[i0] + t.nz[i0] * sg0 * d0; if (!roadClear(x, z, w + 2.6) || nearBld(x, z, 2.5)) continue;

@@ -60,7 +60,7 @@
     const w = window.innerWidth, h = window.innerHeight; const cap = S.quality === 'high' ? 1.5 : S.quality === 'medium' ? 1.0 : 0.8;
     const pr = Math.max(0.5, Math.min(window.devicePixelRatio || 1, cap) * G.dyn); renderer.setPixelRatio(pr); renderer.setSize(w, h, false);
     camera.aspect = w / h; camera.updateProjectionMatrix(); G.pr = pr;
-    post.aoOn = S.quality === 'high'; post.aoFar = 200;
+    post.aoOn = S.quality === 'high'; post.aoFar = 140;
     post.enabled = true; post.setSize(Math.round(w * pr), Math.round(h * pr), S.quality === 'low' ? 0 : pr <= 1.1 ? 4 : 2);
   }
   window.addEventListener('resize', resize);
