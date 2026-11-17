@@ -11,21 +11,21 @@
     de: { lap: 'RUNDE', best: 'BEST', last: 'LETZTE', modeRace: 'RENNEN', modeTT: 'ZEITFAHREN', laps: 'RUNDEN', opponents: 'GEGNER', difficulty: 'KI-STÄRKE', d0: 'LEICHT', d1: 'MITTEL', d2: 'SCHWER', d3: 'PROFI',
       assists: 'FAHRHILFEN', a0: 'VOLL', a1: 'SPORT', a2: 'AUS', camera: 'KAMERA', c0: 'VERFOLGER', c1: 'FAHRERSICHT', c2: 'TOP-DOWN', quality: 'GRAFIK', q0: 'NIEDRIG', q1: 'MITTEL', q2: 'HOCH', volume: 'LAUTSTÄRKE',
       start: 'START', chooseBike: 'MOTORRAD', chooseTrack: 'STRECKE', paused: 'PAUSE', resume: 'WEITER', restart: 'NEUSTART', toMenu: 'HAUPTMENÜ', again: 'NOCHMAL',
-      noteEasy: 'Traktions-, Wheelie- und Kurven-ABS greifen früh ein. Zum Reinkommen.', noteSport: 'Hilfen lassen Slides, schwarze Striche und Wheelies zu, fangen dich aber ab.', notePro: 'Keine Hilfen: Highsider, Überschlag und wegrutschendes Vorderrad inklusive.',
+      noteEasy: 'Traktions-, Wheelie- und Kurven-ABS greifen früh ein. Zum Reinkommen.', noteSport: 'Slides beim Anbremsen und Rausbeschleunigen, Power-Wheelies und kleine Stoppies sind erlaubt. Die Hilfen fangen dich nur ab, bevor es schiefgeht.', notePro: 'Keine Hilfen: Highsider, Überschlag und wegrutschendes Vorderrad inklusive.',
       speed: 'TEMPO', accel: 'SCHUB', agility: 'HANDLING', brake: 'BREMSE', record: 'REKORD', go: 'LOS!', finish: 'ZIEL', result: 'ERGEBNIS', ttResult: 'ZEITFAHREN', place: 'PLATZ', fastest: 'SCHNELLSTE RUNDE', newBest: 'NEUE BESTZEIT', lastLap: 'LETZTE RUNDE',
       wheelie: 'WHEELIE', crash_lowside: 'LOWSIDER', crash_highside: 'HIGHSIDER', crash_wall: 'EINSCHLAG', crash_loop: 'ÜBERSCHLAG', crash_stoppie: 'STOPPIE-ABFLUG', crash_contact: 'KOLLISION', you: 'DU', lapsDone: 'Runden', bestLap: 'Beste Runde', loading: 'STRECKE WIRD GEBAUT',
-      keys: '<kbd>A</kbd><kbd>D</kbd> Lenken · <kbd>W</kbd> Gas · <kbd>S</kbd> Bremse<br><kbd>←</kbd><kbd>→</kbd> Körper zur Kurveninnenseite (mehr Grip) · <kbd>↑</kbd> Gewicht nach vorn (gegen Wheelies, Windschatten) · <kbd>↓</kbd> Gewicht nach hinten (Wheelie mit Gas, gegen Stoppies beim Bremsen)<br><kbd>C</kbd> Kamera · <kbd>R</kbd> Zurücksetzen · <kbd>Esc</kbd> Pause · <kbd>M</kbd> Ton<br>Gamepad: linker Stick lenken · rechter Stick Körper · RT Gas · LT Bremse',
+      keys: '<kbd>A</kbd><kbd>D</kbd> Lenken · <kbd>W</kbd> Gas · <kbd>S</kbd> Vorderradbremse · <kbd>Leertaste</kbd> Hinterradbremse<br><kbd>←</kbd><kbd>→</kbd> Körper zur Kurveninnenseite (mehr Grip, mehr Schräglage) · <kbd>↑</kbd> Gewicht nach vorn (besser beschleunigen, weniger Wheelie, Windschatten) · <kbd>↓</kbd> Gewicht nach hinten / aufrichten (besser bremsen, kein Stoppie, Wheelie mit Gas)<br>Leicht bremsen in Schräglage (Trail-Braking) lenkt schärfer ein · Hinterradbremse oder Gewicht nach vorn beim Bremsen stellt das Heck quer<br><kbd>C</kbd> Kamera · <kbd>R</kbd> Zurücksetzen · <kbd>Esc</kbd> Pause · <kbd>M</kbd> Ton<br>Gamepad: linker Stick lenken · rechter Stick Körper · RT Gas · LT Vorderradbremse · LB Hinterradbremse',
       cam_chase: 'VERFOLGER', cam_pov: 'FAHRERSICHT', cam_tv: 'TOP-DOWN', cam_follow: 'MITDREHEND', toSummit: 'BIS ZUM GIPFEL', alt: 'HÖHE', hillclimb: 'Bergrennen', summit: 'GIPFEL',
-      hint: '<kbd>W</kbd> Gas · <kbd>S</kbd> Bremse · <kbd>A</kbd><kbd>D</kbd> Lenken · <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> Körpergewicht · <kbd>C</kbd> Kamera' },
+      hint: '<kbd>W</kbd> Gas · <kbd>S</kbd> Bremse · <kbd>Leertaste</kbd> Hinterrad · <kbd>A</kbd><kbd>D</kbd> Lenken · <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> Körpergewicht · <kbd>C</kbd> Kamera' },
     en: { lap: 'LAP', best: 'BEST', last: 'LAST', modeRace: 'RACE', modeTT: 'TIME TRIAL', laps: 'LAPS', opponents: 'OPPONENTS', difficulty: 'AI LEVEL', d0: 'EASY', d1: 'MEDIUM', d2: 'HARD', d3: 'EXPERT',
       assists: 'ASSISTS', a0: 'FULL', a1: 'SPORT', a2: 'OFF', camera: 'CAMERA', c0: 'CHASE', c1: 'HELMET', c2: 'TOP-DOWN', quality: 'GRAPHICS', q0: 'LOW', q1: 'MEDIUM', q2: 'HIGH', volume: 'VOLUME',
       start: 'START', chooseBike: 'BIKE', chooseTrack: 'CIRCUIT', paused: 'PAUSED', resume: 'RESUME', restart: 'RESTART', toMenu: 'MAIN MENU', again: 'AGAIN',
-      noteEasy: 'Traction, wheelie and cornering ABS step in early. Good for learning.', noteSport: 'Assists allow slides, black lines and wheelies, but catch you before it goes wrong.', notePro: 'No assists: highsides, loop-outs and front-end tucks included.',
+      noteEasy: 'Traction, wheelie and cornering ABS step in early. Good for learning.', noteSport: 'Slides on the way in and out, power wheelies and small stoppies are allowed, the assists only catch you before it goes wrong.', notePro: 'No assists: highsides, loop-outs and front-end tucks included.',
       speed: 'SPEED', accel: 'DRIVE', agility: 'HANDLING', brake: 'BRAKES', record: 'RECORD', go: 'GO!', finish: 'FINISH', result: 'RESULT', ttResult: 'TIME TRIAL', place: 'PLACE', fastest: 'FASTEST LAP', newBest: 'NEW BEST LAP', lastLap: 'FINAL LAP',
       wheelie: 'WHEELIE', crash_lowside: 'LOWSIDE', crash_highside: 'HIGHSIDE', crash_wall: 'IMPACT', crash_loop: 'LOOPED IT', crash_stoppie: 'OVER THE BARS', crash_contact: 'CONTACT', you: 'YOU', lapsDone: 'laps', bestLap: 'Best lap', loading: 'BUILDING CIRCUIT',
-      keys: '<kbd>A</kbd><kbd>D</kbd> steer · <kbd>W</kbd> throttle · <kbd>S</kbd> brake<br><kbd>←</kbd><kbd>→</kbd> hang off to the inside (more grip) · <kbd>↑</kbd> weight forward (stops wheelies, tucks in) · <kbd>↓</kbd> weight back (wheelie with throttle, stops stoppies under braking)<br><kbd>C</kbd> camera · <kbd>R</kbd> reset · <kbd>Esc</kbd> pause · <kbd>M</kbd> mute<br>Gamepad: left stick steer · right stick body · RT throttle · LT brake',
+      keys: '<kbd>A</kbd><kbd>D</kbd> steer · <kbd>W</kbd> throttle · <kbd>S</kbd> front brake · <kbd>Space</kbd> rear brake<br><kbd>←</kbd><kbd>→</kbd> hang off to the inside (more grip, more lean) · <kbd>↑</kbd> weight forward (better drive, fewer wheelies, tucks in) · <kbd>↓</kbd> weight back / sit up (better braking, no stoppie, wheelie with throttle)<br>Light braking while leaned (trail braking) turns in sharper · rear brake or weight forward under braking backs the rear in<br><kbd>C</kbd> camera · <kbd>R</kbd> reset · <kbd>Esc</kbd> pause · <kbd>M</kbd> mute<br>Gamepad: left stick steer · right stick body · RT throttle · LT front brake · LB rear brake',
       cam_chase: 'CHASE', cam_pov: 'HELMET CAM', cam_tv: 'TOP-DOWN', cam_follow: 'ROTATING', toSummit: 'TO SUMMIT', alt: 'ALTITUDE', hillclimb: 'Hill climb', summit: 'SUMMIT',
-      hint: '<kbd>W</kbd> throttle · <kbd>S</kbd> brake · <kbd>A</kbd><kbd>D</kbd> steer · <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> body weight · <kbd>C</kbd> camera' }
+      hint: '<kbd>W</kbd> throttle · <kbd>S</kbd> brake · <kbd>Space</kbd> rear · <kbd>A</kbd><kbd>D</kbd> steer · <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> body weight · <kbd>C</kbd> camera' }
   };
   let T = STR.de;
 
@@ -67,7 +67,7 @@
 
   /* ------------------------------------------------------------------ input */
   const keys = {}; let padPrev = {};
-  const inp = { steer: 0, throttle: 0, brake: 0, wheelie: false, analog: false, bodyX: 0, bodyY: 0 };
+  const inp = { steer: 0, throttle: 0, brake: 0, rearBrake: 0, wheelie: false, analog: false, bodyX: 0, bodyY: 0 };
   window.addEventListener('keydown', (e) => {
     if (e.repeat) { if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault(); return; }
     keys[e.code] = true; sound.init();
@@ -84,9 +84,10 @@
   window.addEventListener('pointerdown', () => sound.init());
   window.addEventListener('wheel', (e) => { if (G.state !== 'menu') G.zoom = clamp(G.zoom * (e.deltaY > 0 ? 1.08 : 0.925), 0.6, 1.7); }, { passive: true });
   function readInput() {
-    let st = 0, th = 0, br = 0, wh = false, analog = false, bx = 0, by = 0;
+    let st = 0, th = 0, br = 0, rb = 0, wh = false, analog = false, bx = 0, by = 0;
     if (keys.KeyA) st -= 1; if (keys.KeyD) st += 1;                       // steer
-    if (keys.KeyW) th = 1; if (keys.KeyS) br = 1;                         // throttle / brake
+    if (keys.KeyW) th = 1; if (keys.KeyS) br = 1;                         // throttle / front brake
+    if (keys.Space) rb = 1;                                                // rear brake
     if (keys.ArrowLeft) bx -= 1; if (keys.ArrowRight) bx += 1;            // rider hangs off left / right
     if (keys.ArrowUp) by += 1; if (keys.ArrowDown) by -= 1;               // weight forward / back
 
@@ -96,11 +97,11 @@
       const dz = (v) => (Math.abs(v) < 0.1 ? 0 : (v - Math.sign(v) * 0.1) / 0.9); const ax = dz(p.axes[0] || 0);
       const gs = ax + (pr(15) ? 1 : 0) - (pr(14) ? 1 : 0), gt = Math.max(b(7), pr(0) && !p.buttons[7] ? 1 : 0), gb = b(6);
       if (Math.abs(gs) > 0.02 || gt > 0.02 || gb > 0.02) { analog = true; st = clamp(Math.sign(gs) * Math.pow(Math.abs(gs), 1.5), -1, 1); th = Math.max(th, gt); br = Math.max(br, gb); sound.init(); }
-      const rx = dz(p.axes[2] || 0), ry = dz(p.axes[3] || 0); if (Math.abs(rx) > 0.02) bx = rx; if (Math.abs(ry) > 0.02) by = -ry;
+      rb = Math.max(rb, b(4), b(5) * 0); const rx = dz(p.axes[2] || 0), ry = dz(p.axes[3] || 0); if (Math.abs(rx) > 0.02) bx = rx; if (Math.abs(ry) > 0.02) by = -ry;
       const edge = (i) => pr(i) && !padPrev[i]; if (edge(9)) { if (G.state === 'menu') startFromMenu(); else if (G.state === 'results') restart(); else togglePause(); } if (edge(3)) cycleCam(); if (edge(1) && G.player && !G.player.crashed && G.state === 'race') G.player.respawn();
       padPrev = {}; for (let i = 0; i < p.buttons.length; i++) padPrev[i] = pr(i); break;
     }
-    inp.steer = st; inp.throttle = th; inp.brake = br; inp.wheelie = wh; inp.analog = analog; inp.bodyX = bx; inp.bodyY = by; return inp;
+    inp.steer = st; inp.throttle = th; inp.brake = br; inp.rearBrake = rb; inp.wheelie = wh; inp.analog = analog; inp.bodyX = bx; inp.bodyY = by; return inp;
   }
 
   /* ------------------------------------------------------------------ building a session */
@@ -131,7 +132,7 @@
     for (let k = 0; k < n - 1; k++) {
       if (slot === slotP) slot++;
       const pace = d.base + d.spread * (1 - 2 * (slot / Math.max(1, n - 1))) + rng.range(-0.006, 0.006);
-      const b = addBike(spec, riders[k % riders.length], { assist: AX.ASSISTS.sport }); b.placeOnGrid(slot); G.ai.push(new AX.AIRider(b, t, pace, 100 + k * 31 + (Date.now() & 255))); slot++;
+      const b = addBike(spec, riders[k % riders.length], { assist: AX.ASSISTS.ai }); b.placeOnGrid(slot); G.ai.push(new AX.AIRider(b, t, pace, 100 + k * 31 + (Date.now() & 255))); slot++;
     }
     for (const b of G.bikes) {
       b.onLap = onLap; b.onCrash = (bk, type) => { if (bk === G.player) { banner(T['crash_' + type] || type, '', 1.5); sound.crash(clamp(bk.speed / 40, 0.4, 1)); G.shake = 0.35; } else if (distToPlayer(bk) < 60) sound.crash(0.35); burst(bk); };
@@ -237,7 +238,7 @@
   }
 
   /* ------------------------------------------------------------------ particles */
-  const _v = new THREE.Vector3();
+  const _v = new THREE.Vector3(), _kv = new THREE.Vector3();
   function emit(b, vis, f) {
     const ys = b.y || 0;
     const sm = G.smoke, sc = vis.scale, cx = Math.cos(b.yaw), sz = Math.sin(b.yaw), rx = b.x - cx * vis.hx * sc, rz = b.z - sz * vis.hx * sc, r = Math.random;
@@ -247,6 +248,11 @@
         if (b.surf >= SURF.GRASS && r() < 0.5) { const g = b.surf === SURF.GRAVEL; sm.spawn(b.x, 0.3 + ys, b.z, (r() - 0.5) * 3, 1.5 + r() * 2, (r() - 0.5) * 3, 0.9, 0.9, g ? 0.72 : 0.36, g ? 0.64 : 0.42, g ? 0.46 : 0.22, 0.55, 2.4, 1.5, 0); }
       }
       return;
+    }
+    // footpeg feeler touching down at full lean: a few sparks from the inside
+    if (Math.abs(b.lean) > 1.0 && b.speed > 8 && b.surf <= SURF.KERB && r() < (Math.abs(b.lean) - 1.0) * 6) {
+      const sgn = Math.sign(b.lean), px = b.x - cx * 0.2 * sc + sz * sgn * 0.42 * sc, pz = b.z - sz * 0.2 * sc - cx * sgn * 0.42 * sc;
+      G.sparks.spawn(px, 0.06 + ys, pz, -b.vx * 0.25 + (r() - 0.5) * 3, 0.6 + r() * 1.6, -b.vz * 0.25 + (r() - 0.5) * 3, 0.18 + r() * 0.15, 0.08, 1, 0.8, 0.35, 1, 0, 1, 10);
     }
     if ((b.surf === SURF.GRASS || b.surf === SURF.GRAVEL) && b.speed > 5 && r() < 0.7) {
       const g = b.surf === SURF.GRAVEL;
@@ -480,6 +486,14 @@
         r.lean = lerp(b._plean, b.lean, a); r.pitch = lerp(b._ppitch, b.pitch, a); r.y = lerp(b._py || 0, b.y || 0, a);
       }
       AX.Models.syncBike(G.vis[i], r, dt, G.time);
+      // knee sliders and elbows that touch the asphalt draw a hair-thin line
+      const rig = G.vis[i].rider, near = b === p || distToPlayer(b) < 70;
+      for (let s = 0; s < 2; s++) {
+        const kd = near && !b.crashed && rig.kneeDown[s], ed = near && !b.crashed && rig.elbowDown[s];
+        if (kd) { rig.parts.legs[s].kn.getWorldPosition(_kv); G.skid.mark(5000 + i * 4 + s, _kv.x, _kv.z, 0.022, 0.5, (b.y || 0) + 0.033); } else G.skid.mark(5000 + i * 4 + s, 0, 0, 0, 0);
+        if (ed) { rig.parts.arms[s].el.getWorldPosition(_kv); G.skid.mark(5002 + i * 4 + s, _kv.x, _kv.z, 0.02, 0.45, (b.y || 0) + 0.033); } else G.skid.mark(5002 + i * 4 + s, 0, 0, 0, 0);
+        if (b === p) { G.kneeOn = (G.kneeOn || 0) * 0.9 + (kd ? 0.1 : 0) + (ed ? 0.1 : 0); }
+      }
     }
     // ghost playback
     if (G.ghostVis) {
@@ -523,7 +537,7 @@
     others.sort((a, b) => a.dist - b.dist); others.length = Math.min(others.length, 3);
     const f = p.fx, t = G.track; const nearPit = p.idx > t.pitFrom || p.idx < t.pitTo ? 1 : 0.25;
     sound.update(dt, { player: { rpm: p.rpm, thr: p.crashed ? 0 : p.throttle, cut: p.limiter || (p.shiftT > 0 && p.shiftDir > 0), pop: G.pop || 0, spec: p.spec, vol: 0.8 }, others, speed: p.speed, vmax: p.spec.dragTop,
-      squeal: p.crashed ? 0 : f.squeal, skid: p.crashed ? 0 : Math.max(f.rearSkid, f.frontSkid), kerb: p.crashed ? 0 : f.kerb, surf: p.surf, scrape: f.scrape ? clamp(p.speed / 15, 0.2, 1) : 0, crowd: t.open ? passCrowd(p) : nearPit, ...(t.open ? passEnv(p) : {}) });
+      squeal: p.crashed ? 0 : f.squeal, skid: p.crashed ? 0 : Math.max(f.rearSkid, f.frontSkid), kerb: p.crashed ? 0 : f.kerb, surf: p.surf, scrape: f.scrape ? clamp(p.speed / 15, 0.2, 1) : clamp((G.kneeOn || 0) * 0.35, 0, 0.35), crowd: t.open ? passCrowd(p) : nearPit, ...(t.open ? passEnv(p) : {}) });
     G.pop = 0;
   }
 

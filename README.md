@@ -54,6 +54,15 @@ The retaining walls are built from real 3D stones taken from that layout. Up clo
 
 The alp huts and hay barns are modelled in Blender by `tools/blender_props.py`. `tools/bake_props.py` bakes their colour and ambient occlusion into one texture each and exports `blender/prop_hut.glb` and `blender/prop_barn.glb`. Those are packed into `assets/pack_props.js`. The Blender file is `blender/props.blend`.
 
+## Riding (physics)
+- **S** front brake, **Space** rear brake (LB on a gamepad). The rear brake, engine braking and weight forward on the brakes make the rear step out: back the bike into the corner.
+- **↓ weight back / sit up**: more braking before the rear lifts (no stoppie), air brake, more rear brake bite; with throttle it lifts the front.
+- **↑ weight forward / tuck**: less wheelie, more usable drive, less drag on straights; on the brakes it lifts the rear (stoppie, over the bars without ABS).
+- **← → hang off**: more grip and lean on the inside, less on the outside. Knee sliders (and at full lean the elbow) touch down and draw a thin line.
+- **Trail braking**: a light-to-medium front brake while leaned turns the bike in quicker and tighter; a handful of brake stands it up.
+- Black lines only come from real wheelspin, a sliding or a locked rear.
+- Assists: *Voll/Full* catches everything; *Sport* lets the rear slide in and out, allows power wheelies (height set by body weight) and small stoppies, but catches you; *Aus/Off* is raw (highsides, loop-outs, tucks, going over the bars). With keys only, the rider instinctively rolls off before a loop and eases the lever before going over, unless the weight is thrown that way.
+
 ## Files
 `js/core.js` data and helpers · `assets.js` model loader · `track.js` circuits and racing line · `physics.js` bike model · `ai.js` AI riders · `models.js` 3D bikes and riders · `world.js` environment · `pass.js` the mountain pass world · `fx.js` tyre marks, particles, post-processing · `audio.js` sound · `game.js` game flow, camera, HUD, menus.
 

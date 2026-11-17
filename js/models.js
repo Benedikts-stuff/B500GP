@@ -510,7 +510,7 @@
     }
     const rig = {
       group: g, torso, helmet, parts, naked, bars,
-      hang: 0, tuck: 0, sit: 0, kneeOut: 0, headYaw: 0,
+      hang: 0, tuck: 0, sit: 0, kneeOut: 0, headYaw: 0, kneeDown: [false, false], elbowDown: [false, false], dangle: 0,
       J: { H: V3(), S: V3(), head: V3(), a: V3(), b: V3(), c: V3(), pole: V3() }
     };
     poseRider(rig, { lean: 0, tuck: 0, sit: 0, steer: 0 }, 1);
@@ -518,10 +518,14 @@
   }
   const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _c = new THREE.Vector3(), _d = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _m4 = new THREE.Matrix4(), _x = new THREE.Vector3(), _y = new THREE.Vector3(), _z = new THREE.Vector3();
   /* keep a joint above the asphalt once the bike is leaned: y·cosφ − z·sinφ ≥ margin (knee slider just touches) */
-  function clearGround(p, phi, margin) {
-    if (Math.abs(phi) < 0.05) return; const c = Math.cos(phi), s = Math.sin(phi);
-    const h = p.y * c - p.z * s; if (h >= margin) return;
-    p.z = (p.y * c - margin) / s;
+  function clearGround(p, phi, margin, reach) {
+    if (Math.abs(phi) < 0.05) return false; const c = Math.cos(phi), s = Math.sin(phi);
+    const h = p.y * c - p.z * s;
+    // reach: the rider puts the knee (or elbow) down, so pull the joint out until it just touches
+    if (reach && h > margin) { const z = (p.y * c - margin) / s; if (Math.abs(z) <= reach) { p.z = z; return true; } return false; }
+    if (h >= margin + 0.012) return false;
+    if (h < margin) p.z = (p.y * c - margin) / s;
+    return true;                          // the slider / elbow is on the asphalt
   }
   function setLimb(mesh, a, b) {
     _d.subVectors(b, a); const len = _d.length() || 1e-4; mesh.position.copy(a); mesh.quaternion.setFromUnitVectors(_up, _d.multiplyScalar(1 / len)); mesh.scale.set(1, len, 1);
@@ -535,7 +539,7 @@
   }
   /* st: {lean [-1..1 normalised hang-off], tuck 0..1, sit 0..1 (upright under braking), steer} ; k = smoothing blend 0..1 */
   function poseRider(rig, st, k) {
-    rig.hang = lerp(rig.hang, st.lean, k); rig.tuck = lerp(rig.tuck, st.tuck, k); rig.sit = lerp(rig.sit, st.sit, k);
+    rig.hang = lerp(rig.hang, st.lean, k); rig.tuck = lerp(rig.tuck, st.tuck, k); rig.sit = lerp(rig.sit, st.sit, k); rig.dangle = lerp(rig.dangle || 0, st.dangle || 0, k * 0.6);
     const h = rig.hang, ah = Math.abs(h), tk = rig.tuck, si = rig.sit, J = rig.J, nk = rig.naked, bars = rig.bars;
     // hips slide to the inside, torso follows further, head leads into the corner
     J.H.set(-0.3, 0.86 - ah * 0.02, h * 0.17);
@@ -555,14 +559,17 @@
       _a.copy(J.S).addScaledVector(_z, sg * 0.2).addScaledVector(_y, -0.05);
       _b.set(bars.barX, bars.barY + 0.02, sg * bars.barZ);
       rig.poleTmp = _d; const pole = J.pole.set(-0.5, -1.0 - inside * 0.3, sg * (0.42 + tk * 0.1 + inside * 0.3));
-      ik(_a, _b, 0.285, 0.275, pole, J.c); clearGround(J.c, rig.bikeLean || 0, 0.07);
+      ik(_a, _b, 0.285, 0.275, pole, J.c); const ph = rig.bikeLean || 0, inLean = ph * sg > 0 ? Math.abs(ph) : 0;
+      rig.elbowDown[s] = clearGround(J.c, ph, 0.07, inside > 0.8 && inLean > 1.0 ? 0.62 : 0) && inside > 0.5;
       setLimb(A.up, _a, J.c); setLimb(A.lo, J.c, _b); A.sh.position.copy(_a); A.el.position.copy(J.c); A.hand.position.copy(_b);
       // leg
       const Lg = rig.parts.legs[s];
       _a.copy(J.H).addScaledVector(_z, sg * 0.105); _a.y -= 0.03;
       _b.set(-0.25, 0.48, sg * 0.18);
-      J.pole.set(0.9, 0.5 - inside * 0.5, sg * (0.25 + inside * 1.6));
-      ik(_a, _b, 0.44, 0.44, J.pole, J.c); clearGround(J.c, rig.bikeLean || 0, 0.075);
+      const dg = sg * rig.dangle > 0 ? Math.abs(rig.dangle) : 0;           // MotoGP leg dangle on the brakes
+      if (dg > 0.01) _b.set(lerp(-0.25, 0.05, dg), lerp(0.48, 0.3, dg), sg * lerp(0.18, 0.5, dg));
+      J.pole.set(0.9, 0.5 - inside * 0.5, sg * (0.25 + inside * 1.6 + dg * 0.6));
+      ik(_a, _b, 0.44, 0.44, J.pole, J.c); rig.kneeDown[s] = clearGround(J.c, ph, 0.075, inside > 0.5 && inLean > 0.7 ? 0.7 : 0) && inside > 0.3;
       setLimb(Lg.up, _a, J.c); setLimb(Lg.lo, J.c, _b); Lg.hip.position.copy(_a); Lg.kn.position.copy(J.c); Lg.foot.position.set(_b.x + 0.03, _b.y - 0.01, _b.z);
     }
   }
@@ -615,9 +622,9 @@
     vis.wheelR.rotation.z -= roll * (1 + p.spin * 0.45); vis.wheelF.rotation.z -= p.pitch > 0.06 ? roll * 0.6 : roll;
     // steering: counter-steers into a slide, turns in at walking pace
     const st = p.crashed ? 0.5 * (p.crashSide || 1) : clamp(-p.slipAngle * 1.1 + p.steer * lerp(0.42, 0.03, smoothstep(2, 14, p.speed)), -0.55, 0.55);
-    vis.steerVis = damp(vis.steerVis, st, 16, dt); vis.steerG.rotation.y = -vis.steerVis;
+    vis.steerVis = damp(vis.steerVis, st, 16, dt); vis.steerG.rotation.y = -vis.steerVis + (p.headShake ? Math.sin(time * 38) * 0.14 * p.headShake : 0);   // tank-slapper after a fast landing
     // brake light
-    const br = p.brake > 0.08 && !p.crashed;
+    const br = (p.brake + (p.rearBrake || 0)) > 0.08 && !p.crashed;
     vis.brakeMat.color.setRGB(br ? 3.2 : 0.3, br ? 0.22 : 0.03, br ? 0.12 : 0.02);
     // rider
     const rg = vis.rider.group;
@@ -626,8 +633,11 @@
       const hang = p.hang != null ? p.hang : clamp(p.lean / maxLean, -1, 1) * smoothstep(4, 14, p.speed);
       const fwd = p.fb || 0;
       const tuck = clamp(Math.max(0, fwd) * (1 - Math.abs(hang) * 0.5) + smoothstep(40, 60, p.speed) * 0.25 * (1 - Math.abs(hang)), 0, 1);
-      const sit = clamp(Math.max(0, -fwd) * 0.9 + p.brake * 0.35 * smoothstep(6, 20, p.speed), 0, 1) - clamp(p.pitch * 1.2, 0, 0.5);
-      poseRider(vis.rider, { lean: hang, tuck, sit, steer: p.steer }, 1 - Math.exp(-9 * dt));
+      const sit = clamp(Math.max(0, -fwd) * 1.0 + p.brake * 0.3 * smoothstep(6, 20, p.speed), 0, 1) - clamp(p.pitch * 1.2, 0, 0.5);
+      // hard on the brakes at speed, turning in (or about to): the inside leg comes off the peg
+      const dSide = Math.abs(p.steer) > 0.08 ? Math.sign(p.steer) : (Math.abs(hang) > 0.2 ? Math.sign(hang) : 0);
+      const dangle = dSide * smoothstep(0.45, 0.9, p.brake) * smoothstep(14, 26, p.speed) * (1 - smoothstep(0.35, 0.6, Math.abs(p.lean)));
+      poseRider(vis.rider, { lean: hang, tuck, sit, steer: p.steer, dangle }, 1 - Math.exp(-9 * dt));
     } else {
       if (!vis.crashedVis) { vis.crashedVis = true; vis.root.parent.add(rg); rg.scale.setScalar(vis.scale); }
       poseCrash(vis.rider, p.crashT);

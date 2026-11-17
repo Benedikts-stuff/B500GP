@@ -10,10 +10,16 @@
   const { clamp, lerp, damp, smoothstep, approach, G, SURF, SURF_DATA } = AX;
   const DEG = Math.PI / 180;
 
+  /* tc: traction-control slip ceiling (0 = off) · wcBase / wcBack: wheelie height the assist allows with neutral / weight-back body
+     (null = no wheelie control) · catchSa / catchK: slide angle where the assist steps in and how hard the chassis pulls straight
+     · abs / rearAbs: front / rear anti-lock · stop: allowed stoppie angle (-1 = none) · slipper: engine braking reaching the rear tyre
+     · thrUp / thrDn: keyboard throttle roll-on / roll-off rates */
   AX.ASSISTS = {
-    easy:  { id: 'easy',  tc: 1.04, wc: 0.02, wcSettle: 0.01, wcHold: 0.42, slide: 0.45, abs: true,  stop: 0.0,  leanLimit: true,  highside: false, steerHelp: 1 },
-    sport: { id: 'sport', tc: 1.14, wc: 0.05, wcSettle: 0.03, wcHold: 0.52, slide: 1, abs: true,  stop: 0.09, leanLimit: true,  highside: false, steerHelp: 0.5 },
-    pro:   { id: 'pro',   tc: 0,    wc: 0.6,  wcSettle: 0.5,  wcHold: 1.5,    slide: 1, abs: false, stop: -1,   leanLimit: false, highside: true,  steerHelp: 0 }
+    easy:  { id: 'easy',  tc: 1.02, wcBase: 0.0,  wcBack: 0.14, catchSa: 0.18, catchK: 2.5, slide: 0.45, abs: true,  rearAbs: true,  stop: 0.02, leanLimit: true,  highside: false, slipper: 0.35, kick: false, thrUp: 5.5, thrDn: 11, steerHelp: 1 },
+    sport: { id: 'sport', tc: 1.24, wcBase: 0.2,  wcBack: 0.38,  catchSa: 0.34, catchK: 1.4, slide: 1,    abs: true,  rearAbs: false, stop: 0.24, leanLimit: true,  highside: false, slipper: 0.6,  kick: true,  thrUp: 4.5, thrDn: 9,  steerHelp: 0.5 },
+    pro:   { id: 'pro',   tc: 0,    wcBase: null, wcBack: 0,    catchSa: 9,    catchK: 0,   slide: 1,    abs: false, rearAbs: false, stop: -1,   leanLimit: false, highside: true,  slipper: 1,    kick: true,  thrUp: 3.2, thrDn: 5,  steerHelp: 0 },
+    // the AI rides with tidy, conservative assists
+    ai:    { id: 'ai',    tc: 1.14, wcBase: 0.05, wcBack: 0.52, catchSa: 0.3,  catchK: 1.4, slide: 1,    abs: true,  rearAbs: true,  stop: 0.09, leanLimit: true,  highside: false, slipper: 0.5,  kick: false, thrUp: 5.5, thrDn: 11, steerHelp: 0.5 }
   };
 
   class Bike {
@@ -40,7 +46,7 @@
     reset(x, z, yaw, idx) {
       this.x = x; this.z = z; this.yaw = yaw; this.vx = 0; this.vz = 0;
       this.lean = 0; this.leanVel = 0; this.pitch = 0; this.pitchVel = 0;
-      this.steer = 0; this.throttle = 0; this.brake = 0;
+      this.steer = 0; this.throttle = 0; this.brake = 0; this.rearBrake = 0; this.rearLock = 0; this.trail = 0;
       this.gear = 0; this.rpm = this.spec.idle; this.shiftT = 0; this.shiftDir = 0; this.limiter = false;
       this.speed = 0; this.vf = 0; this.vl = 0; this.omega = 0; this.slipAngle = 0;
       this.aLong = 0; this.aLat = 0; this.spin = 0; this.util = 0;
@@ -119,9 +125,11 @@
         const tgt = inp.steer;
         const rate = (tgt === 0 || Math.sign(tgt) !== Math.sign(this.steer)) && this.steer !== 0 ? 5.0 : up;
         this.steer = approach(this.steer, tgt, rate, rate, dt);
-        this.throttle = approach(this.throttle, inp.throttle, 5.5, 11, dt);
+        // keys are on/off: roll the throttle on and off at a rate that suits the assist level
+        this.throttle = approach(this.throttle, inp.throttle, as.thrUp || 5.5, as.thrDn || 11, dt);
         this.brake = approach(this.brake, inp.brake, 7.5, 13, dt);
       }
+      this.rearBrake = approach(this.rearBrake, clamp(inp.rearBrake || 0, 0, 1), 6, 12, dt);
 
       const fxv = Math.cos(this.yaw), fzv = Math.sin(this.yaw), rx = -fzv, rz = fxv;
       let vf = this.vx * fxv + this.vz * fzv, vl = this.vx * rx + this.vz * rz;
@@ -132,32 +140,38 @@
       this.surf = t.surfaceAt(this.idx, this.d);
       const sd = SURF_DATA[this.surf];
       const Gr = spec.mu * G * sd.grip * this.gripScale;
-      // ---- rider body weight: hanging off to the inside of a turn means more grip and more lean available,
-      //      hanging to the outside costs grip. Weight forward/back moves the centre of mass along the bike.
-      this.hang = approach(this.hang, clamp(inp.bodyX || 0, -1, 1), 3.6, 3.6, dt);
-      this.fb = approach(this.fb, clamp(inp.bodyY || 0, -1, 1), 4.5, 4.5, dt);
+      // ---- rider body weight: hanging off to the inside gives grip and lean, to the outside costs grip.
+      //      Weight forward/back moves the centre of mass along the bike (wheelies, stoppies, rear brake bite).
+      this.hang = approach(this.hang, clamp(inp.bodyX || 0, -1, 1), 5, 5, dt);
+      this.fb = approach(this.fb, clamp(inp.bodyY || 0, -1, 1), 6, 6, dt);
       const turnDir = Math.abs(this.lean) > 0.05 ? Math.sign(this.lean) : Math.sign(this.steer);
       const hi = this.hangIn = clamp(this.hang * turnDir, -1, 1);
-      const gripMul = 1 + 0.14 * Math.max(0, hi) - 0.2 * Math.max(0, -hi);
+      const gripMul = 1 + 0.2 * Math.max(0, hi) - 0.25 * Math.max(0, -hi);
       const GrL = Gr * gripMul;                                      // lateral grip
-      const cgB = spec.cgB + 0.11 * this.fb;                        // weight forward (+) / back (-)
+      const cgB = spec.cgB + 0.16 * this.fb;                        // distance rear axle -> centre of mass
+      const back = Math.max(0, -this.fb), fwd = Math.max(0, this.fb);
       if (this.surf === SURF.GRASS || this.surf === SURF.GRAVEL) this.offT += dt; else this.offT = 0;
       if (this.surf === SURF.KERB) f.kerb = clamp(vf / 25, 0, 1);
 
+      // ---- trail braking: a light-to-medium front brake while leaned loads the front tyre, the bike turns in quicker and tighter
+      const bf0 = Math.min(1.2, this.brake * spec.brake / Gr), leanFrac = Math.abs(this.lean) / (spec.maxLean * DEG);
+      const trail = this.trail = smoothstep(0.05, 0.2, bf0) * (1 - smoothstep(0.55, 0.95, bf0)) * smoothstep(0.08, 0.45, leanFrac) * smoothstep(6, 14, vf);
+
       // ---- lean + yaw
       const frontUp = this.pitch > 0.045; const frontLight = smoothstep(0.05, 0.3, this.pitch);
-      let lm = (spec.maxLean + 7 * Math.max(0, hi)) * DEG * smoothstep(0.8, 8.5, vf);
+      let lm = (spec.maxLean + 9 * Math.max(0, hi)) * DEG * smoothstep(0.8, 8.5, vf);
       if (as.leanLimit) lm = Math.min(lm, Math.atan(0.985 * GrL / G));
-      const leanT = this.steer * lm;
+      // grabbing a handful of front brake mid-corner stands the bike up
+      const leanT = this.steer * lm * (1 - 0.3 * smoothstep(0.65, 1.0, bf0) * (1 - trail));
       let wn = spec.leanRate * lerp(1, 0.72, smoothstep(25, 72, vf));
-      wn *= 1 - 0.55 * frontLight;
+      wn *= (1 - 0.55 * frontLight) * (1 + 0.45 * trail);
       const zeta = 0.86;
       this.leanVel += (wn * wn * (leanT - this.lean) - 2 * zeta * wn * this.leanVel) * dt;
       this.lean += this.leanVel * dt;
       const omLean = G * Math.tan(this.lean) / Math.max(vf, 6);
       const omLow = this.steer * 2.3 * clamp(vf / 3, 0, 1);
       let omega = lerp(omLow, omLean, smoothstep(2.5, 8.5, vf));
-      omega *= 1 - 0.5 * frontLight;
+      omega *= (1 - 0.5 * frontLight) * (1 + 0.18 * trail);
       let ayDem = vf * omega;
 
       // ---- gearbox + engine
@@ -172,7 +186,6 @@
           if (nDown < thr) { this.gear--; this.shiftT = 0.1; this.shiftDir = -1; f.shift = -1; n = nDown; }
         }
       }
-      // slipping clutch from a standstill in first
       let nEff = n;
       if (this.gear === 0) { const slip = (spec.idle / spec.redline) + this.throttle * 0.46; if (nEff < slip) nEff = slip; }
       this.limiter = n >= 1.0 && this.throttle > 0.3;
@@ -182,24 +195,27 @@
         this.aFull = this.thrustK * this.powerScale * tq / gears[this.gear];
         aDem = this.aFull * this.throttle;
       }
-      const engBrake = (1 - this.throttle) * (0.7 + 2.3 * n) * (vf > 1 ? 1 : 0);
+      // engine braking acts through the chain on the rear tyre; a slipper clutch (assists) takes the edge off
+      const engBrake = (1 - this.throttle) * (0.7 + 2.3 * n) * (vf > 1 ? 1 : 0) * (as.slipper == null ? 1 : as.slipper);
 
-      // ---- wheelie control (assist) and traction control
+      // ---- wheelie: balance acceleration about the rear contact; the assist holds the height the rider asks for
       const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
       const bEff = cgB * cp - spec.cgH * sp, hEff = spec.cgH * cp + cgB * sp;
       const aeroHold = (spec.style.winglets ? 0.0011 : 0.0006) * vf * vf;
       const aBal = G * bEff / hEff + aeroHold;
-      if (as.wc > 0 && this.throttle > 0) {
-        const back = smoothstep(0.3, 0.9, -this.fb);   // weight back = rider asks for the wheelie
-        const tp = lerp(lerp(as.wc, as.wcSettle, smoothstep(0.25, 1.3, this.wheelieAir)), as.wcHold, back);
+      if (as.wcBase != null && this.throttle > 0) {
+        const tp = lerp(as.wcBase, as.wcBack, smoothstep(0.2, 0.9, back)) * (1 - smoothstep(0.15, 0.8, fwd));
         const lim = aBal + 56 * (tp - this.pitch) - 17 * this.pitchVel;
         if (aDem > lim) aDem = Math.max(0, lim);
       }
+      // no assist, keys only: a rider instinctively rolls off before the bike loops (weight back lets it go higher)
+      const kbInstinct = as.wcBase == null && !inp.analog, hiW = back > 0.5;
+      if (kbInstinct) aDem *= 1 - smoothstep(hiW ? 0.55 : 0.28, hiW ? 0.85 : 0.52, this.pitch);
+      const dab = kbInstinct ? 8 * smoothstep(hiW ? 0.75 : 0.48, hiW ? 1.0 : 0.72, this.pitch) : 0;   // a dab of rear brake
       const Kx = 0.98;
-      // clutch-up: a deliberate wheelie kick
-      // snapping the weight back with the throttle open pops the front up (a clutch-up kick)
+      // snapping the weight back with the throttle open pops the front up (clutch-up kick)
       const wantUp = this.fb < -0.55;
-      if (wantUp && !this.wheelieKey && this.throttle > 0.4 && this.pitch < 0.12 && vf > 3 && this.aFull > aBal * 0.62 && Math.abs(this.lean) < 0.5) this.pitchVel += 1.9;
+      if (as.kick && wantUp && !this.wheelieKey && this.throttle > 0.4 && this.pitch < 0.12 && vf > 3 && this.aFull > aBal * 0.62 && Math.abs(this.lean) < 0.5) this.pitchVel += 1.9;
       this.wheelieKey = wantUp;
       const latFrac = Math.min(1, Math.abs(ayDem) / GrL);
       this.latFrac = latFrac; this.Gr = GrL;
@@ -207,29 +223,46 @@
         const lim = Gr * Kx * Math.sqrt(Math.max(0, as.tc * as.tc - latFrac * latFrac));
         if (aDem > lim) aDem = lim;
       }
-      let aDrive = Math.min(aDem, Gr * Kx);
-      const overDrive = aDem - aDrive;
+      // slide control: past the assist's angle the power is taken away
+      const sa0 = Math.abs(this.slipAngle);
+      if (sa0 > as.catchSa) aDem *= Math.max(0.15, 1 - (sa0 - as.catchSa) * 6);
+      const rearUp = this.pitch < -0.02;
+      // with the front in the air the whole bike sits on the rear tyre: more drive grip before it spins
+      const KxR = Kx * (1 + 0.3 * frontLight);
+      let aDrive = rearUp ? 0 : Math.min(aDem, Gr * KxR);
+      const overDrive = rearUp ? 0 : aDem - aDrive;
 
-      // ---- brakes
-      let aBrk = this.brake * spec.brake;
+      // ---- front brake (S)
       const q = Math.max(0, -this.pitch);
+      // no ABS, keys only: the rider eases the lever as the rear lifts - unless the weight is thrown forward, then it goes over
+      let aBrkF = this.brake * spec.brake * (as.stop < 0 && !inp.analog ? 1 - smoothstep(fwd > 0.5 ? 0.45 : 0.14, fwd > 0.5 ? 0.85 : 0.34, q) : 1);
       if (as.abs) {
         const cq = Math.cos(q), sq = Math.sin(q);
         const bf = (spec.wheelbase - cgB) * cq - spec.cgH * sq, hf = spec.cgH * cq + (spec.wheelbase - cgB) * sq;
-        const lim = G * bf / hf + 56 * (as.stop - q) + 17 * this.pitchVel;
-        if (aBrk > lim) aBrk = Math.max(0, lim);
-        const circ = GrL * Math.sqrt(Math.max(0.02, 1 - latFrac * latFrac));
-        if (aBrk > circ) aBrk = Math.max(circ, Math.min(aBrk, Gr * 0.22));
+        if (as.stop >= 0) { const lim = G * bf / hf + 56 * (as.stop - q) + 17 * this.pitchVel; if (aBrkF > lim) aBrkF = Math.max(0, lim); }
+        const circ = GrL * Math.sqrt(Math.max(0.02, 1 - latFrac * latFrac)) * (1 + 0.1 * trail);
+        if (aBrkF > circ) aBrkF = Math.max(circ, Math.min(aBrkF, Gr * 0.22));
       }
       let frontLock = false;
-      if (aBrk > Gr) { aBrk = Gr * 0.86; frontLock = true; }
-      if (vf < 0.4) aBrk = Math.min(aBrk, vf / dt * 0.5);
+      if (aBrkF > Gr * 1.04) { aBrkF = Gr * 0.86; frontLock = true; }
+
+      // ---- rear brake (Space) + engine braking, limited by the load left on the rear tyre
+      const decel0 = Math.max(0, aBrkF);
+      const rearLoad = clamp(1 - cgB / spec.wheelbase - decel0 * spec.cgH / (G * spec.wheelbase), 0.08, 1);
+      const capRear = rearUp ? 0 : Gr * 1.9 * rearLoad * Math.sqrt(Math.max(0.05, 1 - latFrac * latFrac));
+      let rearDem = rearUp ? 0 : this.rearBrake * G * 0.6 + engBrake;
+      if (as.rearAbs && rearDem > capRear) rearDem = capRear;
+      const lockT = capRear > 0 ? clamp((rearDem - capRear) / (Gr * 0.25), 0, 1) : 0;
+      this.rearLock = damp(this.rearLock, lockT, lockT > this.rearLock ? 20 : 7, dt);
+      const aRear = rearDem > capRear ? capRear * 0.82 : rearDem;
+      let aBrk = aBrkF + aRear;
+      if (vf < 0.4) { aBrkF = Math.min(aBrkF, vf / dt * 0.5); aBrk = Math.min(aBrk, vf / dt * 0.5); }
 
       // ---- side grip left over
       let capY;
-      if (aBrk > 0.4) {
-        capY = GrL * Math.sqrt(Math.max(0.03, 1 - (aBrk / Gr) * (aBrk / Gr)));
-        if (Math.abs(ayDem) > capY) {             // front pushes wide; a little of it turns into the rear stepping out
+      if (aBrkF > 0.4) {
+        capY = GrL * Math.sqrt(Math.max(0.03, 1 - (aBrkF / Gr) * (aBrkF / Gr))) * (1 + 0.1 * trail);
+        if (Math.abs(ayDem) > capY) {             // front pushes wide
           const ratio = capY / Math.abs(ayDem);
           omega *= lerp(1, ratio, 0.72); ayDem = vf * omega;
           f.frontSkid = clamp((1 / ratio - 1) * 2.2, 0, 1);
@@ -239,24 +272,30 @@
         this.tuckT = 0;
         capY = GrL * Math.sqrt(Math.max(0.03, 1 - (aDrive / (Gr * Kx)) * (aDrive / (Gr * Kx))));
       }
-      const uRear = Math.hypot(aDrive / (Gr * Kx), ayDem / GrL) + overDrive / (Gr * 0.8);
-      this.util = aBrk > 0.4 ? Math.hypot(aBrk / Gr, ayDem / GrL) : uRear;
-      const spinT = this.throttle > 0.2 ? clamp((uRear - 1.0) * 2.4, 0, 1) : 0;
+      if (frontLock) f.frontSkid = 1;
+      let uRear = Math.hypot(aDrive / (Gr * KxR), ayDem / GrL) + overDrive / (Gr * 0.8);
+      uRear = Math.max(uRear, this.rearLock > 0.05 ? 1 + this.rearLock * 0.6 : 0);
+      this.util = aBrkF > 0.4 ? Math.hypot(aBrkF / Gr, ayDem / GrL) : uRear;
+      const spinT = this.throttle > 0.2 && !rearUp ? clamp((uRear - 1.0) * 2.4, 0, 1) : 0;
       this.spin = damp(this.spin, spinT, spinT > this.spin ? 14 : 6, dt);
 
-      // ---- the rear steps out under power (and a little on the brakes), the chassis' own stability pulls it back
-      const turnSign = Math.abs(ayDem) > 0.5 ? Math.sign(ayDem) : 0;
+      // ---- the rear steps out: under power past the grip limit, on the brakes with a light rear (weight forward, backing it in),
+      //      or with a locked rear. The chassis' own stability (and the assist) pull it back straight.
+      const turnSign = Math.abs(ayDem) > 0.5 ? Math.sign(ayDem) : (Math.abs(this.steer) > 0.05 ? Math.sign(this.steer) : 0);
       let stepOut = 2.2 * Math.max(0, Math.min(uRear, 1.9) - 1) * (this.throttle > 0.2 ? 1 : 0);
-      if (aBrk > 0.4) stepOut = 0.55 * (aBrk / spec.brake) * latFrac;
-      omega += turnSign * stepOut * as.slide * smoothstep(5, 12, vf) - 2.0 * this.slipAngle * smoothstep(3, 8, vf);
+      if (aBrk > 0.4) stepOut += (0.55 * (aBrkF / spec.brake) * latFrac * (1 + 1.3 * fwd) * (1 - 0.6 * back) + this.rearLock * (1.2 + 1.6 * latFrac)) * (rearUp ? 0 : 1);
+      const restore = 2.0 + as.catchK + 0.8 * back * (aBrk > 0.4 ? 1 : 0);
+      omega += turnSign * stepOut * as.slide * smoothstep(5, 12, vf) - restore * this.slipAngle * smoothstep(3, 8, vf);
 
       // ---- integrate
       const tau = 0.075;
       const aT = clamp(-vl / tau, -capY, capY);
-      const drag = this.kDrag * vf * vf * (1 - 0.07 * Math.max(0, this.fb) * (1 - Math.min(1, Math.abs(this.steer) * 2))) + (vf > 0.3 ? 0.25 + sd.drag + sd.dragV * vf : 0) + Math.abs(aT) * 0.012 * Math.min(1, Math.abs(this.slipAngle) * 6);
-      // gravity along the slope (grade along the bike's heading)
+      // sitting up (weight back) catches the wind: an air brake under braking, a small penalty otherwise; tucked in (forward) on a straight cuts drag
+      const tuckK = 1 - 0.1 * fwd * (1 - Math.min(1, Math.abs(this.steer) * 2));
+      const sitK = 1 + back * (this.brake > 0.1 ? 0.7 : 0.18);
+      const drag = this.kDrag * vf * vf * tuckK * sitK + (vf > 0.3 ? 0.25 + sd.drag + sd.dragV * vf : 0) + Math.abs(aT) * 0.012 * Math.min(1, Math.abs(this.slipAngle) * 6);
       this.slope = t.gr ? t.gr[this.idx] * (fxv * t.tx[this.idx] + fzv * t.tz[this.idx]) : 0;
-      const aLong = aDrive - aBrk - engBrake - drag - G * this.slope;
+      const aLong = aDrive - aBrk - drag - G * this.slope;
       this.vx += (fxv * aLong + rx * aT) * dt; this.vz += (fzv * aLong + rz * aT) * dt;
       this.yaw += omega * dt; this.omega = omega;
       this.x += this.vx * dt; this.z += this.vz * dt;
@@ -264,27 +303,32 @@
       if (vf < 0 && this.throttle < 0.05) { this.vx -= fxv * vf; this.vz -= fzv * vf; vf = 0; }
       this.vf = vf; this.vl = vl; this.speed = Math.hypot(this.vx, this.vz);
       this.aLong = aLong; this.aLat = aT;
-      this.slipAngle = vf > 2 ? Math.atan2(-vl, vf) : 0;   // + = sliding with the rear stepping out to the left
+      this.slipAngle = vf > 2 ? Math.atan2(-vl, vf) : 0;
 
-      // ---- pitch: wheelie about the rear contact, stoppie about the front
-      const J = 0.95; const aNet = aDrive - aBrk - engBrake;
-      if (this.pitch > 0 || this.pitchVel > 0 || aNet > aBal) {
+      // ---- pitch: wheelie about the rear contact, stoppie about the front. One state at a time, so a stoppie
+      //      that rebounds lands on the rear wheel instead of snapping back, and a stoppie past the tipping point goes over.
+      const J = 0.95; const aNet = aDrive - aBrk - (this.pitch > 0 ? dab : 0);
+      const qB = (pq) => { const cq = Math.cos(pq), sq = Math.sin(pq); const bf = (spec.wheelbase - cgB) * cq - spec.cgH * sq, hf = spec.cgH * cq + (spec.wheelbase - cgB) * sq; return [bf, hf]; };
+      if (this.pitch > 0 || (this.pitch === 0 && (aNet > aBal || this.pitchVel > 0))) {
         this.pitchVel += ((aNet - aBal) * hEff / J - 0.6 * this.pitchVel) * dt;
         this.pitch += this.pitchVel * dt;
-        if (this.pitch <= 0) { f.landing = clamp(-this.pitchVel / 2.2, 0, 1); this.pitch = 0; this.pitchVel = 0; }
-      } else if (this.pitch < 0 || -aNet > G * (spec.wheelbase - cgB) / spec.cgH) {
-        const cq = Math.cos(q), sq = Math.sin(q);
-        const bf = (spec.wheelbase - cgB) * cq - spec.cgH * sq, hf = spec.cgH * cq + (spec.wheelbase - cgB) * sq;
-        this.pitchVel -= ((-aNet - G * bf / hf) * hf / J + 0.6 * this.pitchVel) * dt;
-        this.pitch += this.pitchVel * dt;
-        if (this.pitch >= 0) { f.landing = clamp(this.pitchVel / 3, 0, 0.6); this.pitch = 0; this.pitchVel = 0; }
-        if (this.pitch < -0.95) return this.crash('stoppie');
+        if (this.pitch <= 0) { f.landing = clamp(-this.pitchVel / 2.2, 0, 1); if (vf > 14) this.headShake = Math.max(this.headShake || 0, f.landing * 0.9 * smoothstep(14, 40, vf)); this.pitch = 0; this.pitchVel = 0; }
+      } else {
+        const [bf, hf] = qB(q), aStop = G * bf / hf;
+        if (this.pitch < 0 || -aNet > aStop) {
+          // nose-down torque from the braking, restoring torque from gravity (it reverses past the tipping point)
+          this.pitchVel -= ((-aNet - aStop) * hf / J + 0.6 * this.pitchVel) * dt;
+          this.pitch += this.pitchVel * dt;
+          if (this.pitch >= 0) { f.landing = clamp(this.pitchVel / 3, 0, 0.6); this.pitch = 0; this.pitchVel = 0; }
+          if (this.pitch < -1.0) return this.crash('stoppie');
+        }
       }
+      if (this.headShake) this.headShake = Math.max(0, this.headShake - dt * 1.4);
       if (this.pitch > 0.03) { this.wheelieAir += dt; this.wheelieT += dt; } else { this.wheelieAir = 0; this.wheelieT = 0; }
       if (this.pitch > 1.22) return this.crash('loop');
 
       // ---- rpm for display + sound
-      const nShow = Math.max(nEff, spec.idle / spec.redline) * (1 + this.spin * 0.22);
+      const nShow = Math.max(nEff, spec.idle / spec.redline) * (1 + this.spin * 0.22) * (rearUp ? 1.15 : 1);
       let rpmT = Math.min(nShow, 1.03) * spec.redline;
       if (this.limiter) rpmT = spec.redline * (0.985 + 0.02 * Math.sin(this.time * 70));
       this.rpm = damp(this.rpm, rpmT, this.shiftT > 0 ? 30 : 22, dt);
@@ -294,18 +338,17 @@
       // ---- slide limits
       const sa = Math.abs(this.slipAngle);
       if (vf > 7 && sa > 0.62) return this.crash('lowside');
-      if (as.highside && vf > 12 && sa > 0.27 && this.thrPrev2 > 0.55 && this.throttle < 0.12) return this.crash('highside');
+      // highside: a big slide and the throttle snapped shut, the rear finds grip all at once
+      if (as.highside && vf > 14 && sa > 0.3 && Math.abs(this.lean) > 0.35 && this.thrPrev2 > 0.6 && this.throttle < 0.1) return this.crash('highside');
       if (!as.leanLimit && vf > 8 && Math.abs(Math.tan(this.lean)) * G > GrL * 1.18 && sa > 0.2) return this.crash('lowside');
 
-      // ---- marks, squeal
-      const driveSkid = this.throttle > 0.35 ? clamp((uRear - 0.9) / 0.22, 0, 1) : 0;
-      const brakeSkid = aBrk > 0.4 ? clamp(sa * 5, 0, 1) : 0;
-      f.rearSkid = this.pitch < -0.02 ? 0 : clamp(Math.max(driveSkid, brakeSkid, sa * 4.5 - 0.15), 0, 1) * (vf > 3 ? 1 : this.spin);
-      // rubber laid down: wheelspin, power at the edge of grip, or the rear stepping out
-      const markT = this.pitch < -0.02 ? 0 : clamp(Math.max(this.spin * 1.6, this.throttle > 0.25 ? (uRear - 0.84) / 0.16 : 0, (sa - 0.035) * 9, brakeSkid), 0, 1);
+      // ---- marks, squeal: only real wheelspin, a sliding rear or a locked tyre leave rubber
+      const brakeSkid = aBrk > 0.4 ? clamp((sa - 0.05) * 6, 0, 1) : 0;
+      f.rearSkid = rearUp ? 0 : clamp(Math.max(this.spin, brakeSkid, this.rearLock, sa * 4.5 - 0.2), 0, 1) * (vf > 3 ? 1 : this.spin);
+      const markT = rearUp ? 0 : clamp(Math.max(this.spin * 1.3, (sa - 0.07) * 7, this.rearLock * 1.3, brakeSkid), 0, 1);
       this.mark = damp(this.mark, markT, markT > this.mark ? 30 : 8, dt);
       if (frontUp) f.frontSkid = 0;
-      f.squeal = clamp(Math.max(f.rearSkid * 0.8, f.frontSkid, (this.util - 0.95) * 3), 0, 1) * (this.surf <= SURF.KERB || this.surf === SURF.RUNOFF ? 1 : 0);
+      f.squeal = clamp(Math.max(f.rearSkid * 0.8, f.frontSkid, (this.util - 0.97) * 3), 0, 1) * (this.surf <= SURF.KERB || this.surf === SURF.RUNOFF ? 1 : 0);
 
       // ---- barriers
       const side = this.d < 0 ? 0 : 1, sg = side ? 1 : -1;
