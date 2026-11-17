@@ -204,7 +204,7 @@
       sc.fog = new THREE.Fog(lin(th.fog), 420, 2300);
       this.hemi = new THREE.HemisphereLight(lin(th.hemi[0]), lin(th.hemi[1]), th.hemi[2]); sc.add(this.hemi);
       const sun = this.sun = new THREE.DirectionalLight(lin(th.sun), th.sunI); this.sunDir = V3(th.sunDir[0], th.sunDir[1], th.sunDir[2]).normalize();
-      sun.castShadow = true; const ms = this.q === 'low' ? 1024 : 2048; sun.shadow.mapSize.set(ms, ms);
+      sun.castShadow = true; const ms = this.q === 'low' ? 1024 : this.q === 'high' ? 4096 : 2048; sun.shadow.mapSize.set(ms, ms);
       this.shadowR = this.q === 'low' ? 55 : 75; const c = sun.shadow.camera; c.left = -this.shadowR; c.right = this.shadowR; c.top = this.shadowR; c.bottom = -this.shadowR; c.near = 20; c.far = 520;
       sun.shadow.bias = -0.0006; sun.shadow.normalBias = 0.06; sc.add(sun); sc.add(sun.target);
       // environment map for glossy paint and visors

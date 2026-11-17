@@ -167,12 +167,17 @@
         .replace('#include <color_fragment>', `#include <color_fragment>
           float gv = vn2(vWP.xz * 0.28) * 0.6 + vn2(vWP.xz * 0.9 + 17.0) * 0.4;
           diffuseColor.rgb *= 0.86 + gv * 0.26;
-          float band = smoothstep(0.35, 0.65, sin(vWP.y * 0.9 + sin(vWP.x * 0.045 + vWP.z * 0.03) * 2.2) * 0.5 + 0.5);
-          vec3 rock = mix(vec3(0.290, 0.278, 0.255), vec3(0.245, 0.234, 0.215), band);
+          // rock: soft large-scale tone changes and faint vertical weathering streaks, no hard bands
+          float rv = vn2(vWP.xz * 0.018 + 3.0) * 0.6 + vn2(vWP.xz * 0.06) * 0.4;
+          float streak = vn2(vec2((vWP.x + vWP.z) * 0.22, vWP.y * 0.012));
+          vec3 rock = mix(vec3(0.200, 0.195, 0.186), vec3(0.275, 0.266, 0.246), rv) * (0.9 + streak * 0.16);
           vec3 scree = vec3(0.385, 0.355, 0.300);
           diffuseColor.rgb = mix(diffuseColor.rgb, scree, vMat.z);
           diffuseColor.rgb = mix(diffuseColor.rgb, rock, smoothstep(0.25, 0.75, vMat.x));
-          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.89, 0.94), vMat.y);`);
+          diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.89, 0.94), vMat.y);`)
+        // rock faces shade faceted (low-poly cliff look), meadows stay smooth
+        .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+          { vec3 fn = normalize(cross(dFdx(vViewPosition), dFdy(vViewPosition))); normal = normalize(mix(normal, fn, smoothstep(0.35, 0.8, vMat.x))); }`);
     };
     m.customProgramCacheKey = () => 'apex-rally-terrain'; return m;
   }
@@ -458,7 +463,8 @@
     sc.fog = new THREE.Fog(lin(th.fog), 260, 3600);
     const b = t.bounds, cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2;
     const yMin = Math.min(...t.py), yMax = Math.max(...t.py);
-    const tree = yMax + 160;                                           // treeline
+    const KKpre = !!(AX.Assets && AX.Assets.has('kaykit/Tree_4_A'));
+    const tree = KKpre ? yMax - 20 : yMax + 160;                       // treeline: the last stretch to the summit is open alpine meadow
     const nz2 = (x, z) => W.fbm(x * 0.01 + 31, z * 0.01 + 17, 0, 3);
 
     /* ---- terrain: fine grid around the road, coarse grid out to the mountains */
@@ -469,13 +475,13 @@
       return [Math.max(steep, alp * smoothstep(0.92, 0.8, ny)), snow, Math.max(alp * 0.6, smoothstep(0.45, 0.75, nz2(x * 2.2, z * 2.2)) * 0.25)];
     };
     const KK = !!(AX.Assets && AX.Assets.has('kaykit/Tree_4_A'));          // KayKit vegetation present -> Art-of-Rally look
-    const G_MID = C3(84, 126, 60), G_LT = C3(112, 148, 70), G_DRY = C3(146, 148, 86), G_FOR = C3(56, 92, 46), G_ALP = C3(140, 142, 94);
+    const G_MID = C3(84, 126, 60), G_LT = C3(112, 148, 70), G_DRY = C3(146, 148, 86), G_FOR = C3(56, 92, 46), G_ALP = C3(112, 138, 72);
     const tint = KK ? (x, z, y) => {
       const n1 = nz2(x * 0.55 + 7, z * 0.55 + 3), n2 = nz2(x * 2.5, z * 2.5), n3 = nz2(x * 1.3 + 40, z * 1.3 - 11);
       let c = mix3(G_MID, G_LT, smoothstep(0.42, 0.72, n1));
       c = mix3(c, G_DRY, smoothstep(0.62, 0.8, n3) * 0.6);
       c = mix3(c, G_FOR, smoothstep(0.36, 0.5, n2) * 0.75);                 // darker floor where the forest stands
-      return mix3(c, G_ALP, smoothstep(tree - 60, tree + 80, y));
+      return mix3(c, G_ALP, smoothstep(tree - 40, tree + 60, y) * 0.7);
     } : (x, z, y) => { const k = 0.82 + nz2(x * 1.7, z * 1.7) * 0.35, d = smoothstep(yMax - 20, tree + 40, y) * 0.25; return [k * (1 + d * 0.3), k * (1 - d * 0.1), k * (1 - d * 0.4)]; };
     const M0 = 110, gx0 = b.minX - M0, gz0 = b.minZ - M0, gx1 = b.maxX + M0, gz1 = b.maxZ + M0;
     const fineStep = this.q === 'low' ? 3 : 2.2;
@@ -757,8 +763,22 @@
         this.ms(nm, { tint: kt, cell: 220 }).add(x, ym - 0.15, z, rng() * 6.28, big, big * rng.range(0.95, 1.15), firTint());
         nTrees++;
       }
+      // above the tree line: dwarf firs, juniper-like bushes, grass clumps and loose rocks so the alpine meadow is not bare
+      {
+        const dw = ['kaykit/Tree_4_A', 'kaykit/Tree_4_B'], bu2 = ['kaykit/Bush_4_B', 'kaykit/Bush_4_C', 'kaykit/Bush_1_C'], gr2 = ['kaykit/Grass_1_B', 'kaykit/Grass_2_B', 'kaykit/Grass_1_C'], rk2 = ['kaykit/Rock_3_E', 'kaykit/Rock_3_G', 'kaykit/Rock_1_G', 'kaykit/Rock_3_J'];
+        for (let n = 0; n < 4500 * q; n++) {
+          const i = rng.int(10, N - 10), s = rng.int(0, 1), sg = s ? 1 : -1, d = t.bar[s][i] + 1.5 + Math.pow(rng(), 1.5) * 70;
+          const x = t.px[i] + t.nx[i] * sg * d, z = t.pz[i] + t.nz[i] * sg * d; const y = this.heightAt(x, z);
+          if (y < tree - 60 || !roadClear(x, z, t.hw + 2.0) || nearBld(x, z, 1.5)) continue;
+          const r = rng(), ym = Math.min(y, this.heightAt(x + 0.6, z), this.heightAt(x - 0.6, z), this.heightAt(x, z + 0.6), this.heightAt(x, z - 0.6));
+          if (r < 0.05 && y < tree + 30) { const sc4 = rng.range(0.55, 0.95); this.ms(dw[rng.int(0, 1)], { tint: kt, cell: 220 }).add(x, ym - 0.1, z, rng() * 6.28, sc4, sc4 * rng.range(0.8, 1), firTint()); }
+          else if (r < 0.22) this.ms(bu2[rng.int(0, 2)], { tint: kt }).add(x, ym - 0.1, z, rng() * 6.28, rng.range(0.6, 1.2), null, hsl(0.28, rng.range(0.2, 0.4), rng.range(0.55, 0.75)));
+          else if (r < 0.35) this.ms(rk2[rng.int(0, 3)], { tint: kt }).add(x, ym - 0.2, z, rng() * 6.28, rng.range(0.4, 1.0), null, hsl(0.09, 0.05, rng.range(0.8, 0.95)));
+          else this.ms(gr2[rng.int(0, 2)], { tint: kt, cast: false }).add(x, ym - 0.05, z, rng() * 6.28, rng.range(0.8, 1.4), null, hsl(0.2 + rng.range(-0.03, 0.04), rng.range(0.3, 0.5), rng.range(0.75, 0.92)));
+        }
+      }
       // a few dead snags near the tree line
-      for (let n = 0; n < 60 * q; n++) {
+      for (let n = 0; n < 20 * q; n++) {
         const i = rng.int(20, N - 20), s = rng.int(0, 1), sg = s ? 1 : -1, d = t.bar[s][i] + rng.range(4, 30);
         const x = t.px[i] + t.nx[i] * sg * d, z = t.pz[i] + t.nz[i] * sg * d; if (!roadClear(x, z, w + 3) || nearBld(x, z, 3)) continue;
         const y = this.heightAt(x, z); if (y < tree - 150) continue;
@@ -777,8 +797,8 @@
       // rock outcrops: big blocky pieces sunk into the steep slopes, so cliffs read as rock instead of grey paint
       const crag = ['kaykit/Rock_2_E', 'kaykit/Rock_2_F', 'kaykit/Rock_2_G', 'kaykit/Rock_2_H', 'kaykit/Rock_3_M', 'kaykit/Rock_3_Q', 'kaykit/Rock_3_R'];
       let nCrag = 0;
-      for (let n = 0; n < 9000 && nCrag < 520 * q; n++) {
-        const i = rng.int(10, N - 10), s = rng.int(0, 1), sg = s ? 1 : -1, d = t.bar[s][i] + rng.range(3, 70);
+      for (let n = 0; n < 16000 && nCrag < 900 * q; n++) {
+        const i = rng.int(10, N - 10), s = rng.int(0, 1), sg = s ? 1 : -1, d = t.bar[s][i] + rng.range(3, 110);
         const sc3 = rng.range(1.3, 2.7), x = t.px[i] + t.nx[i] * sg * d, z = t.pz[i] + t.nz[i] * sg * d; if (!roadClear(x, z, w + 3 + 2.2 * sc3) || nearBld(x, z, 5)) continue;
         const y = this.heightAt(x, z), gx = this.heightAt(x + 2, z) - this.heightAt(x - 2, z), gz = this.heightAt(x, z + 2) - this.heightAt(x, z - 2);
         const slope = Math.hypot(gx, gz) / 4; if (slope < 0.75) continue;
