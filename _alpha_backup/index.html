@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>APEX &amp; PASS — 2.5D 1v1 Motorcycle Racing</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' fill='%23151814'/><text x='32' y='44' font-family='Helvetica' font-size='34' font-weight='700' fill='%23f2e7d4' text-anchor='middle'>A</text></svg>">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="scene"></canvas>
+  <div id="vignette"></div>
+
+  <!-- ================= HUD ================= -->
+  <div id="hud" class="hidden">
+    <div class="hud-top">
+      <div class="hud-pod hud-id">
+        <div class="hud-id-main">
+          <span id="hudTrack">SUPERSTARS GP</span>
+          <em id="hudMode">TIME ATTACK</em>
+        </div>
+        <div class="hud-quick-btns">
+          <button id="hudCamBtn" class="hud-pill-btn" title="Kamera wechseln (C)">CAM · 2.5D</button>
+          <button id="hudMuteBtn" class="hud-pill-btn" title="Ton an/aus (M)">TON AN</button>
+          <button id="hudSetupBtn" class="hud-pill-btn" title="Boxen-Setup (ESC)">SETUP</button>
+        </div>
+      </div>
+      <div class="hud-pod hud-clock">
+        <div class="hud-clock-top">
+          <span id="hudLapBadge" class="lap-badge">RUNDE 1</span>
+          <div id="hudLap">0:00.000</div>
+        </div>
+        <div id="hudDelta">—</div>
+      </div>
+      <div class="hud-pod hud-best">
+        <span id="hudRightLabel">BESTE RUNDE</span>
+        <b id="hudBest">—</b>
+      </div>
+    </div>
+
+    <div id="oppTag" class="opp-tag hidden">RIVAL</div>
+
+    <div class="minimap-wrap">
+      <canvas id="minimap" width="220" height="220"></canvas>
+      <div class="minimap-ring"></div>
+    </div>
+
+    <div class="hud-pod hud-left">
+      <div class="gear-wrap">
+        <div class="gear-label">GANG</div>
+        <div id="gear">1</div>
+      </div>
+      <div class="speed-wrap">
+        <div id="speed">0</div>
+        <div class="speed-unit">KM/H</div>
+      </div>
+      <div class="tach-wrap">
+        <div class="tach-head">
+          <span id="hudRpm">1250 RPM</span>
+          <span id="stuntBadge" class="stunt-badge hidden">WHEELIE</span>
+        </div>
+        <div id="tach"></div>
+        <div class="shift-lights" id="shiftLights"><i></i><i></i><i></i><i></i></div>
+      </div>
+      <div class="lean-box" title="Schräglage">
+        <svg id="leanGauge" viewBox="0 0 56 34">
+          <path class="lean-arc" d="M 8 28 A 20 20 0 0 1 48 28" />
+          <line class="lean-tick" x1="28" y1="6" x2="28" y2="11" />
+          <g id="leanNeedle"><line x1="28" y1="28" x2="28" y2="9" /></g>
+          <circle class="lean-pivot" cx="28" cy="28" r="2.6" />
+        </svg>
+        <span id="leanDeg">0°</span>
+      </div>
+    </div>
+
+    <div class="hud-pod hud-right">
+      <div class="tire-block">
+        <div class="tire-head"><span>VORNE</span><b id="tempF">75°</b></div>
+        <div class="tire-zones" id="zonesF"><i></i><i></i><i></i></div>
+      </div>
+      <div class="tire-block">
+        <div class="tire-head"><span>HINTEN</span><b id="tempR">78°</b></div>
+        <div class="tire-zones" id="zonesR"><i></i><i></i><i></i></div>
+      </div>
+      <div class="weight-box">
+        <div class="weight-title">GEWICHT</div>
+        <div class="weight-pad"><div class="weight-dot" id="weightDot"></div></div>
+      </div>
+    </div>
+
+    <div class="hud-pod hud-inputs">
+      <div class="input-col"><i id="barThrottle"></i><em>GAS</em></div>
+      <div class="input-col"><i id="barFront"></i><em>VR</em></div>
+      <div class="input-col"><i id="barRear"></i><em>HR</em></div>
+      <div class="input-col"><i id="barClutch"></i><em>KUP</em></div>
+    </div>
+
+    <div id="toast"></div>
+    <div id="countdown" class="hidden"></div>
+    <div id="crashMsg" class="hidden">
+      <div class="crash-type">LOWSIDER</div>
+      <div class="crash-sub">R — Motorrad sofort aufstellen</div>
+    </div>
+    <div class="hud-hint" id="hudHint"><span class="kbd">WASD</span> Fahren &amp; Lenken · <span class="kbd">←↑↓→</span> Manuelles Lean (Wheelie / Stoppie / Hang-Off) · <span class="kbd">X</span> HR-Bremse · <span class="kbd">Space</span> Kupplung · <span class="kbd">Q/E</span> Schalten · <span class="kbd">C</span> Kamera</div>
+  </div>
+
+  <!-- ================= MAIN MENU ================= -->
+  <div id="menu" class="screen">
+    <div class="menu-shade"></div>
+    <div class="menu-grid">
+      <div class="menu-left">
+        <div class="eyebrow"><span class="dot"></span> 2.5D ISOMETRIC · 1v1 SIM-CADE MOTORCYCLE RACING</div>
+        <h1>APEX<br><span class="amp">&amp;</span> PASS</h1>
+        <p class="tagline">2.5D Top-Down Übersicht.<br>Echte Zweirad-Physik. 1v1 Duelle.</p>
+
+        <!-- 1v1 ONLINE LOBBY BOX -->
+        <div class="lobby-card">
+          <div class="lobby-header">
+            <span class="section-label">ONLINE 1v1 LOBBY (P2P RAUM-CODE)</span>
+            <span id="lobbyBadge" class="lobby-badge">OFFLINE / SOLO</span>
+          </div>
+          <div class="lobby-controls">
+            <button id="hostLobbyBtn" class="lobby-btn primary">LOBBY ERSTELLEN</button>
+            <div class="lobby-join-group">
+              <input id="joinCodeInput" type="text" maxlength="4" placeholder="CODE (z.B. 4821)">
+              <button id="joinLobbyBtn" class="lobby-btn">BEITRETEN</button>
+            </div>
+            <button id="botLobbyBtn" class="lobby-btn ghost" title="Testet den 1v1-Modus sofort gegen einen KI-Gegner">1v1 VS. BOT</button>
+          </div>
+          <div id="lobbyStatus" class="lobby-status">Erstelle einen Raum-Code für deinen Kollegen oder starte direkt Solo / gegen den 1v1-Bot.</div>
+        </div>
+
+        <button id="startBtn" class="start-btn">
+          <span id="startBtnLabel">FAHREN STARTEN</span>
+          <em>→</em>
+        </button>
+        <div class="start-meta">ENTER STARTEN · C KAMERA WECHSELN · ESC SETUP · MAUSRAD ZOOM</div>
+      </div>
+
+      <div class="menu-right">
+        <div class="select-head">
+          <div class="section-label">01 — DEIN BIKE</div>
+          <div class="select-note" id="bikeNote">Hyper-Naked · 1100 V4</div>
+        </div>
+        <div class="bike-cards" id="bikeCards"></div>
+
+        <div class="option-dock">
+          <div class="option-row">
+            <div class="option">
+              <div class="section-label">02 — STRECKE</div>
+              <div class="pills" id="trackPills"></div>
+            </div>
+            <div class="option">
+              <div class="section-label">03 — KAMERA</div>
+              <div class="pills" id="menuCamPills">
+                <button data-cam="iso" class="active">2.5D TOP-DOWN</button>
+                <button data-cam="chase">CHASE</button>
+                <button data-cam="pov">POV</button>
+              </div>
+            </div>
+            <div class="option">
+              <div class="section-label">04 — LICHT</div>
+              <div class="pills light-pills" id="timePills">
+                <button data-theme="golden" class="active"><i class="sw golden"></i>GOLDEN</button>
+                <button data-theme="noon"><i class="sw noon"></i>MITTAG</button>
+                <button data-theme="dusk"><i class="sw dusk"></i>DÄMMERUNG</button>
+              </div>
+            </div>
+          </div>
+          <div class="menu-foot">
+            <div class="track-desc" id="trackDesc">Superstars GP · 0.68 km · 7 Kurven</div>
+            <div class="control-summary"><span class="kbd">WASD</span> Fahren &amp; Lenken · <span class="kbd">←↑↓→</span> Manuelles Lean (Wheelie / Stoppie) · <span class="kbd">X</span> HR-Bremse · <span class="kbd">Space</span> Kupplung</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="version">BUILD 0.2 · 2.5D ISOMETRIC 1v1 FOUNDATION</div>
+  </div>
+
+  <!-- ================= PAUSE / SETUP ================= -->
+  <div id="pause" class="screen overlay hidden">
+    <div class="pause-panel">
+      <div class="pause-head">
+        <div>
+          <div class="section-label">BOXENSTRASSE</div>
+          <h2>FAHRWERK &amp; REIFEN SETUP</h2>
+        </div>
+        <div class="pause-actions">
+          <button id="resumeBtn" class="btn-ghost">WEITER <span>ESC</span></button>
+          <button id="restartBtn" class="btn-ghost">NEU STARTEN</button>
+          <button id="quitBtn" class="btn-ghost">HAUPTMENÜ</button>
+        </div>
+      </div>
+
+      <div class="pause-grid">
+        <div class="setup-col">
+          <h3>Reifen</h3>
+          <div class="field">
+            <label>Mischung</label>
+            <div class="pills small" id="compoundPills">
+              <button data-compound="soft">SOFT</button>
+              <button data-compound="medium" class="active">MEDIUM</button>
+              <button data-compound="hard">HARD</button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Druck vorne <b id="pressureFVal">2.30 bar</b></label>
+            <input type="range" id="pressureF" min="1.8" max="3" step="0.05" value="2.3">
+          </div>
+          <div class="field">
+            <label>Druck hinten <b id="pressureRVal">2.30 bar</b></label>
+            <input type="range" id="pressureR" min="1.8" max="3" step="0.05" value="2.3">
+          </div>
+        </div>
+
+        <div class="setup-col">
+          <h3>Fahrwerk</h3>
+          <div class="field">
+            <label>Feder vorne <b id="springFVal">1.00</b></label>
+            <input type="range" id="springF" min="0.7" max="1.4" step="0.05" value="1">
+          </div>
+          <div class="field">
+            <label>Feder hinten <b id="springRVal">1.00</b></label>
+            <input type="range" id="springR" min="0.7" max="1.4" step="0.05" value="1">
+          </div>
+          <div class="field">
+            <label>Dämpfung <b id="dampingVal">1.00</b></label>
+            <input type="range" id="damping" min="0.6" max="1.5" step="0.05" value="1">
+          </div>
+          <div class="field">
+            <label>Übersetzung <b id="gearingVal">1.00</b></label>
+            <input type="range" id="gearing" min="0.9" max="1.1" step="0.01" value="1">
+          </div>
+        </div>
+
+        <div class="setup-col">
+          <h3>Fahrhilfen &amp; Ansicht</h3>
+          <div class="field assist">
+            <label>Traktionskontrolle (OFF = volle Powerslides)</label>
+            <div class="pills small assists" id="tcPills">
+              <button data-val="0">OFF</button><button data-val="1">1</button><button data-val="2">2</button><button data-val="3">3</button>
+            </div>
+          </div>
+          <div class="field assist">
+            <label>ABS (OFF = volle Stoppies)</label>
+            <div class="pills small assists" id="absPills">
+              <button data-val="0">OFF</button><button data-val="1">1</button><button data-val="2">2</button><button data-val="3">3</button>
+            </div>
+          </div>
+          <div class="field assist">
+            <label>Anti-Wheelie (OFF = freie Wheelies)</label>
+            <div class="pills small assists" id="awPills">
+              <button data-val="0">OFF</button><button data-val="1">1</button><button data-val="2">2</button><button data-val="3">3</button>
+            </div>
+          </div>
+          <div class="field camera-field">
+            <label>Kamera</label>
+            <div class="pills small" id="camPills">
+              <button data-cam="iso" class="active">2.5D</button>
+              <button data-cam="chase">CHASE</button>
+              <button data-cam="pov">POV</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pause-foot">
+        <div class="legend"><span class="k">R</span> Reset <span class="k">C</span> Kamera <span class="k">M</span> Ton <span class="k">H</span> Hilfe</div>
+        <div class="pause-note">Tipp: Für dicke schwarze Striche (Darkies) und freie Wheelies TC &amp; Anti-Wheelie auf OFF oder 1 stellen!</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="loading" class="screen">
+    <div class="loading-inner">
+      <div class="loading-mark">A<span>&amp;</span>P</div>
+      <div class="loading-text">STRECKE WIRD GELADEN</div>
+      <div class="loading-bar"><i></i></div>
+    </div>
+  </div>
+</div>
+
+<script src="three.min.js"></script>
+<script src="peerjs.min.js"></script>
+<script src="js/util.js"></script>
+<script src="js/world.js"></script>
+<script src="js/bike.js"></script>
+<script src="js/physics.js"></script>
+<script src="js/net.js"></script>
+<script src="js/game.js"></script>
+</body>
+</html>

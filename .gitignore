@@ -1,0 +1,8 @@
+# raw asset kits: too big for GitHub (the nature zip is >100 MB); the game uses the packed assets/pack_*.js
+assets/*.zip
+assets/src/
+# Blender autosaves, generated previews
+*.blend1
+tools/tex/
+__pycache__/
+.DS_Store

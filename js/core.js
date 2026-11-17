@@ -1,0 +1,121 @@
+/* APEX — core: namespace, math helpers, bike + rider data.
+   Classic script (works from file://). Also loadable in Node for headless tests. */
+(function (root) {
+  'use strict';
+  const AX = root.AX = root.AX || {};
+
+  AX.G = 9.81;
+  AX.clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+  AX.lerp = (a, b, t) => a + (b - a) * t;
+  AX.damp = (a, b, lambda, dt) => a + (b - a) * (1 - Math.exp(-lambda * dt));
+  AX.smoothstep = (a, b, x) => { const t = AX.clamp((x - a) / (b - a), 0, 1); return t * t * (3 - 2 * t); };
+  AX.mod = (n, m) => ((n % m) + m) % m;
+  AX.wrapAngle = (a) => { a = (a + Math.PI) % (Math.PI * 2); if (a < 0) a += Math.PI * 2; return a - Math.PI; };
+  AX.approach = (cur, target, rateUp, rateDown, dt) => {
+    if (cur < target) return Math.min(target, cur + rateUp * dt);
+    return Math.max(target, cur - rateDown * dt);
+  };
+
+  AX.RNG = function (seed) {
+    let s = (seed >>> 0) || 1;
+    const f = function () {
+      s = (s + 0x6D2B79F5) >>> 0;
+      let t = s;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+    f.range = (a, b) => a + (b - a) * f();
+    f.int = (a, b) => Math.floor(a + (b - a + 1) * f());
+    f.pick = (arr) => arr[Math.floor(f() * arr.length)];
+    f.sign = () => (f() < 0.5 ? -1 : 1);
+    return f;
+  };
+
+  AX.formatTime = (t) => {
+    if (!isFinite(t) || t == null) return '–:––.–––';
+    const m = Math.floor(t / 60), s = t - m * 60;
+    return m + ':' + (s < 10 ? '0' : '') + s.toFixed(3);
+  };
+  AX.formatGap = (t) => (t >= 0 ? '+' : '−') + Math.abs(t).toFixed(Math.abs(t) >= 10 ? 1 : 3);
+
+  /* ------------------------------------------------------------------ bikes
+     mass incl. rider [kg], power [kW], redline [rpm]
+     gears: speed [m/s] reached at redline in each gear
+     cgB: CoM distance ahead of rear contact, cgH: CoM height  -> wheelie threshold = g*cgB/cgH
+     leanRate: natural frequency of roll response [rad/s]
+     engine: firing layout for the sound synth                              */
+  AX.BIKES = {
+    corsa: {
+      id: 'corsa', name: 'CORSA 600', cls: 'Supersport', engineLabel: '599 cm³ · R4',
+      blurb: { de: 'Leicht, drehfreudig, messerscharf am Kurveneingang.', en: 'Light, rev-happy and razor sharp on turn-in.' },
+      mass: 248, power: 96, redline: 15600, idle: 1500,
+      gears: [26.5, 35.5, 43.5, 51, 58, 66],
+      torqueShape: [[0, 0.42], [0.2, 0.5], [0.4, 0.66], [0.55, 0.8], [0.7, 0.93], [0.82, 1.0], [0.92, 0.97], [1.0, 0.86]],
+      wheelbase: 1.38, cgB: 0.66, cgH: 0.58, mu: 1.60, maxLean: 58, leanRate: 9.6, brake: 13.4, dragTop: 68,
+      stats: { speed: 0.68, accel: 0.66, agility: 0.98, brake: 0.92 },
+      engine: { cyl: 4, fire: [0, 0.25, 0.5, 0.75], rough: 0.05, pipe: 0.0026, bright: 1.25, body: 0.8 },
+      style: { fairing: 'full', tail: 'slim', exhaust: 'under', bars: 'clipon', winglets: false, scale: 0.97 }
+    },
+    strada: {
+      id: 'strada', name: 'STRADA V4', cls: 'Superbike', engineLabel: '1103 cm³ · V4',
+      blurb: { de: 'Brachiale Leistung. Das Vorderrad will ständig in die Luft.', en: 'Brutal power. The front wheel keeps reaching for the sky.' },
+      mass: 276, power: 158, redline: 14200, idle: 1400,
+      gears: [29, 39, 48, 56.5, 65, 75],
+      torqueShape: [[0, 0.5], [0.2, 0.62], [0.4, 0.8], [0.55, 0.93], [0.7, 1.0], [0.82, 0.99], [0.92, 0.94], [1.0, 0.84]],
+      wheelbase: 1.45, cgB: 0.68, cgH: 0.60, mu: 1.58, maxLean: 57, leanRate: 8.4, brake: 13.0, dragTop: 77,
+      stats: { speed: 0.98, accel: 0.98, agility: 0.74, brake: 0.86 },
+      engine: { cyl: 4, fire: [0, 0.125, 0.5, 0.625], rough: 0.09, pipe: 0.0034, bright: 1.0, body: 1.15 },
+      style: { fairing: 'full', tail: 'tall', exhaust: 'side', bars: 'clipon', winglets: true, scale: 1.0 }
+    },
+    duetto: {
+      id: 'duetto', name: 'DUETTO 900', cls: 'Naked Twin', engineLabel: '890 cm³ · V2',
+      blurb: { de: 'Drehmoment aus dem Keller, breiter Lenker, Wheelie-Maschine.', en: 'Torque from idle, wide bars, a wheelie machine.' },
+      mass: 262, power: 92, redline: 10400, idle: 1250,
+      gears: [24.5, 33, 41, 48.5, 55.5, 62],
+      torqueShape: [[0, 0.66], [0.2, 0.82], [0.38, 0.97], [0.5, 1.0], [0.65, 0.98], [0.8, 0.92], [0.92, 0.84], [1.0, 0.72]],
+      wheelbase: 1.42, cgB: 0.62, cgH: 0.62, mu: 1.52, maxLean: 54, leanRate: 9.0, brake: 12.4, dragTop: 63,
+      stats: { speed: 0.6, accel: 0.74, agility: 0.86, brake: 0.8 },
+      engine: { cyl: 2, fire: [0, 0.375], rough: 0.12, pipe: 0.0046, bright: 0.72, body: 1.5 },
+      style: { fairing: 'naked', tail: 'slim', exhaust: 'side', bars: 'wide', winglets: false, scale: 1.0 }
+    }
+  };
+  AX.BIKE_ORDER = ['corsa', 'strada', 'duetto'];
+
+  AX.torqueAt = (spec, n) => {
+    const c = spec.torqueShape;
+    if (n <= 0) return c[0][1];
+    for (let i = 1; i < c.length; i++) {
+      if (n <= c[i][0]) {
+        const t = (n - c[i - 1][0]) / (c[i][0] - c[i - 1][0]);
+        return c[i - 1][1] + (c[i][1] - c[i - 1][1]) * t;
+      }
+    }
+    return Math.max(0, c[c.length - 1][1] - (n - 1) * 6);
+  };
+
+  /* Field of riders. All names, teams and sponsors are invented. */
+  AX.RIDERS = [
+    { name: 'DU',          num: 1,  c1: '#e8372c', c2: '#ffffff', c3: '#141518', helmet: '#f4f4f1', suit: '#e8372c' },
+    { name: 'M. Halvorsen', num: 27, c1: '#1f6fe0', c2: '#ffd23c', c3: '#0e1a33', helmet: '#ffd23c', suit: '#1f6fe0' },
+    { name: 'R. Okafor',    num: 44, c1: '#19b36b', c2: '#0c0d0e', c3: '#f2f2ee', helmet: '#19b36b', suit: '#17191c' },
+    { name: 'L. Ferrand',   num: 9,  c1: '#f4a21a', c2: '#17191c', c3: '#ffffff', helmet: '#17191c', suit: '#f4a21a' },
+    { name: 'T. Sakamoto',  num: 73, c1: '#f2f2ee', c2: '#d6243a', c3: '#1a2a6b', helmet: '#d6243a', suit: '#f2f2ee' },
+    { name: 'J. Brandl',    num: 12, c1: '#7b3fe0', c2: '#e9e2ff', c3: '#15101f', helmet: '#e9e2ff', suit: '#7b3fe0' },
+    { name: 'A. Moretti',   num: 58, c1: '#11b9c9', c2: '#ff5a3c', c3: '#0b2226', helmet: '#ff5a3c', suit: '#11b9c9' },
+    { name: 'K. Lindqvist', num: 33, c1: '#22252b', c2: '#c7f03a', c3: '#ffffff', helmet: '#c7f03a', suit: '#22252b' },
+    { name: 'S. Navarro',   num: 5,  c1: '#ff5fa2', c2: '#ffffff', c3: '#2a1020', helmet: '#ffffff', suit: '#ff5fa2' },
+    { name: 'P. Dvořák',    num: 88, c1: '#b8862b', c2: '#111111', c3: '#f6ecd0', helmet: '#111111', suit: '#b8862b' }
+  ];
+
+  AX.SURF = { ROAD: 0, KERB: 1, GRASS: 2, GRAVEL: 3, RUNOFF: 4 };
+  AX.SURF_DATA = [
+    { name: 'road',   grip: 1.00, drag: 0.0, dragV: 0.0 },
+    { name: 'kerb',   grip: 0.92, drag: 0.15, dragV: 0.0 },
+    { name: 'grass',  grip: 0.56, drag: 1.3, dragV: 0.045 },
+    { name: 'gravel', grip: 0.50, drag: 4.2, dragV: 0.17 },
+    { name: 'runoff', grip: 0.94, drag: 0.1, dragV: 0.0 }
+  ];
+
+  if (typeof module !== 'undefined' && module.exports) module.exports = AX;
+})(typeof globalThis !== 'undefined' ? globalThis : window);
