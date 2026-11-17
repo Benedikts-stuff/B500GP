@@ -10,9 +10,11 @@ import bpy, bmesh, math
 from mathutils import Vector, Matrix
 
 OUT = '/Users/benedikt/Desktop/Apex/blender/'
-WB = 1.45; HX = WB / 2; RR, RF = 0.325, 0.315; WR, WF = 0.115, 0.078
+VARIANT = globals().get('VARIANT', 'strada')          # 'strada' (faired superbike) or 'duetto' (naked twin)
+NAKED = VARIANT == 'duetto'
+WB = 1.42 if NAKED else 1.45; HX = WB / 2; RR, RF = 0.325, 0.315; WR, WF = 0.115, 0.078
 STEER = (HX - 0.27, 0.93)
-BARX, BARY, BARZ = HX - 0.27, 0.905, 0.265
+BARX, BARY, BARZ = (HX - 0.36, 1.04, 0.36) if NAKED else (HX - 0.27, 0.905, 0.265)
 
 for sc in [s for s in bpy.data.scenes if s.name == 'Bike']: bpy.data.scenes.remove(sc)
 for o in [o for o in bpy.data.objects if o.name.startswith('bk_')]: bpy.data.objects.remove(o)
@@ -115,53 +117,94 @@ M_carbon = mat('M_carbon', '23252a'); M_red = mat('M_red', 'c8281e'); M_gold = m
 X_alu = mat('X_alu', 'b9bdc2'); X_steel = mat('X_steel', 'd6d8db'); X_ti = mat('X_ti', '8f8676'); X_rim = mat('X_rim', '25272b')
 X_wheel = mat('X_wheel', 'c4c8cd'); G_light = mat('G_light', 'f4f8ff'); G_tail = mat('G_tail', 'ff2a1a'); S_screen = mat('S_screen', '10151c')
 
+
+NAKED_BODY = """
+# slim tail
+loft('tail', [dict(x=-0.10, y=0.74, w=0.12, ht=0.03, hb=0.05), dict(x=-0.30, y=0.76, w=0.13, ht=0.035, hb=0.06, e=3),
+              dict(x=-0.48, y=0.84, w=0.10, ht=0.05, hb=0.05, e=3.0), dict(x=-0.66, y=0.90, w=0.06, ht=0.035, hb=0.035, e=2.6), dict(x=-0.72, y=0.915, w=0.02, ht=0.012, hb=0.012)], P_body, 'body')
+box('taillight', (0.02, 0.025, 0.07), (-0.715, 0.912, 0), G_tail, 'body', bevel=0.006)
+# radiator shrouds flanking the tank
+for s in (-1, 1):
+    loft('shroud%d' % s, [dict(x=0.48, y=0.73, w=0.012, ht=0.035, hb=0.035), dict(x=0.40, y=0.70, w=0.022, ht=0.11, hb=0.10, e=3),
+                          dict(x=0.24, y=0.71, w=0.022, ht=0.09, hb=0.08, e=3), dict(x=0.15, y=0.75, w=0.012, ht=0.03, hb=0.03)], P_body, 'body', ring=12,
+         xform=Matrix.Translation(V(0, 0, s * 0.165)))
+box('radiator', (0.04, 0.26, 0.30), (0.38, 0.56, 0), M_dark, 'body', rot=(0, 0, -0.25), bevel=0.01)
+# trellis frame (red tubes)
+M_trel = mat('M_trellis', 'c22a24')
+for s in (-1, 1):
+    a = (STEER[0] - 0.03, 0.9, s * 0.07); b = (-0.2, 0.5, s * 0.125); c = (0.12, 0.84, s * 0.12); d = (0.2, 0.52, s * 0.13); e2 = (-0.1, 0.8, s * 0.115)
+    for p, q in ((a, c), (c, e2), (e2, b), (a, d), (d, b), (c, d), (d, e2)):
+        tube('trellis%d_%.2f_%.2f' % (s, p[0], q[0]), [p, q], 0.017, M_trel, 'body', seg=8)
+    tube('sub%d' % s, [(-0.15, 0.76, s * 0.08), (-0.45, 0.82, s * 0.065), (-0.62, 0.86, s * 0.05)], 0.013, M_trel, 'body', seg=8)
+# V-twin: crankcase, two finned cylinders, alternator and clutch covers
+box('crank', (0.36, 0.22, 0.26), (0.04, 0.36, 0), M_engine, 'body', bevel=0.04)
+for (cx, cy, ang) in ((0.18, 0.56, -0.75), (-0.06, 0.6, 0.15)):
+    box('cyl%.2f' % cx, (0.12, 0.2, 0.13), (cx, cy, 0), M_engine, 'body', rot=(0, 0, ang), bevel=0.02)
+    for k in range(5):
+        dy = -0.06 + k * 0.03
+        box('fin%.2f_%d' % (cx, k), (0.16, 0.008, 0.17), (cx - math.sin(-ang) * dy, cy + math.cos(-ang) * dy, 0), M_engine, 'body', rot=(0, 0, ang), bevel=0.003)
+    box('head%.2f' % cx, (0.14, 0.06, 0.15), (cx - math.sin(-ang) * 0.12, cy + math.cos(-ang) * 0.12, 0), X_alu, 'body', rot=(0, 0, ang), bevel=0.015)
+cyl('altcover', 0.075, 0.03, (0.06, 0.36, -0.14), X_alu, 'body', seg=24)
+cyl('clutchcover', 0.085, 0.03, (0.0, 0.37, 0.14), X_alu, 'body', seg=24)
+# exhaust: headers into a stacked twin silencer on the right
+tube('header1', [(0.24, 0.48, 0.05), (0.32, 0.36, 0.08), (0.2, 0.24, 0.1), (-0.05, 0.25, 0.15), (-0.2, 0.38, 0.18)], 0.026, X_steel, 'body', seg=10)
+tube('header2', [(-0.12, 0.52, 0.08), (-0.18, 0.44, 0.16), (-0.22, 0.42, 0.18)], 0.026, X_steel, 'body', seg=10)
+for k, (dy, rr) in enumerate(((0.0, 0.05), (0.075, 0.045))):
+    loft('can%d' % k, [dict(x=-0.2, y=0.4 + dy, w=0.03, ht=0.03), dict(x=-0.24, y=0.42 + dy, w=rr, ht=rr, e=2.2), dict(x=-0.5, y=0.52 + dy, w=rr, ht=rr, e=2.2), dict(x=-0.52, y=0.53 + dy, w=rr * 0.7, ht=rr * 0.7, e=2.2)],
+         X_steel, 'body', ring=16, xform=Matrix.Translation(V(0, 0, 0.2)))
+    cyl('cancap%d' % k, rr * 0.75, 0.015, (-0.525, 0.532 + dy, 0.2), M_carbon, 'body', axis='x', seg=16)
+"""
+
 # ------------------------------------------------------------------ BODY
 # tank
 loft('tank', [
-    dict(x=0.44, y=0.83, w=0.06, ht=0.04, hb=0.05), dict(x=0.40, y=0.85, w=0.13, ht=0.09, hb=0.10, e=2.6),
-    dict(x=0.28, y=0.85, w=0.17, ht=0.125, hb=0.14, e=3.0), dict(x=0.10, y=0.84, w=0.18, ht=0.12, hb=0.16, e=3.2),
+    dict(x=0.44, y=0.83, w=0.06, ht=0.04, hb=0.05), dict(x=0.40, y=0.85, w=0.13, ht=0.09 + (0.02 if NAKED else 0), hb=0.10, e=2.6),
+    dict(x=0.28, y=0.85, w=0.17, ht=0.125 + (0.015 if NAKED else 0), hb=0.14, e=3.0), dict(x=0.10, y=0.84, w=0.18, ht=0.12, hb=0.16, e=3.2),
     dict(x=-0.05, y=0.82, w=0.155, ht=0.095, hb=0.14, e=3.0), dict(x=-0.15, y=0.795, w=0.11, ht=0.04, hb=0.09, e=2.4)], P_body, 'body')
 # seat
 loft('seat', [dict(x=-0.12, y=0.79, w=0.06, ht=0.015, hb=0.02), dict(x=-0.17, y=0.795, w=0.13, ht=0.035, hb=0.03, e=3),
               dict(x=-0.36, y=0.81, w=0.135, ht=0.035, hb=0.03, e=3), dict(x=-0.45, y=0.835, w=0.10, ht=0.03, hb=0.03)], M_seat, 'body')
-# tall tail unit with a sharp upswept tip
-loft('tail', [
-    dict(x=-0.10, y=0.74, w=0.12, ht=0.03, hb=0.05), dict(x=-0.30, y=0.76, w=0.145, ht=0.035, hb=0.07, e=3),
-    dict(x=-0.46, y=0.85, w=0.13, ht=0.08, hb=0.08, e=3.2), dict(x=-0.62, y=0.93, w=0.095, ht=0.075, hb=0.06, e=3.0),
-    dict(x=-0.76, y=0.985, w=0.05, ht=0.04, hb=0.035, e=2.5), dict(x=-0.81, y=1.0, w=0.02, ht=0.015, hb=0.015)], P_body, 'body')
-box('taillight', (0.02, 0.025, 0.08), (-0.80, 0.995, 0), G_tail, 'body', bevel=0.006)
-# main fairing: one continuous side/belly shell around the engine
-loft('fairing', [
-    dict(x=0.72, y=0.63, w=0.06, ht=0.10, hb=0.10), dict(x=0.64, y=0.59, w=0.15, wb=0.11, ht=0.21, hb=0.20, e=3.0),
-    dict(x=0.47, y=0.54, w=0.21, wb=0.12, ht=0.27, hb=0.28, e=3.4), dict(x=0.25, y=0.50, w=0.225, wb=0.125, ht=0.24, hb=0.29, e=3.4),
-    dict(x=0.02, y=0.46, w=0.205, wb=0.11, ht=0.17, hb=0.26, e=3.2), dict(x=-0.18, y=0.39, w=0.15, wb=0.08, ht=0.08, hb=0.17, e=2.8),
-    dict(x=-0.32, y=0.33, w=0.08, wb=0.05, ht=0.05, hb=0.10), dict(x=-0.38, y=0.30, w=0.03, ht=0.02, hb=0.04)], P_body, 'body', ring=20)
-# nose with the two headlight "eyes" and a central ram-air intake
-loft('nose', [
-    dict(x=0.96, y=0.775, w=0.025, ht=0.02, hb=0.03, e=2.2), dict(x=0.92, y=0.785, w=0.09, ht=0.045, hb=0.07, e=2.6),
-    dict(x=0.84, y=0.80, w=0.15, ht=0.075, hb=0.11, e=2.8), dict(x=0.74, y=0.825, w=0.19, ht=0.10, hb=0.15, e=3.0),
-    dict(x=0.62, y=0.85, w=0.205, ht=0.11, hb=0.16, e=3.2), dict(x=0.50, y=0.865, w=0.19, ht=0.095, hb=0.13, e=3.0),
-    dict(x=0.43, y=0.86, w=0.13, ht=0.05, hb=0.07, e=2.6)], P_body, 'body', ring=18)
-for s in (-1, 1):
-    box('eye%d' % s, (0.12, 0.04, 0.09), (0.855, 0.80, s * 0.105), M_dark, 'body', rot=(0, s * 0.55, 0.18), bevel=0.012)
-    box('lens%d' % s, (0.09, 0.024, 0.07), (0.866, 0.803, s * 0.112), G_light, 'body', rot=(0, s * 0.55, 0.18), bevel=0.008)
-    # winglets
-    box('wing%d' % s, (0.15, 0.012, 0.10), (0.66, 0.74, s * 0.235), M_carbon, 'body', rot=(s * -0.25, s * 0.12, 0), bevel=0.004)
-    # side vents (dark inserts proud of the fairing)
-    for k in range(3):
-        box('vent%d%d' % (s, k), (0.12 - k * 0.02, 0.012, 0.02), (0.42 - k * 0.03, 0.62 - k * 0.04, s * (0.222 - k * 0.003)), M_dark, 'body', rot=(0, 0, -0.35), bevel=0.004)
-box('intake', (0.05, 0.035, 0.05), (0.94, 0.77, 0), M_dark, 'body', bevel=0.012)
-# windscreen
-loft('screen', [dict(x=0.80, y=0.925, w=0.07, ht=0.012, hb=0.002), dict(x=0.70, y=0.975, w=0.12, ht=0.05, hb=0.002, e=2.4),
-                dict(x=0.58, y=0.995, w=0.135, ht=0.085, hb=0.002, e=2.4), dict(x=0.50, y=1.0, w=0.125, ht=0.09, hb=0.002, e=2.4)], S_screen, 'body', ring=16, subsurf=1)
-# frame: twin aluminium spars from the steering head to the swingarm pivot
-for s in (-1, 1):
-    tube('spar%d' % s, [(STEER[0] - 0.02, 0.88, s * 0.07), (0.30, 0.78, s * 0.13), (0.05, 0.72, s * 0.135), (-0.10, 0.64, s * 0.13), (-0.17, 0.52, s * 0.115)], 0.034, X_alu, 'body', seg=10)
-    tube('sub%d' % s, [(-0.15, 0.74, s * 0.08), (-0.45, 0.81, s * 0.07), (-0.66, 0.89, s * 0.05)], 0.014, M_dark, 'body', seg=8)
-# engine block, cylinder heads, sump, radiator
-box('crank', (0.40, 0.24, 0.30), (0.05, 0.36, 0), M_engine, 'body', bevel=0.04)
-box('heads', (0.24, 0.26, 0.26), (0.18, 0.57, 0), M_engine, 'body', rot=(0, 0, 0.45), bevel=0.04)
-box('radiator', (0.04, 0.30, 0.34), (0.40, 0.55, 0), M_dark, 'body', rot=(0, 0, -0.3), bevel=0.01)
+if not NAKED:
+    # tall tail unit with a sharp upswept tip
+    loft('tail', [
+        dict(x=-0.10, y=0.74, w=0.12, ht=0.03, hb=0.05), dict(x=-0.30, y=0.76, w=0.145, ht=0.035, hb=0.07, e=3),
+        dict(x=-0.46, y=0.85, w=0.13, ht=0.08, hb=0.08, e=3.2), dict(x=-0.62, y=0.93, w=0.095, ht=0.075, hb=0.06, e=3.0),
+        dict(x=-0.76, y=0.985, w=0.05, ht=0.04, hb=0.035, e=2.5), dict(x=-0.81, y=1.0, w=0.02, ht=0.015, hb=0.015)], P_body, 'body')
+    box('taillight', (0.02, 0.025, 0.08), (-0.80, 0.995, 0), G_tail, 'body', bevel=0.006)
+    # main fairing: one continuous side/belly shell around the engine
+    loft('fairing', [
+        dict(x=0.72, y=0.63, w=0.06, ht=0.10, hb=0.10), dict(x=0.64, y=0.59, w=0.15, wb=0.11, ht=0.21, hb=0.20, e=3.0),
+        dict(x=0.47, y=0.54, w=0.21, wb=0.12, ht=0.27, hb=0.28, e=3.4), dict(x=0.25, y=0.50, w=0.225, wb=0.125, ht=0.24, hb=0.29, e=3.4),
+        dict(x=0.02, y=0.46, w=0.205, wb=0.11, ht=0.17, hb=0.26, e=3.2), dict(x=-0.18, y=0.39, w=0.15, wb=0.08, ht=0.08, hb=0.17, e=2.8),
+        dict(x=-0.32, y=0.33, w=0.08, wb=0.05, ht=0.05, hb=0.10), dict(x=-0.38, y=0.30, w=0.03, ht=0.02, hb=0.04)], P_body, 'body', ring=20)
+    # nose with the two headlight "eyes" and a central ram-air intake
+    loft('nose', [
+        dict(x=0.96, y=0.775, w=0.025, ht=0.02, hb=0.03, e=2.2), dict(x=0.92, y=0.785, w=0.09, ht=0.045, hb=0.07, e=2.6),
+        dict(x=0.84, y=0.80, w=0.15, ht=0.075, hb=0.11, e=2.8), dict(x=0.74, y=0.825, w=0.19, ht=0.10, hb=0.15, e=3.0),
+        dict(x=0.62, y=0.85, w=0.205, ht=0.11, hb=0.16, e=3.2), dict(x=0.50, y=0.865, w=0.19, ht=0.095, hb=0.13, e=3.0),
+        dict(x=0.43, y=0.86, w=0.13, ht=0.05, hb=0.07, e=2.6)], P_body, 'body', ring=18)
+    for s in (-1, 1):
+        box('eye%d' % s, (0.12, 0.04, 0.09), (0.855, 0.80, s * 0.105), M_dark, 'body', rot=(0, s * 0.55, 0.18), bevel=0.012)
+        box('lens%d' % s, (0.09, 0.024, 0.07), (0.866, 0.803, s * 0.112), G_light, 'body', rot=(0, s * 0.55, 0.18), bevel=0.008)
+        # winglets
+        box('wing%d' % s, (0.15, 0.012, 0.10), (0.66, 0.74, s * 0.235), M_carbon, 'body', rot=(s * -0.25, s * 0.12, 0), bevel=0.004)
+        # side vents (dark inserts proud of the fairing)
+        for k in range(3):
+            box('vent%d%d' % (s, k), (0.12 - k * 0.02, 0.012, 0.02), (0.42 - k * 0.03, 0.62 - k * 0.04, s * (0.222 - k * 0.003)), M_dark, 'body', rot=(0, 0, -0.35), bevel=0.004)
+    box('intake', (0.05, 0.035, 0.05), (0.94, 0.77, 0), M_dark, 'body', bevel=0.012)
+    # windscreen
+    loft('screen', [dict(x=0.80, y=0.925, w=0.07, ht=0.012, hb=0.002), dict(x=0.70, y=0.975, w=0.12, ht=0.05, hb=0.002, e=2.4),
+                    dict(x=0.58, y=0.995, w=0.135, ht=0.085, hb=0.002, e=2.4), dict(x=0.50, y=1.0, w=0.125, ht=0.09, hb=0.002, e=2.4)], S_screen, 'body', ring=16, subsurf=1)
+    # frame: twin aluminium spars from the steering head to the swingarm pivot
+    for s in (-1, 1):
+        tube('spar%d' % s, [(STEER[0] - 0.02, 0.88, s * 0.07), (0.30, 0.78, s * 0.13), (0.05, 0.72, s * 0.135), (-0.10, 0.64, s * 0.13), (-0.17, 0.52, s * 0.115)], 0.034, X_alu, 'body', seg=10)
+        tube('sub%d' % s, [(-0.15, 0.74, s * 0.08), (-0.45, 0.81, s * 0.07), (-0.66, 0.89, s * 0.05)], 0.014, M_dark, 'body', seg=8)
+    # engine block, cylinder heads, sump, radiator
+    box('crank', (0.40, 0.24, 0.30), (0.05, 0.36, 0), M_engine, 'body', bevel=0.04)
+    box('heads', (0.24, 0.26, 0.26), (0.18, 0.57, 0), M_engine, 'body', rot=(0, 0, 0.45), bevel=0.04)
+    box('radiator', (0.04, 0.30, 0.34), (0.40, 0.55, 0), M_dark, 'body', rot=(0, 0, -0.3), bevel=0.01)
+else:
+    exec(NAKED_BODY)
 # swingarm (banana arm on the right, straight on the left), chain and sprockets
 for s in (-1, 1):
     pts = [(-0.18, 0.46, s * 0.11), (-0.45, 0.41, s * 0.13), (-HX, RR, s * 0.125)] if s < 0 else [(-0.18, 0.46, s * 0.11), (-0.40, 0.49, s * 0.135), (-HX, RR, s * 0.125)]
@@ -179,12 +222,13 @@ for k in range(90):
     a = k / 90 * math.pi * 2 * 7; t = k / 89; p = A + ax * t
     coil.append((p.x + nrm.x * math.cos(a) * 0.036, p.y + nrm.y * math.cos(a) * 0.036, math.sin(a) * 0.036))
 tube('spring', coil, 0.007, M_gold, 'body', seg=6, closed_ends=False)
-# exhaust: header sweeping to a side-mounted titanium silencer (right side)
-tube('header', [(0.30, 0.30, 0.05), (0.12, 0.24, 0.11), (-0.06, 0.28, 0.17), (-0.17, 0.36, 0.19)], 0.03, X_ti, 'body', seg=12)
-loft('silencer', [dict(x=-0.15, y=0.35, w=0.04, ht=0.04), dict(x=-0.20, y=0.375, w=0.055, ht=0.065, e=3),
-                  dict(x=-0.50, y=0.49, w=0.055, ht=0.065, e=3), dict(x=-0.53, y=0.503, w=0.046, ht=0.05, e=3)], X_ti, 'body', ring=16, subsurf=1,
-     xform=Matrix.Translation(V(0, 0, 0.19)))
-cyl('silcap', 0.046, 0.02, (-0.535, 0.505, 0.19), M_carbon, 'body', axis='x', seg=18)
+if not NAKED:
+    # exhaust: header sweeping to a side-mounted titanium silencer (right side)
+    tube('header', [(0.30, 0.30, 0.05), (0.12, 0.24, 0.11), (-0.06, 0.28, 0.17), (-0.17, 0.36, 0.19)], 0.03, X_ti, 'body', seg=12)
+    loft('silencer', [dict(x=-0.15, y=0.35, w=0.04, ht=0.04), dict(x=-0.20, y=0.375, w=0.055, ht=0.065, e=3),
+                      dict(x=-0.50, y=0.49, w=0.055, ht=0.065, e=3), dict(x=-0.53, y=0.503, w=0.046, ht=0.05, e=3)], X_ti, 'body', ring=16, subsurf=1,
+         xform=Matrix.Translation(V(0, 0, 0.19)))
+    cyl('silcap', 0.046, 0.02, (-0.535, 0.505, 0.19), M_carbon, 'body', axis='x', seg=18)
 # footpegs + rearsets
 for s in (-1, 1):
     tube('hanger%d' % s, [(-0.18, 0.54, s * 0.14), (-0.24, 0.46, s * 0.17)], 0.012, X_alu, 'body', seg=8)
@@ -204,13 +248,26 @@ for s in (-1, 1):
     tube('forkL%d' % s, [mid, bot], 0.026, X_steel, 'front', seg=16)
     cyl('axleclamp%d' % s, 0.03, 0.04, (fx, fy, s * 0.105), X_steel, 'front', seg=14)
     box('caliper%d' % s, (0.09, 0.05, 0.035), (fx - 0.10, fy + 0.10, s * 0.083), M_red, 'front', rot=(0, 0, 1.1), bevel=0.012)
-    box('lever%d' % s, (0.14, 0.008, 0.016), (BARX + 0.06, BARY + 0.005, s * (BARZ - 0.02)), X_alu, 'front', rot=(0, s * 0.35, 0), bevel=0.003)
-    tube('clipon%d' % s, [(sx - 0.03, BARY + 0.01, s * 0.1), (BARX - 0.02, BARY - 0.02, s * (BARZ + 0.02))], 0.014, M_dark, 'front', seg=8)
-    tube('grip%d' % s, [(BARX - 0.015, BARY - 0.017, s * (BARZ - 0.04)), (BARX - 0.025, BARY - 0.025, s * (BARZ + 0.06))], 0.019, M_tyre, 'front', seg=10)
+    if NAKED:   # tubular handlebar on risers
+        tube('riser%d' % s, [(sx - 0.02, sy + 0.05, s * 0.06), (BARX + 0.06, 0.975, s * 0.07)], 0.016, M_dark, 'front', seg=8)
+        tube('bar%d' % s, [(BARX + 0.06, 0.985, 0), (BARX + 0.06, 0.985, s * 0.1), (BARX + 0.02, BARY, s * 0.2), (BARX, BARY, s * (BARZ - 0.05))], 0.0125, M_dark, 'front', seg=8)
+        tube('grip%d' % s, [(BARX, BARY, s * (BARZ - 0.06)), (BARX, BARY, s * (BARZ + 0.05))], 0.019, M_tyre, 'front', seg=10)
+        box('lever%d' % s, (0.15, 0.008, 0.016), (BARX + 0.07, BARY + 0.005, s * (BARZ - 0.03)), X_alu, 'front', rot=(0, s * 0.3, 0), bevel=0.003)
+    else:
+        box('lever%d' % s, (0.14, 0.008, 0.016), (BARX + 0.06, BARY + 0.005, s * (BARZ - 0.02)), X_alu, 'front', rot=(0, s * 0.35, 0), bevel=0.003)
+        tube('clipon%d' % s, [(sx - 0.03, BARY + 0.01, s * 0.1), (BARX - 0.02, BARY - 0.02, s * (BARZ + 0.02))], 0.014, M_dark, 'front', seg=8)
+        tube('grip%d' % s, [(BARX - 0.015, BARY - 0.017, s * (BARZ - 0.04)), (BARX - 0.025, BARY - 0.025, s * (BARZ + 0.06))], 0.019, M_tyre, 'front', seg=10)
 box('clamp', (0.08, 0.03, 0.28), (sx - 0.02, sy + 0.035, 0), X_alu, 'front', bevel=0.01)
-box('damper', (0.16, 0.022, 0.022), (sx - 0.05, sy + 0.06, 0.06), M_gold, 'front', rot=(0, 0.3, 0), bevel=0.008)
+if not NAKED: box('damper', (0.16, 0.022, 0.022), (sx - 0.05, sy + 0.06, 0.06), M_gold, 'front', rot=(0, 0.3, 0), bevel=0.008)
 loft('fender', [dict(x=fx + 0.20, y=fy + 0.24, w=0.07, ht=0.008, hb=0.008), dict(x=fx + 0.05, y=fy + 0.34, w=0.085, ht=0.012, hb=0.012),
                 dict(x=fx - 0.10, y=fy + 0.33, w=0.085, ht=0.012, hb=0.012), dict(x=fx - 0.22, y=fy + 0.22, w=0.07, ht=0.008, hb=0.008)], P_body, 'front', ring=12, subsurf=1)
+
+if NAKED:
+    # round headlight in a dark bucket, small fly screen above it, both turning with the bars
+    loft('hlbucket', [dict(x=0.53, y=0.88, w=0.05, ht=0.05), dict(x=0.58, y=0.88, w=0.095, ht=0.095, e=2.0), dict(x=0.65, y=0.88, w=0.1, ht=0.1, e=2.0)], M_dark, 'front', ring=24, subsurf=0)
+    loft('hllens', [dict(x=0.649, y=0.88, w=0.088, ht=0.088, e=2.0), dict(x=0.675, y=0.88, w=0.06, ht=0.06, e=2.0), dict(x=0.682, y=0.88, w=0.02, ht=0.02, e=2.0)], G_light, 'front', ring=24, capA=False)
+    loft('flyscreen', [dict(x=0.62, y=0.985, w=0.02, ht=0.006, hb=0.004), dict(x=0.6, y=1.0, w=0.1, ht=0.05, hb=0.006, e=2.6), dict(x=0.53, y=0.99, w=0.11, ht=0.03, hb=0.006, e=2.6)], P_body, 'front', ring=16)
+    for s in (-1, 1): box('hlbracket%d' % s, (0.12, 0.02, 0.012), (0.56, 0.86, s * 0.1), M_dark, 'front', bevel=0.004)
 
 # ------------------------------------------------------------------ WHEELS
 def wheel(asm, R, W, cx, cy, discs, nsp=5):
@@ -285,12 +342,13 @@ for asm, L in ASM.items():
     if asm == 'wheelR': shift = -V(-HX, RR, 0)
     for o in L: o.location = shift
     for sc2 in bpy.data.scenes:
-        for o in sc2.objects:
-            try: o.select_set(False)
-            except Exception: pass
+        for vl2 in sc2.view_layers:
+            for o in sc2.objects:
+                try: o.select_set(False, view_layer=vl2)
+                except Exception: pass
     for o in L: o.select_set(True)
     vl.objects.active = L[0]
-    bpy.ops.export_scene.gltf(filepath=OUT + 'bike_strada_' + asm + '.glb', export_format='GLB', use_selection=True, use_active_scene=True, export_apply=True,
+    bpy.ops.export_scene.gltf(filepath=OUT + 'bike_' + VARIANT + '_' + asm + '.glb', export_format='GLB', use_selection=True, use_active_scene=True, export_apply=True,
                               export_vertex_color='ACTIVE', export_yup=True, export_normals=True, export_texcoords=False, export_materials='EXPORT')
     for o in L: o.location = (0, 0, 0)
     res[asm] = sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in L)
