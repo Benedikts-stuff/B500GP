@@ -160,9 +160,9 @@
   function rallyTerrainMaterial() {
     const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
     m.onBeforeCompile = (sh) => {
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 aMat; varying vec3 vMat; varying vec3 vWP;')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvMat = aMat; vWP = (modelMatrix * vec4(position, 1.0)).xyz;');
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vMat; varying vec3 vWP;')
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 aMat; varying vec3 vMat; varying vec3 vWP; varying vec3 vWN;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvMat = aMat; vWP = (modelMatrix * vec4(position, 1.0)).xyz; vWN = normalize(mat3(modelMatrix) * normal);');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vMat; varying vec3 vWP; varying vec3 vWN;')
         .replace('#include <common>', '#include <common>\nfloat hh2(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\nfloat vn2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(hh2(i), hh2(i + vec2(1, 0)), f.x), mix(hh2(i + vec2(0, 1)), hh2(i + vec2(1, 1)), f.x), f.y); }')
         .replace('#include <color_fragment>', `#include <color_fragment>
           float gv = vn2(vWP.xz * 0.28) * 0.6 + vn2(vWP.xz * 0.9 + 17.0) * 0.4;
@@ -170,9 +170,21 @@
           // rock: soft large-scale tone changes and faint vertical weathering streaks, no hard bands
           float rv = vn2(vWP.xz * 0.018 + 3.0) * 0.6 + vn2(vWP.xz * 0.06) * 0.4;
           float streak = vn2(vec2((vWP.x + vWP.z) * 0.22, vWP.y * 0.012));
-          vec3 rock = mix(vec3(0.200, 0.195, 0.186), vec3(0.275, 0.266, 0.246), rv) * (0.9 + streak * 0.16);
+          vec3 wn = normalize(vWN);
+          // cool blue-grey limestone with warm patches, rusty iron streaks running down, lighter weathered tops
+          vec3 rock = mix(vec3(0.235, 0.245, 0.265), vec3(0.385, 0.345, 0.285), rv) * (0.88 + streak * 0.2);
+          // vertical joints / cracks give the faces structure even from far away
+          float joint = smoothstep(0.035, 0.0, abs(fract((vWP.x * 0.7 + vWP.z * 0.7) * 0.11 + vn2(vec2(vWP.y * 0.05, (vWP.x + vWP.z) * 0.02)) * 1.5) - 0.5) - 0.46);
+          rock *= 1.0 - joint * 0.35;
+          float iron = smoothstep(0.62, 0.8, vn2(vec2((vWP.x + vWP.z) * 0.09, vWP.y * 0.025 + 7.0))) * smoothstep(0.3, 0.6, vn2(vWP.xz * 0.05 + 11.0));
+          rock = mix(rock, vec3(0.330, 0.190, 0.105), iron * 0.55);
+          rock *= 0.85 + 0.35 * smoothstep(0.2, 0.75, wn.y);
+          vec3 grassC = diffuseColor.rgb;
           vec3 scree = vec3(0.385, 0.355, 0.300);
           diffuseColor.rgb = mix(diffuseColor.rgb, scree, vMat.z);
+          // grass keeps a hold on ledges and gentler parts of the rock faces
+          float ledge = smoothstep(0.55, 0.75, wn.y) * smoothstep(0.35, 0.65, vn2(vWP.xz * 0.12 + 5.0));
+          rock = mix(rock, grassC * 0.85, ledge);
           diffuseColor.rgb = mix(diffuseColor.rgb, rock, smoothstep(0.25, 0.75, vMat.x));
           diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.86, 0.89, 0.94), vMat.y);`)
         // rock faces shade faceted (low-poly cliff look), meadows stay smooth
@@ -424,6 +436,54 @@
       nt = 0; for (let k = 0; k < 40 && nt < 3; k++) if (tent(fI + rng.int(-40, 30), rng.int(0, 1), t.hw + rng.range(7, 16), rng.pick(['kenney/tentRoof', 'kenney/tentRoofDouble', 'kenney/tent']), Math.PI / 2)) nt++;
     }
 
+    /* cows on the alpine meadows (brown Swiss / spotted), small herds facing every which way, each with a bell */
+    {
+      const brown = new GeoBuilder(), white = new GeoBuilder();
+      brown.add(roundedBox(1.55, 0.72, 0.62, 0.18, 2), M(0, 0.95, 0), 0xffffff);                 // body (tinted per cow)
+      brown.add(roundedBox(0.46, 0.4, 0.34, 0.1, 2), M(0.98, 1.08, 0, 0, 0, -0.35), 0xffffff);      // head
+      for (const [lx, lz] of [[0.55, 0.2], [0.55, -0.2], [-0.55, 0.2], [-0.55, -0.2]]) brown.add(roundedBox(0.17, 0.62, 0.17, 0.05, 1), M(lx, 0.32, lz), 0xffffff);
+      white.add(roundedBox(0.2, 0.18, 0.3, 0.06, 1), M(1.2, 0.98, 0, 0, 0, -0.35), 0xe9e2d6);        // muzzle
+      white.add(roundedBox(0.7, 0.4, 0.64, 0.12, 1), M(-0.2, 1.08, 0), 0xf2ede4);                  // white patch (spotted cows: visible, brown cows: tinted)
+      for (const z of [-1, 1]) white.add(roundedBox(0.06, 0.16, 0.06, 0.02, 1), M(0.92, 1.33, z * 0.15, z * 0.5, 0, 0), 0xe8e2cf);   // horns
+      white.add(roundedBox(0.12, 0.16, 0.12, 0.03, 1), M(0.86, 0.78, 0), 0xc9a43a);                 // bell
+      for (const [lx, lz] of [[0.55, 0.2], [0.55, -0.2], [-0.55, 0.2], [-0.55, -0.2]]) white.add(roundedBox(0.19, 0.08, 0.19, 0.03, 1), M(lx, 0.04, lz), 0x2a2420);  // hooves
+      white.add(roundedBox(0.06, 0.5, 0.06, 0.02, 1), M(-0.8, 0.85, 0, 0, 0, 0.25), 0x6b4a32);       // tail
+      const bs = new W.Scatter(brown.build(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }), 1e6);
+      const ws = new W.Scatter(white.build(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9 }), 1e6);
+      const coats = ['#7a5236', '#8a5f3e', '#6b4630', '#a07850', '#4a3a30'];
+      let nCow = 0;
+      for (let herd = 0; herd < 60 && nCow < 70 * q + 10; herd++) {
+        const i = rng.int(60, N - 60), s = rng.int(0, 1), sg = s ? 1 : -1, d = t.bar[s][i] + rng.range(14, 90);
+        const hx = t.px[i] + t.nx[i] * sg * d, hz = t.pz[i] + t.nz[i] * sg * d;
+        if (!roadClear(hx, hz, t.hw + 10)) continue; const hy = this.heightAt(hx, hz);
+        if (Math.abs(this.heightAt(hx + 4, hz) - hy) + Math.abs(this.heightAt(hx, hz + 4) - hy) > 2.2) continue;
+        if (blds.some((b) => (b[0] - hx) ** 2 + (b[1] - hz) ** 2 < (b[2] + 6) ** 2)) continue;
+        const n = rng.int(2, 6); if (!this.cowPos) this.cowPos = [hx, hz];
+        for (let k = 0; k < n; k++) {
+          const x = hx + rng.range(-9, 9), z = hz + rng.range(-9, 9); if (!roadClear(x, z, t.hw + 8)) continue;
+          const y = Math.min(this.heightAt(x + 0.8, z), this.heightAt(x - 0.8, z)), ry = rng() * 6.28, sc5 = rng.range(0.92, 1.08);
+          bs.add(x, y - 0.05, z, ry, sc5, sc5, sc5, rng.pick(coats)); ws.add(x, y - 0.05, z, ry, sc5, sc5, sc5); nCow++;
+          blds.push([x, z, 1.5]);
+        }
+      }
+      bs.build(sc, true, true); ws.build(sc, true, true); this.cows = nCow;
+    }
+
+    /* numbered hairpin plaques (Swiss pass roads count their Kehren) */
+    {
+      let kn = 0; const tex = {};
+      t.corners.forEach((c) => {
+        if (c.radius > 30) return; kn++;
+        const outS = c.dir > 0 ? 0 : 1, sg = outS ? 1 : -1, i = t.wr(c.apex - 22), d = t.bar[outS][i] + 0.7;
+        const tx = W.canvasTex(128, 128, (g, w, h) => { g.fillStyle = '#ffffff'; g.fillRect(0, 0, w, h); g.strokeStyle = '#1f4f9a'; g.lineWidth = 10; g.strokeRect(6, 6, w - 12, h - 12);
+          g.fillStyle = '#1f4f9a'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '700 64px "Helvetica Neue", Arial, sans-serif'; g.fillText(String(kn), w / 2, h / 2 + 4); });
+        const gr = new THREE.Group(); gr.position.set(t.px[i] + t.nx[i] * sg * d, t.py[i], t.pz[i] + t.nz[i] * sg * d); gr.rotation.y = -t.yaw[i] + (outS ? 0 : Math.PI);
+        const pl = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.55), new THREE.MeshStandardMaterial({ map: tx, roughness: 0.5, side: THREE.DoubleSide })); pl.position.y = 1.6; pl.rotation.y = -Math.PI / 2; pl.castShadow = true; gr.add(pl);
+        const po = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 1.6, 8), new THREE.MeshStandardMaterial({ color: lin2(0x9aa0a6), roughness: 0.5, metalness: 0.6 })); po.position.y = 0.8; gr.add(po);
+        sc.add(gr);
+      });
+    }
+
     /* summit: the pass hotel (a big alp hut) beside the finish, and a summit cross on the highest rock nearby */
     if (AX.Assets.has('pass/hut')) {
       let placed = false;
@@ -492,6 +552,23 @@
     const tm = KK ? rallyTerrainMaterial() : PK ? terrainMaterial(ptex('meadow', 'a', an), ptex('rock', 'a', an), ptex('scree', 'a', an), { grass: ptex('meadow', 'n', an), rock: ptex('rock', 'n', an), scree: ptex('scree', 'n', an) })
       : terrainMaterial(meadowTex(an), rockTex(an), gravelTex2(an)); this.terrainMat = tm;
     const fine = gridMesh(gx0, gz0, gx1, gz1, fineStep, hFine, mat, tint);
+    // baked ambient occlusion: how much of the sky each terrain vertex can see (valleys, gullies and the foot of slopes get darker)
+    const aoStep = 4.4, ax0 = gx0 - 40, az0 = gz0 - 40, anx = Math.ceil((gx1 - gx0 + 80) / aoStep) + 1, anz = Math.ceil((gz1 - gz0 + 80) / aoStep) + 1, AH = new Float32Array(anx * anz);
+    for (let j = 0; j < anz; j++) for (let i = 0; i < anx; i++) AH[j * anx + i] = t.terrainH(ax0 + i * aoStep, az0 + j * aoStep);
+    const ah = (x, z) => { const fx = clamp((x - ax0) / aoStep, 0, anx - 1.001), fz = clamp((z - az0) / aoStep, 0, anz - 1.001), i = Math.floor(fx), j = Math.floor(fz), a = fx - i, c = fz - j, k = j * anx + i;
+      return (AH[k] * (1 - a) + AH[k + 1] * a) * (1 - c) + (AH[k + anx] * (1 - a) + AH[k + anx + 1] * a) * c; };
+    const DIRS = [...Array(8)].map((_, k) => [Math.cos(k * Math.PI / 4), Math.sin(k * Math.PI / 4)]);
+    const bakeAO = (g) => {
+      const P = g.attributes.position.array, C = g.attributes.color.array;
+      for (let v = 0; v < P.length / 3; v++) {
+        const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2]; let occ = 0;
+        for (const [dx, dz] of DIRS) { let m = 0; for (const r of [6, 14, 30]) m = Math.max(m, (ah(x + dx * r, z + dz * r) - y) / r); occ += clamp(m, 0, 1.2); }
+        const ao = 1 - 0.42 * clamp(occ / 8 * 1.4, 0, 1);
+        C[v * 3] *= ao; C[v * 3 + 1] *= ao; C[v * 3 + 2] *= ao * 1.02;
+      }
+      g.attributes.color.needsUpdate = true;
+    };
+    if (KK) bakeAO(fine);
     const fm = new THREE.Mesh(fine, tm); fm.receiveShadow = true; sc.add(fm); this.terrainFine = fine.userData;
     // skirt so the coarse ring never shows through the seam
     const R1 = 1700, coarse = gridMesh(cx - R1, cz - R1, cx + R1, cz + R1, 28, (x, z) => t.terrainH(x, z), mat, tint,
@@ -533,6 +610,7 @@
       for (let k = 0; k < Nn.length / 3; k++) { const ny = Nn[k * 3 + 1]; Ma[k * 3] = Math.max(Ma[k * 3], smoothstep(0.74, 0.55, ny)); Ma[k * 3 + 2] = Math.max(Ma[k * 3 + 2], smoothstep(0.88, 0.7, ny) * 0.6); }
       // drawn slightly in front of the regular terrain: where both lie at the same height the strip wins instead of flickering
       const tmS = tm.clone(); tmS.onBeforeCompile = tm.onBeforeCompile; tmS.customProgramCacheKey = tm.customProgramCacheKey; tmS.polygonOffset = true; tmS.polygonOffsetFactor = -1; tmS.polygonOffsetUnits = -2;
+      if (KK) bakeAO(g);
       const cm2 = new THREE.Mesh(g, tmS); cm2.receiveShadow = true; sc.add(cm2); this.corridor = g; this.corridorMesh = cm2;
     }
     // ground height as rendered: corridor strip next to the road, fine grid further out (props must sit on what you see)
@@ -576,7 +654,9 @@
           const r1 = AX.trackUtil.ridge(x * 0.0007, z * 0.0007), r2 = AX.trackUtil.ridge(x * 0.0022 + 5, z * 0.0022 + 9);
           const amp = smoothstep(1650, 2900, rad) * (900 + 700 * smoothstep(2500, 5000, rad));
           const hh = base + (Math.pow(r1, 2.1) * 0.78 + Math.pow(r2, 2.0) * 0.22) * amp + (t.terrainH(x, z) - base) * (1 - smoothstep(1500, 2050, rad));
-          P.push(x, hh, z);
+          // inside the square of the coarse terrain the backdrop sinks away, so the two never lie in the same plane (no flicker)
+          const inside = Math.max(Math.abs(x - cx), Math.abs(z - cz)) < 1712;
+          P.push(x, inside ? hh - 40 : hh, z);
         }
       }
       for (let r = 0; r < NR - 1; r++) for (let a = 0; a < NA; a++) { const p = r * NA + a, q2 = r * NA + (a + 1) % NA; idx.push(p, q2, p + NA, q2, q2 + NA, p + NA); }
@@ -609,6 +689,22 @@
       for (let r = 0; r < NR - 1; r++) for (let a = 0; a < NA; a++) { const p = r * NA + a, q2 = r * NA + (a + 1) % NA; idx.push(p, q2, p + NA, q2, q2 + NA, p + NA); }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3)); g.setIndex(idx); g.computeVertexNormals();
       const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 })); sc.add(m);
+    }
+
+    /* ---- clouds: low-poly puffs drifting around the peaks and over the valley */
+    if (KK) {
+      const puff = new THREE.IcosahedronGeometry(1, 1), cg = new GeoBuilder();
+      const cloud = (n, rng2) => { const gb = new GeoBuilder(); for (let k = 0; k < n; k++) { const r = 0.55 + rng2() * 0.7; gb.add(puff, M((k - n / 2) * 0.9 + rng2() * 0.5, rng2() * 0.35 * r, (rng2() - 0.5) * 1.2, 0, rng2() * 3, 0, r * 1.3, r * 0.9, r), 0xffffff); } return gb.build(); };
+      const cmat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1, emissive: lin(0x9fb3c8), emissiveIntensity: 0.35, fog: false });
+      const shapes = [cloud(5, rng), cloud(7, rng), cloud(4, rng)];
+      // darker undersides
+      for (const g of shapes) { const P = g.attributes.position.array, C = g.attributes.color.array; for (let v = 0; v < P.length / 3; v++) { const k = 0.78 + 0.22 * clamp(P[v * 3 + 1] + 0.4, 0, 1); C[v * 3] *= k; C[v * 3 + 1] *= k; C[v * 3 + 2] *= k * 1.03; } }
+      this.clouds = new THREE.Group(); this.clouds.position.set(cx, 0, cz); sc.add(this.clouds);
+      for (let k = 0; k < 34; k++) {
+        const a = rng() * 6.283, rad = 1700 + rng() * 2800, sz = 45 + rng() * 80;
+        const m = new THREE.Mesh(shapes[k % 3], cmat); m.position.set(Math.cos(a) * rad, yMax + 520 + rng() * 650, Math.sin(a) * rad); m.scale.set(sz, sz * 0.75, sz); m.rotation.y = rng() * 6.28;
+        this.clouds.add(m);
+      }
     }
 
     /* ---- road */
@@ -805,6 +901,19 @@
         const slope = Math.hypot(gx, gz) / 4; if (slope < 0.75) continue;
         this.ms(crag[rng.int(0, crag.length - 1)], { tint: kt }).add(x, y - 1.1 * sc3, z, Math.atan2(gz, gx) + rng.range(-0.6, 0.6), sc3, sc3 * rng.range(0.8, 1.3), hsl(0.08, rng.range(0.02, 0.07), rng.range(0.78, 0.95)));
         nCrag++;
+      }
+      // rock facades: the big steep faces get covered in large blocky crags so they read as real cliffs, not grey walls
+      {
+        const fu = this.terrainFine, st = 7;
+        for (let z = fu.z0 + 4; z < fu.z0 + (fu.nz - 1) * fu.step - 4 && nCrag < 1500 * q; z += st) for (let x = fu.x0 + 4; x < fu.x0 + (fu.nx - 1) * fu.step - 4 && nCrag < 1500 * q; x += st) {
+          const jx = x + rng.range(-2.5, 2.5), jz = z + rng.range(-2.5, 2.5);
+          const gx = this.heightAt(jx + 2.5, jz) - this.heightAt(jx - 2.5, jz), gz = this.heightAt(jx, jz + 2.5) - this.heightAt(jx, jz - 2.5), slope = Math.hypot(gx, gz) / 5;
+          if (slope < 0.95 || rng() > 0.8) continue;
+          t.terrainH(jx, jz); if (t.lastRoadD < t.hw + 7 || t.lastRoadD > 170) continue;
+          const y = this.heightAt(jx, jz), sc3 = rng.range(2.4, 4.6);
+          this.ms(crag[rng.int(0, crag.length - 1)], { tint: kt }).add(jx, y - 1.0 * sc3, jz, Math.atan2(gz, gx) + rng.range(-0.5, 0.5), sc3, sc3 * rng.range(0.9, 1.5), hsl(0.07, rng.range(0.04, 0.12), rng.range(0.7, 0.9)));
+          nCrag++;
+        }
       }
       this.cragCount = nCrag;
       // grass clumps and bushes on the verges and meadows

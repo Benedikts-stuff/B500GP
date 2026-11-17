@@ -8,7 +8,7 @@
   const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
 
   AX.THEMES = {
-    pass: { sky: [0x5596da, 0xdce8f0], fog: 0xc6d8e6, sun: 0xfff0d8, sunI: 1.55, hemi: [0xd2e4ff, 0x66754a, 0.78], sunDir: [-0.42, 0.62, 0.66],
+    pass: { sky: [0x4f8fd8, 0xe2ecf2], fog: 0xc8d9e6, sun: 0xffe4bc, sunI: 1.75, hemi: [0xc6dcff, 0x6a7046, 0.72], sunDir: [-0.55, 0.45, 0.70],
       grass: ['#5b9441', '#538a3b'], verge: '#8d8a80', gravel: '#bdb8aa', asphalt: '#5b5a60', tree: [0x3f7f3a, 0x35733a, 0x4f8a40], leaf: '#5e9e3c', pine: '#3b7a3a', conifer: 1, density: 1 },
     forest: { sky: [0x7fb2ea, 0xcfe4f6], fog: 0xcfdde6, sun: 0xfff0d6, sunI: 1.32, hemi: [0xcfe2ff, 0x6c7d4c, 0.62], sunDir: [-0.5, 0.78, -0.38],
       grass: ['#5e9e3f', '#57953a'], verge: '#b8744a', gravel: '#dcc99a', asphalt: '#625d70', tree: [0x4f9a3c, 0x3f8433, 0x77b04a], leaf: '#6fae3a', pine: '#3f7f3a', conifer: 0.35, density: 1.0 },
@@ -762,6 +762,7 @@
       const fx = Math.round(focus.x / texel / 8) * texel * 8, fz = Math.round(focus.z / texel / 8) * texel * 8;
       const fy = focus.y || 0; s.target.position.set(fx, fy, fz); s.position.set(fx + this.sunDir.x * 260, fy + this.sunDir.y * 260, fz + this.sunDir.z * 260); s.target.updateMatrixWorld();
       this.sky.position.set(focus.x, focus.y || 0, focus.z);
+      if (this.clouds) this.clouds.rotation.y = time * 0.0025;
       if (this.passLod) for (let k = 0; k < this.passLod.length; k++) { const l = this.passLod[k]; const dx = l.p.x - focus.x, dy = l.p.y - (focus.y || 0), dz = l.p.z - focus.z; l.obj.visible = dx * dx + dy * dy + dz * dz < l.r * l.r; }
       for (let k = 0; k < this.flags.length; k++) {
         const g = this.flags[k].geometry, p = g.attributes.position;

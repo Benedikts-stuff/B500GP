@@ -98,6 +98,10 @@
             }
             c += texture2D(b, vUv).rgb * uBloom;
             float l = dot(c, vec3(0.299, 0.587, 0.114)); c = mix(vec3(l), c, uSat);
+            // split toning: cool shadows, warm highlights (filmic, a little like late afternoon)
+            float lt = clamp(l, 0.0, 1.0);
+            c *= mix(vec3(0.93, 0.98, 1.07), vec3(1.0), smoothstep(0.0, 0.45, lt));
+            c *= mix(vec3(1.0), vec3(1.05, 1.0, 0.93), smoothstep(0.45, 1.0, lt));
             c = (c - 0.5) * 1.04 + 0.5;
             vec2 q = vUv - 0.5; c *= 1.0 - uVig * smoothstep(0.25, 0.95, dot(q, q) * 2.0);
             gl_FragColor = vec4(c, 1.0);
