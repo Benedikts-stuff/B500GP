@@ -509,10 +509,10 @@
       parts.arms.push({ up: limb(0.074, 0.062, suit), lo: limb(0.062, 0.05, suit), sh: ball(RM ? 0.08 : 0.084, RM ? suit : accent), el: ball(0.064, suit), hand: ball(0.06, dark, 1.3, 0.85, 1) });
       parts.legs.push({ up: limb(0.104, 0.08, suit), lo: limb(0.078, 0.06, suit), hip: ball(0.105, suit), kn: ball(RM ? 0.08 : 0.084, RM ? suit : accent), foot: ball(0.064, dark, 2.0, 0.85, 1) });
     }
-    // in the helmet cam only the forearms and gloves stay visible
+    // in the helmet cam only the gloves stay visible
     const hideIn = (o) => { o.userData.povHide = true; o.children.forEach(hideIn); };
     for (const L of parts.legs) [L.up, L.lo, L.hip, L.kn, L.foot].forEach(hideIn);
-    for (const A of parts.arms) [A.up, A.sh].forEach(hideIn);
+    for (const A of parts.arms) { [A.up, A.sh, A.el].forEach(hideIn); A.lo.userData.povHide = true; }   // the cam is steadier than the rider: only the gloves on the bars stay in view
     const rig = {
       group: g, torso, helmet, parts, naked, bars, pov: false,
       hang: 0, tuck: 0, sit: 0, kneeOut: 0, headYaw: 0, kneeDown: [false, false], elbowDown: [false, false], dangle: 0,

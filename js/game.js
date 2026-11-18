@@ -277,7 +277,7 @@
   let povOn = false;
   function setPov(on) {
     if (on === povOn) return; povOn = on; const v = G.vis[0]; if (!v) return;
-    const rig = v.rider; rig.pov = on; rig.torso.visible = !on; rig.helmet.visible = !on;
+    const rig = v.rider; if (on && !rig.pov) G.povReset = true; rig.pov = on; rig.torso.visible = !on; rig.helmet.visible = !on;
     if (on && !v.dash) makeDash(v); if (v.dash) v.dash.visible = on;
     camera.near = on ? 0.05 : 0.3; camera.updateProjectionMatrix();
   }
@@ -305,25 +305,31 @@
   }
   function povCamera(p, dt) {
     const v = G.vis[0], rig = v.rider; v.root.updateMatrixWorld(true);
-    // the eyes sit in the rider's helmet: the view moves with hanging off, tucking in and sitting up
-    // follow the head partly: down when tucked, up when sitting up, a little to the inside when hanging off,
-    // but stay behind the screen so the dash and the bars are always in view
+    // a steady helmet cam: the eye point is taken from the helmet, but held in a heading-only frame and smoothed,
+    // and the horizon stays nearly level - the bike and the rider lean and work underneath it (no motion sickness)
     const hp = rig.helmet.position; const nk = rig.naked; _hp.set(Math.min(hp.x - 0.1, nk ? 0.0 : 0.1), hp.y + (nk ? -0.05 : 0.03), hp.z * 0.25); v.susG.localToWorld(_hp);
-    G.povLean = damp(G.povLean || 0, p.lean, 10, dt); G.povPitch = damp(G.povPitch || 0, p.pitch, 10, dt);
-    G.povHang = damp(G.povHang || 0, p.hangIn || 0, 6, dt);
-    // the head looks into the corner and is held more level than the bike (more so when hanging off)
-    G.povLook = damp(G.povLook || 0, clamp(p.lean * 0.32 + p.steer * 0.06, -0.45, 0.45), 4, dt);
+    const fx = Math.cos(p.yaw), fz = Math.sin(p.yaw), py = p.y || 0;
+    const ox = _hp.x - p.x, oy = _hp.y - py, oz = _hp.z - p.z;
+    const oF = ox * fx + oz * fz, oL = -ox * fz + oz * fx;            // forward / sideways offset from the contact line
+    if (!G.povO || G.povReset) { G.povO = { f: oF, l: oL, y: oy }; G.povReset = false; }
+    const o = G.povO; o.f = damp(o.f, oF, 7, dt); o.l = damp(o.l, oL * 0.9, 4, dt); o.y = damp(o.y, oy, 5, dt);
+    _hp.set(p.x + fx * o.f - fz * o.l, py + o.y, p.z + fz * o.f + fx * o.l);
+    G.povYaw = G.povYaw == null || G.povReset ? p.yaw : G.povYaw + AX.wrapAngle(p.yaw - G.povYaw) * (1 - Math.exp(-9 * dt));
+    G.povLean = damp(G.povLean || 0, p.lean, 4, dt); G.povPitch = damp(G.povPitch || 0, p.pitch, 4, dt);
+    G.povSlope = damp(G.povSlope || 0, Math.atan(p.slope || 0), 3, dt);
+    // a slow glance into the corner
+    G.povLook = damp(G.povLook || 0, clamp(p.lean * 0.2, -0.3, 0.3), 2, dt);
     const tuck = Math.max(0, p.fb || 0), sit = Math.max(0, -(p.fb || 0));
-    _e.set(0, -p.yaw + G.povLook * 0, Math.atan(p.slope || 0) + G.povPitch * 0.85 - (rig.naked ? 0.33 : 0.19) - tuck * 0.05 + sit * 0.04 + (p.brake || 0) * 0.03, 'YZX'); _q.setFromEuler(_e);
+    _e.set(0, -G.povYaw, G.povSlope + G.povPitch * 0.5 - (nk ? 0.33 : 0.19) - tuck * 0.04 + sit * 0.03, 'YZX'); _q.setFromEuler(_e);
     _q2.setFromAxisAngle(V3Y, -Math.PI / 2 - G.povLook); _q.multiply(_q2);
-    _q2.setFromAxisAngle(V3Z, -G.povLean * (0.62 - 0.22 * Math.max(0, G.povHang))); _q.multiply(_q2);
-    // engine buzz and road rumble through the bars
-    const buzz = 0.0012 * clamp(p.rpm / p.spec.redline, 0, 1) + (p.surf === AX.SURF.KERB ? 0.004 : 0) + (p.headShake || 0) * 0.004;
-    _hp.y += Math.sin(G.time * 83) * buzz; _hp.x += Math.sin(G.time * 71) * buzz * 0.5;
+    _q2.setFromAxisAngle(V3Z, -G.povLean * 0.3); _q.multiply(_q2);
+    // only a hint of kerb rumble and head shake, no engine buzz
+    const buzz = (p.surf === AX.SURF.KERB ? 0.0015 : 0) + (p.headShake || 0) * 0.002;
+    _hp.y += Math.sin(G.time * 53) * buzz;
     drawDash(v, p, dt);
     camera.position.copy(_hp); camera.quaternion.copy(_q);
-    const fov = 70 + clamp(p.speed / 68, 0, 1) * 10; if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = damp(camera.fov, fov, 6, dt); camera.updateProjectionMatrix(); }
-    G.camLook.set(p.x, p.y || 0, p.z); G.camPos.copy(camera.position); post.tilt = 0;
+    const fov = 72 + clamp(p.speed / 68, 0, 1) * 6; if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = damp(camera.fov, fov, 3, dt); camera.updateProjectionMatrix(); }
+    G.camLook.set(p.x, py, p.z); G.camPos.copy(camera.position); post.tilt = 0;
   }
   const V3Y = new THREE.Vector3(0, 1, 0), V3Z = new THREE.Vector3(0, 0, 1), _hd = new THREE.Vector3();
   function updateCamera(dt) {
