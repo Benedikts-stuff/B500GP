@@ -17,7 +17,7 @@
       keys: '<kbd>A</kbd><kbd>D</kbd> Lenken · <kbd>W</kbd> Gas · <kbd>S</kbd> Vorderradbremse · <kbd>Leertaste</kbd> Hinterradbremse<br><kbd>←</kbd><kbd>→</kbd> Körper zur Kurveninnenseite (mehr Grip, mehr Schräglage) · <kbd>↑</kbd> Gewicht nach vorn (besser beschleunigen, weniger Wheelie, Windschatten) · <kbd>↓</kbd> Gewicht nach hinten / aufrichten (besser bremsen, kein Stoppie, Wheelie mit Gas)<br>Leicht bremsen in Schräglage (Trail-Braking) lenkt schärfer ein · Hinterradbremse oder Gewicht nach vorn beim Bremsen stellt das Heck quer<br><kbd>Shift</kbd> halten: sanft Gas geben und bremsen · ohne Körper-Taste hängt sich der Fahrer selbst in die Kurve<br><kbd>C</kbd> Kamera · <kbd>R</kbd> Zurücksetzen · <kbd>Esc</kbd> Pause · <kbd>M</kbd> Ton<br>Gamepad: linker Stick lenken · rechter Stick Körper · RT Gas · LT Vorderradbremse · LB Hinterradbremse',
       cam_chase: 'VERFOLGER', cam_pov: 'FAHRERSICHT', cam_tv: 'TOP-DOWN', cam_follow: 'MITDREHEND', toSummit: 'BIS ZUM GIPFEL', alt: 'HÖHE', hillclimb: 'Bergrennen', summit: 'GIPFEL',
       hint: [['W', 'GAS'], ['S', 'BREMSE'], ['Leertaste', 'HINTERRAD'], ['A D', 'LENKEN'], ['← → ↑ ↓', 'KÖRPER'], ['C', 'KAMERA']],
-      settings: 'EINSTELLUNGEN', controls: 'STEUERUNG', back: 'ZURÜCK', mainHead: 'HAUPTMENÜ', subTT: 'Allein gegen die Uhr', subRace: 'Gegen die KI zum Gipfel',
+      settings: 'EINSTELLUNGEN', lookL: 'GRAFIKSTIL', lookOn: 'ABENDSTIMMUNG', lookOff: 'KLASSISCH', lookNoteOn: 'Der neue Look: tiefe Abendsonne, Dunst, echtes Gras, Lärchen und Tannen. Braucht eine starke Grafikkarte.', lookNoteOff: 'Der bisherige Look mit Zuschauern und Deko.', controls: 'STEUERUNG', back: 'ZURÜCK', mainHead: 'HAUPTMENÜ', subTT: 'Allein gegen die Uhr', subRace: 'Gegen die KI zum Gipfel',
       noteTT: 'Du gegen die Uhr, vom Dorf bis auf den Pass. Deine Bestfahrt fährt als Ghost mit, Zwischenzeiten zeigen dir, wo du Zeit gewinnst oder verlierst.',
       noteRace: 'Massenstart auf der Passstraße gegen KI-Fahrer. Wer zuerst oben ist, gewinnt.', noteSettings: 'Grafik, Lenkhilfe, Lautstärke und Sprache.', noteControls: 'Alle Tasten und ein paar Fahrtipps.',
       nav: [['↑ ↓', 'WÄHLEN'], ['← →', 'ÄNDERN'], ['Enter', 'OK'], ['Esc', 'ZURÜCK']], noteStart: 'Los geht’s.',
@@ -39,7 +39,7 @@
       keys: '<kbd>A</kbd><kbd>D</kbd> steer · <kbd>W</kbd> throttle · <kbd>S</kbd> front brake · <kbd>Space</kbd> rear brake<br><kbd>←</kbd><kbd>→</kbd> hang off to the inside (more grip, more lean) · <kbd>↑</kbd> weight forward (better drive, fewer wheelies, tucks in) · <kbd>↓</kbd> weight back / sit up (better braking, no stoppie, wheelie with throttle)<br>Light braking while leaned (trail braking) turns in sharper · rear brake or weight forward under braking backs the rear in<br>Hold <kbd>Shift</kbd> for gentle throttle and brakes · with no body key held the rider hangs off into the corner by himself<br><kbd>C</kbd> camera · <kbd>R</kbd> reset · <kbd>Esc</kbd> pause · <kbd>M</kbd> mute<br>Gamepad: left stick steer · right stick body · RT throttle · LT front brake · LB rear brake',
       cam_chase: 'CHASE', cam_pov: 'HELMET CAM', cam_tv: 'TOP-DOWN', cam_follow: 'ROTATING', toSummit: 'TO SUMMIT', alt: 'ALTITUDE', hillclimb: 'Hill climb', summit: 'SUMMIT',
       hint: [['W', 'THROTTLE'], ['S', 'BRAKE'], ['Space', 'REAR'], ['A D', 'STEER'], ['← → ↑ ↓', 'BODY'], ['C', 'CAMERA']],
-      settings: 'SETTINGS', controls: 'CONTROLS', back: 'BACK', mainHead: 'MAIN MENU', subTT: 'Alone against the clock', subRace: 'Race the AI to the summit',
+      settings: 'SETTINGS', lookL: 'ART STYLE', lookOn: 'GOLDEN HOUR', lookOff: 'CLASSIC', lookNoteOn: 'The new look: low evening sun, haze, real grass, larches and firs. Needs a strong graphics card.', lookNoteOff: 'The previous look with spectators and dressing.', controls: 'CONTROLS', back: 'BACK', mainHead: 'MAIN MENU', subTT: 'Alone against the clock', subRace: 'Race the AI to the summit',
       noteTT: 'You against the clock, from the village to the top of the pass. Your best run rides along as a ghost, split times show where you gain or lose.',
       noteRace: 'Mass start on the pass road against AI riders. First to the top wins.', noteSettings: 'Graphics, steer assist, volume and language.', noteControls: 'Every key and a few riding tips.',
       nav: [['↑ ↓', 'SELECT'], ['← →', 'CHANGE'], ['Enter', 'OK'], ['Esc', 'BACK']], noteStart: 'Let’s go.',
@@ -57,7 +57,7 @@
 
   /* ------------------------------------------------------------------ settings */
   const KEY = 'apex3_settings';
-  const S = Object.assign({ lang: (navigator.language || 'de').toLowerCase().startsWith('de') ? 'de' : 'en', bike: 'strada', track: 'pass', mode: 'tt', laps: 3, opp: 5, diff: 1, assist: 'pro', cam: 'chase', quality: 'medium', vol: 0.8, kbAssist: 'on' },
+  const S = Object.assign({ lang: (navigator.language || 'de').toLowerCase().startsWith('de') ? 'de' : 'en', bike: 'strada', track: 'pass', mode: 'tt', laps: 3, opp: 5, diff: 1, assist: 'pro', cam: 'chase', quality: 'medium', vol: 0.8, kbAssist: 'on', look: 'on' },
     (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } })());
   S.track = 'pass';                               // the circuits are out of the menu for now
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* private mode */ } };
@@ -87,7 +87,7 @@
     const w = window.innerWidth, h = window.innerHeight; const cap = S.quality === 'high' ? 1.5 : S.quality === 'medium' ? 1.0 : 0.8;
     const pr = Math.max(0.5, Math.min(window.devicePixelRatio || 1, cap) * G.dyn); renderer.setPixelRatio(pr); renderer.setSize(w, h, false);
     camera.aspect = w / h; camera.updateProjectionMatrix(); G.pr = pr;
-    post.aoOn = S.quality === 'high'; post.aoFar = 140;
+    post.aoOn = S.quality === 'high' && !AX.LOOK; post.aoFar = 140;
     post.enabled = true; post.setSize(Math.round(w * pr), Math.round(h * pr), S.quality === 'low' ? 0 : pr <= 1.1 ? 4 : 2);
   }
   window.addEventListener('resize', resize);
@@ -135,9 +135,12 @@
 
   /* ------------------------------------------------------------------ building a session */
   function buildWorld(trackId) {
-    if (G.world && G.track.id === trackId && G.quality === S.quality) return;
+    if (G.world && G.track.id === trackId && G.quality === S.quality && G.look === S.look) return;
     clearBikes(); if (G.world) G.world.dispose();
-    G.track = new AX.Track(trackId); G.world = new AX.World(renderer, G.track, { quality: S.quality }); G.quality = S.quality;
+    AX.LOOK = S.look === 'on' && trackId === 'pass';
+    G.track = new AX.Track(trackId); G.world = new AX.World(renderer, G.track, { quality: S.quality }); G.quality = S.quality; G.look = S.look;
+    if (AX.LOOK && AX.Look) { G.lookInfo = AX.Look.applyWorld(G.world, renderer, post); console.log('look', JSON.stringify(G.lookInfo)); }
+    else { renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.toneMappingExposure = 1.0; }
     G.skid = new AX.SkidMarks(G.world.scene, 9000); G.smoke = new AX.Particles(G.world.scene, 1600, false); G.sparks = new AX.Particles(G.world.scene, 500, true);
     buildMinimap(); G.camInit = false; resize();
   }
@@ -146,7 +149,7 @@
     G.bikes = []; G.vis = []; G.ai = []; G.rs = []; G.player = null;
   }
   function addBike(spec, rider, opts) {
-    const b = new AX.Bike(spec, G.track, opts); const v = AX.Models.buildBike(spec, rider, { env: G.world.env }); G.world.scene.add(v.root);
+    const b = new AX.Bike(spec, G.track, opts); const v = AX.Models.buildBike(spec, rider, { env: G.world.env }); G.world.scene.add(v.root); if (G.world.look) AX.Look.tameBike(v.root);
     b.rider = rider; G.bikes.push(b); G.vis.push(v); return b;
   }
   function setupSession() {
@@ -394,7 +397,7 @@
     if (G.shake > 0.01) { camera.position.x += (Math.random() - 0.5) * G.shake * 0.9; camera.position.y += (Math.random() - 0.5) * G.shake * 0.5; camera.position.z += (Math.random() - 0.5) * G.shake * 0.9; G.shake *= Math.exp(-7 * dt); }
     camera.up.set(0, 1, 0); camera.lookAt(G.camLook);
     if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = damp(camera.fov, fov, 6, dt); camera.updateProjectionMatrix(); }
-    post.tilt = mode === 'chase' || mode === 'pov' ? 0 : mode === 'menu' ? 0.7 : 1; post.focusY = mode === 'menu' ? 0.45 : 0.5;
+    post.tilt = mode === 'chase' ? (AX.LOOK ? 0.3 : 0) : mode === 'pov' ? 0 : mode === 'menu' ? 0.7 : 1; post.focusY = mode === 'menu' ? 0.45 : 0.5;
   }
 
   /* ------------------------------------------------------------------ HUD */
@@ -596,6 +599,7 @@
     }
     if (MS.scr === 'settings') return [
       { k: 'quality', label: T.quality, opts: [['low', T.q0], ['medium', T.q1], ['high', T.q2]], note: () => T.qNote[S.quality], after: () => loading(true, () => { resize(); menuPreview(); loading(false); }) },
+      { k: 'look', label: T.lookL, opts: [['on', T.lookOn], ['off', T.lookOff]], note: () => (S.look === 'on' ? T.lookNoteOn : T.lookNoteOff), after: () => loading(true, () => { menuPreview(); loading(false); }) },
       { k: 'kbAssist', label: T.kbAssist, opts: [['on', T.on], ['off', T.off]], note: () => (S.kbAssist === 'on' ? T.noteKbA : T.noteKbOff) },
       { k: 'vol', label: T.volume, opts: Array.from({ length: 11 }, (_, i) => [i / 10, i * 10 + ' %']), note: T.volNote, after: () => { sound.init(); sound.setVolume(S.vol); } },
       { k: 'lang', label: S.lang === 'de' ? 'SPRACHE' : 'LANGUAGE', opts: [['de', 'DEUTSCH'], ['en', 'ENGLISH']], note: T.langNote },
@@ -639,7 +643,7 @@
   /* ------------------------------------------------------------------ main loop */
   let last = performance.now();
   function frame(now) {
-    requestAnimationFrame(frame);
+    if (!G._manual) requestAnimationFrame(frame);
     const rawDt = (now - last) / 1000, dt = Math.min(0.05, rawDt); last = now; if (!G.world) return;
     measure(rawDt);
     readInput();
@@ -676,11 +680,11 @@
       const sc = renderer.domElement.height / (2 * Math.tan(camera.fov * Math.PI / 360));
       G.smoke.update(dt, sc); G.sparks.update(dt, sc);
     }
-    G.skid.flush(); updateCamera(dt); G.world.update(G.camLook, G.time);
+    G.skid.flush(); updateCamera(dt); G.world.update(G.camLook, G.time); if (G.world.look) AX.Look.update(G.world, camera.position);
     if (G.state !== 'menu') updateHUD(dt);
     updateAudio(dt);
     G.world.scene.updateMatrixWorld(); AX.RiderBatch.flush(G.world.scene);
-    post.render(G.world.scene, camera);
+    if (!G._noRender) post.render(G.world.scene, camera);
   }
   /* frame-rate meter + dynamic resolution */
   function measure(rawDt) {
@@ -707,7 +711,7 @@
     for (let i = 1; i < G.bikes.length; i++) { const b = G.bikes[i], dx = b.x - p.x, dz = b.z - p.z, d = Math.hypot(dx, dz); if (d < 90) others.push({ rpm: b.rpm, thr: b.crashed ? 0 : b.throttle, cut: b.limiter || b.shiftT > 0, spec: b.spec, dist: d, pan: clamp((dx * rx + dz * rz) / 30, -0.85, 0.85), doppler: 1 + clamp(((p.vx - b.vx) * dx + (p.vz - b.vz) * dz) / (d + 0.5) / 343, -0.12, 0.12) }); }
     others.sort((a, b) => a.dist - b.dist); others.length = Math.min(others.length, 3);
     const f = p.fx, t = G.track; const nearPit = p.idx > t.pitFrom || p.idx < t.pitTo ? 1 : 0.25;
-    sound.update(dt, { player: { rpm: p.rpm, thr: p.crashed ? 0 : p.throttle, cut: p.limiter || (p.shiftT > 0 && p.shiftDir > 0), pop: G.pop || 0, spec: p.spec, vol: 0.8, kbAssist: 'on' }, others, speed: p.speed, vmax: p.spec.dragTop,
+    sound.update(dt, { player: { rpm: p.rpm, thr: p.crashed ? 0 : p.throttle, cut: p.limiter || (p.shiftT > 0 && p.shiftDir > 0), pop: G.pop || 0, spec: p.spec, vol: 0.8 }, others, speed: p.speed, vmax: p.spec.dragTop,
       squeal: p.crashed ? 0 : f.squeal, skid: p.crashed ? 0 : Math.max(f.rearSkid, f.frontSkid), kerb: p.crashed ? 0 : f.kerb, surf: p.surf, scrape: f.scrape ? clamp(p.speed / 15, 0.2, 1) : clamp((G.kneeOn || 0) * 0.35, 0, 0.35), crowd: t.open ? passCrowd(p) : nearPit, ...(t.open ? passEnv(p) : {}) });
     G.pop = 0;
   }
@@ -734,6 +738,6 @@
       toMenu(); show('loading', false); requestAnimationFrame(frame);
     }, 40);
   }
-  G._step = (n) => { for (let i = 0; i < n; i++) stepSim(); }; G._settings = S; G._ui = { showResults, togglePause, startFromMenu };
+  G._step = (n) => { for (let i = 0; i < n; i++) stepSim(); }; G._settings = S; G._ui = { showResults, togglePause, startFromMenu }; G._r = { renderer, post, camera, frame: (t) => frame(t), resetClock: () => { last = performance.now(); } };
   boot();
 })();

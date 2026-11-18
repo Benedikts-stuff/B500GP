@@ -140,7 +140,7 @@
 
   /* ---------------------------------------------------------------- terrain */
   function terrainMaterial(grass, rock, scree, nm) {
-    const m = new THREE.MeshStandardMaterial({ map: grass, vertexColors: true, roughness: 0.97 });
+    const m = new THREE.MeshStandardMaterial({ map: grass, vertexColors: true, roughness: 0.97 }); m.name = 'passTerrain';
     m.onBeforeCompile = (sh) => {
       sh.uniforms.rockMap = { value: rock }; sh.uniforms.screeMap = { value: scree };
       if (nm) { sh.uniforms.grassN = { value: nm.grass }; sh.uniforms.rockN = { value: nm.rock }; sh.uniforms.screeN = { value: nm.scree }; }
@@ -181,7 +181,7 @@
   /* Art-of-Rally style ground: clean colour fields from the vertex colours, flat rock bands, scree and snow,
      no high-frequency textures (they shimmer at grazing angles and read as noise) */
   function rallyTerrainMaterial() {
-    const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
+    const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 }); m.name = 'passTerrain';
     m.onBeforeCompile = (sh) => {
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 aMat; varying vec3 vMat; varying vec3 vWP; varying vec3 vWN;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvMat = aMat; vWP = (modelMatrix * vec4(position, 1.0)).xyz; vWN = normalize(mat3(modelMatrix) * normal);');
@@ -600,6 +600,7 @@
       const m = new THREE.Mesh(rib(t, () => c - 0.45, () => c + 0.45, { yA: () => 0.0215, alpha: (i) => 0.1 + 0.12 * nz(i, k), vLen: 6 }), W.decalMaterial(soft, lin2(0x1a1c20), -1));
       m.renderOrder = 1; sc.add(m);
     }
+    if (AX.LOOK) return;                     // look mode: no patches, posts, stones, bus stops, barriers or wires
     // repaired patches and sealed cracks
     const patchMat = W.decalMaterial(soft, lin2(0x2a2c31), -1), crackTex = W.canvasTex(256, 64, (g, cw, ch) => { g.clearRect(0, 0, cw, ch); g.strokeStyle = 'rgba(255,255,255,1)'; g.lineWidth = 3;
       for (let k = 0; k < 3; k++) { g.beginPath(); let y = ch * (0.2 + 0.3 * k); g.moveTo(0, y); for (let x = 0; x <= cw; x += 16) { y += (Math.sin(x * 0.11 + k * 3) + Math.sin(x * 0.037 + k)) * 3; g.lineTo(x, Math.max(4, Math.min(ch - 4, y))); } g.stroke(); } });
@@ -1053,6 +1054,7 @@
 
     /* ---- snow poles (orange/black) along the valley side, chevrons in the hairpins */
     const poleGeo = (() => { const gb = new GeoBuilder(); for (let k = 0; k < 6; k++) gb.add(new THREE.CylinderGeometry(0.035, 0.035, 0.32, 6), M(0, 0.16 + k * 0.32, 0), k % 2 ? 0x17181b : 0xf2701e); const g = gb.build(); g.computeBoundingSphere(); return g; })();
+    if (!AX.LOOK) {
     const poles = new W.Scatter(poleGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6 }), 1e6);
     for (let i = 12; i < N - 12; i += 24) for (const s of [0, 1]) {
       if (t.barType[s][i] === 2) continue; const sg = s ? 1 : -1, d = t.bar[s][i] + 0.7;
@@ -1071,6 +1073,7 @@
       }
     });
 
+    }
     /* ---- start gantry with lights, finish arch, summit sign */
     const gate = (i, isStart) => {
       const f = new THREE.Group(); f.position.set(t.px[i], t.py[i], t.pz[i]); f.rotation.y = -t.yaw[i]; const gb = new GeoBuilder(), span = w + 1.6;
@@ -1086,7 +1089,7 @@
       line.rotation.x = -Math.PI / 2; const lg = new THREE.Group(); lg.position.set(t.px[i], t.py[i] + 0.03, t.pz[i]); lg.rotation.y = -t.yaw[i] + Math.PI / 2; lg.add(line); line.receiveShadow = true; sc.add(lg);
     };
     gate(t.startIdx, true); gate(t.finishIdx, false);
-    {
+    if (!AX.LOOK) {
       const i = t.finishIdx + 40, s = t.barType[1][i] === 2 ? 0 : 1, sg = s ? 1 : -1, d = t.bar[s][i] + 1.2, g = new THREE.Group();
       g.position.set(t.px[i] + t.nx[i] * sg * d, t.py[i], t.pz[i] + t.nz[i] * sg * d); g.rotation.y = -t.yaw[i] + Math.PI / 2;
       const alt = Math.round(1800 + (t.py[t.finishIdx] - t.py[0]) * 3.6);
@@ -1100,7 +1103,7 @@
     /* ---- alp huts and hay barns (modelled + texture-baked in Blender, tools/blender_props.py) */
     const blds = []; this.buildings = blds;
     const nearBld = (x, z, r) => blds.some((b) => (b[0] - x) * (b[0] - x) + (b[1] - z) * (b[1] - z) < (b[2] + r) * (b[2] + r));
-    if (AX.Assets && AX.Assets.has('pass/hut')) {
+    if (!AX.LOOK && AX.Assets && AX.Assets.has('pass/hut')) {
       const want = { 'pass/hut': Math.round(7 * Math.max(q, 0.6)), 'pass/barn': Math.round(16 * Math.max(q, 0.6)) }, rad = { 'pass/hut': 8, 'pass/barn': 4.6 };
       for (const name of ['pass/hut', 'pass/barn']) {
         let placed = 0;
@@ -1120,10 +1123,10 @@
     }
 
     /* ---- race day: spectators along the barriers at the start and the last stretch, flags, tents, summit hotel and summit cross */
-    if (KK) this._passEvent(blds, roadClear, rng, q);
+    if (KK && !AX.LOOK) this._passEvent(blds, roadClear, rng, q);
     if (KK) this._passRoadside(blds, roadClear, rng, q, tree);
     if (KK) this._passStream(blds, rng, q);
-    if (KK) this._passBales(rng, q);
+    if (KK && !AX.LOOK) this._passBales(rng, q);
 
     /* ---- forest (nature-kit pines near the road, cheap cones further out), boulders, grass tufts */
     const kit = this.kits, pines = [1, 2, 3, 4, 5].map((k) => 'nature/Pine_' + k);
