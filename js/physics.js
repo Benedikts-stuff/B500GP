@@ -128,8 +128,9 @@
       const lm = this.spec.maxLean * DEG;
       const need = Math.atan(v * v * k / G) / lm;              // steer fraction that makes that turn
       const extra = 0.75 * Math.max(0, holdT - 0.45);
-      if (Math.sign(need) === Math.sign(tgt) && Math.abs(need) > 0.06) return Math.sign(tgt) * Math.min(1, Math.abs(need) * 1.1 + 0.06 + extra);
-      return Math.sign(tgt) * Math.min(1, 0.35 + 0.9 * holdT);
+      const slideCut = this.slideHold ? 1 - 0.35 * smoothstep(0.1, 0.35, Math.abs(this.slipAngle)) : 1;
+      if (Math.sign(need) === Math.sign(tgt) && Math.abs(need) > 0.06) return slideCut * Math.sign(tgt) * Math.min(1, Math.abs(need) * 1.1 + 0.06 + extra);
+      return slideCut * Math.sign(tgt) * Math.min(1, 0.35 + 0.9 * holdT);
     }
 
     step(dt, inp) {
@@ -312,7 +313,7 @@
           const ratio = capY / Math.abs(ayDem);
           omega *= lerp(1, ratio, 0.72); ayDem = vf * omega;
           f.frontSkid = clamp((1 / ratio - 1) * 2.2, 0, 1);
-          if (!as.abs && (frontLock || ratio < (kbPro ? 0.62 : 0.72)) && Math.abs(this.lean) > 0.42 && vf > 9) { this.tuckT += dt; if (this.tuckT > (kbPro ? 0.4 : 0.22)) return this.crash('lowside'); }
+          if (!as.abs && (frontLock || ratio < (kbPro ? 0.62 : 0.72)) && Math.abs(this.lean) > (inp.leanAssist ? 0.55 : 0.42) && vf > 9) { this.tuckT += dt; if (this.tuckT > (inp.leanAssist ? 0.75 : kbPro ? 0.4 : 0.22)) return this.crash('lowside'); }
         } else this.tuckT = 0;
       } else {
         this.tuckT = 0;
@@ -337,6 +338,11 @@
       }
       const restore = 2.0 + catchK + 0.8 * back * (aBrk > 0.4 ? 1 : 0);
       omega += turnSign * stepOut * as.slide * smoothstep(5, 12, vf) - restore * this.slipAngle * smoothstep(3, 8, vf);
+      // keyboard steer assist on the brakes: the rider holds a backing-in slide at around 15-20 degrees -
+      // it neither dies straight away nor keeps swinging round until it throws him off
+      const holdS = inp.leanAssist && vf > 8 && (this.brake > 0.3 || this.rearBrake > 0.3) && this.throttle < 0.3;
+      this.slideHold = holdS;
+      if (holdS && Math.abs(this.slipAngle) > 0.07) { const s0 = Math.abs(this.slipAngle); omega += Math.sign(this.slipAngle) * (0.3 - s0) * (s0 < 0.3 ? 1.6 : 7); }
       if (as.saMax && Math.abs(this.slipAngle) > as.saMax * 0.8) omega -= Math.sign(this.slipAngle) * (Math.abs(this.slipAngle) - as.saMax * 0.8) * 22;
 
       // ---- integrate
@@ -389,10 +395,10 @@
 
       // ---- slide limits
       const sa = Math.abs(this.slipAngle);
-      if (vf > 7 && sa > (kbPro ? 0.74 : 0.62)) return this.crash('lowside');
+      if (vf > 7 && sa > (this.slideHold ? 0.9 : kbPro ? 0.74 : 0.62)) return this.crash('lowside');
       // highside: a big slide and the throttle snapped shut, the rear finds grip all at once
       if (as.highside && vf > 14 && sa > (kbPro ? 0.38 : 0.3) && Math.abs(this.lean) > 0.35 && this.thrPrev2 > 0.6 && this.throttle < 0.1) return this.crash('highside');
-      if (!as.leanLimit && vf > 8 && Math.abs(Math.tan(this.lean)) * G > GrL * (kbPro ? 1.3 : 1.18) && sa > (kbPro ? 0.28 : 0.2)) return this.crash('lowside');
+      if (!as.leanLimit && vf > 8 && Math.abs(Math.tan(this.lean)) * G > GrL * (this.slideHold ? 1.45 : kbPro ? 1.3 : 1.18) && sa > (this.slideHold ? 0.4 : kbPro ? 0.28 : 0.2)) return this.crash('lowside');
 
       // ---- marks, squeal: only real wheelspin, a sliding rear or a locked tyre leave rubber
       const brakeSkid = aBrk > 0.4 ? clamp((sa - 0.05) * 6, 0, 1) : 0;

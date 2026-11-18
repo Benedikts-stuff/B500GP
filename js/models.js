@@ -639,9 +639,14 @@
       const fwd = p.fb || 0;
       const tuck = clamp(Math.max(0, fwd) * (1 - Math.abs(hang) * 0.5) + smoothstep(40, 60, p.speed) * 0.25 * (1 - Math.abs(hang)), 0, 1);
       const sit = clamp(Math.max(0, -fwd) * 1.0 + p.brake * 0.3 * smoothstep(6, 20, p.speed), 0, 1) - clamp(p.pitch * 1.2, 0, 0.5);
-      // hard on the brakes at speed, turning in (or about to): the inside leg comes off the peg
-      const dSide = Math.abs(p.steer) > 0.08 ? Math.sign(p.steer) : (Math.abs(hang) > 0.2 ? Math.sign(hang) : 0);
-      const dangle = dSide * smoothstep(0.45, 0.9, p.brake) * smoothstep(14, 26, p.speed) * (1 - smoothstep(0.35, 0.6, Math.abs(p.lean)));
+      // hard on the brakes at speed, turning in (or about to): sometimes the inside leg comes off the peg - more likely and
+      // further out the harder the stop and when the rear steps out; it folds back in as the bike goes deep into the lean
+      const dSide = Math.abs(p.slipAngle || 0) > 0.08 ? -Math.sign(p.slipAngle) : Math.abs(p.steer) > 0.08 ? Math.sign(p.steer) : (Math.abs(hang) > 0.2 ? Math.sign(hang) : 0);
+      const decel = clamp(-(p.aLong || 0) / 9, 0, 1), slideA = smoothstep(0.06, 0.3, Math.abs(p.slipAngle || 0));
+      if (p.brake > 0.45 && p.speed > 15 && !vis.dgRolled) { vis.dgRolled = true; vis.dgOn = Math.random() < 0.25 + 0.45 * decel + 0.4 * slideA; vis.dgAmt = 0.7 + 0.4 * decel * Math.random(); }
+      if (!vis.dgOn && slideA > 0.6 && p.brake > 0.3 && p.speed > 9) { vis.dgOn = true; vis.dgAmt = 0.9; }      // backing it in: leg out
+      if (p.brake < 0.25 && (p.rearBrake || 0) < 0.25) { vis.dgRolled = false; vis.dgOn = false; }
+      const dangle = vis.dgOn ? dSide * vis.dgAmt * (1 + 0.35 * slideA) * smoothstep(7, 14, p.speed) * (1 - smoothstep(0.5, 0.8, Math.abs(p.lean))) : 0;
       poseRider(vis.rider, { lean: hang, tuck, sit, steer: p.steer, dangle }, 1 - Math.exp(-9 * dt));
     } else {
       if (!vis.crashedVis) { vis.crashedVis = true; vis.root.parent.add(rg); rg.scale.setScalar(vis.scale); }
