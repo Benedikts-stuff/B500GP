@@ -3,33 +3,37 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>APEX — Motorcycle Racing</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%23e8372c'/><path d='M14 46 L30 16 h6 L52 46 h-9 l-3-7 H26 l-3 7z M29 32h8l-4-9z' fill='white'/></svg>">
-<link rel="stylesheet" href="style.css?v=42">
+<title>APEX — Schwarzhornpass</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23f3efe6'/><path d='M12 48 L32 14 L52 48 h-9 L32 29 L21 48z' fill='%231d1f22'/></svg>">
+<link rel="stylesheet" href="style.css?v=43">
 </head>
 <body>
 <canvas id="scene"></canvas>
+<div id="vignette"></div>
 
 <!-- ============ HUD ============ -->
 <div id="hud" class="hidden">
-  <div class="pod hud-pos">
-    <div class="pos-big"><span id="hPos">1</span><small id="hPosOf">/8</small></div>
-    <div class="pos-lap"><span data-i18n="lap">RUNDE</span> <b id="hLap">1/3</b></div>
-  </div>
-  <div class="pod hud-time">
+  <div class="h-time">
     <div id="hTime">0:00.000</div>
-    <div class="time-sub"><span id="hDelta" class="delta"></span><span><i data-i18n="best">BEST</i> <b id="hBest">–</b></span><span><i data-i18n="last">LETZTE</i> <b id="hLast">–</b></span></div>
+    <div class="h-sub"><span id="hDelta" class="delta"></span><span class="h-best"><i data-i18n="best">BEST</i><b id="hBest">–</b></span></div>
   </div>
-  <div class="hud-map"><canvas id="minimap" width="220" height="220"></canvas></div>
-  <div id="fps">– FPS</div>
+  <div class="h-pos hidden" id="hPosBox"><b id="hPos">1</b><small id="hPosOf">/6</small></div>
   <div id="tower" class="tower"></div>
-  <div class="pod hud-speed">
-    <div class="gear" id="hGear">1</div>
-    <div class="body-ind" id="hBody" title="Körpergewicht / body weight"><i id="hBodyDot"></i></div>
-    <div class="speed"><span id="hSpeed">0</span><small>KM/H</small></div>
-    <div class="rev"><div id="hRev"></div><div class="rev-red"></div></div>
-    <div class="pedals"><i id="hThr"></i><i id="hBrk"></i></div>
+  <div class="h-map">
+    <canvas id="minimap" width="220" height="220"></canvas>
+    <div class="h-rem" id="hRem"></div>
   </div>
+  <div id="fps" class="hidden">– FPS</div>
+  <div class="h-speed">
+    <div class="h-row">
+      <div class="h-spd"><span id="hSpeed">0</span><small>km/h</small></div>
+      <div class="h-gear"><b id="hGear">1</b></div>
+    </div>
+    <div class="rev"><div id="hRev"></div></div>
+    <div class="pedals"><i id="hThr"></i><i id="hBrk"></i></div>
+    <div class="body-ind" id="hBody" title="Körpergewicht / body weight"><i id="hBodyDot"></i></div>
+  </div>
+  <div id="split" class="split"></div>
   <div id="lights" class="hidden"><i></i><i></i><i></i><i></i><i></i></div>
   <div id="banner" class="hidden"></div>
   <div id="toast"></div>
@@ -39,76 +43,61 @@
 
 <!-- ============ MENU ============ -->
 <div id="menu" class="screen">
-  <div class="menu-left">
-    <div class="logo">APEX<span>MOTORCYCLE RACING</span></div>
-    <div class="seg big" id="segMode">
-      <button data-v="race" data-i18n="modeRace">RENNEN</button>
-      <button data-v="tt" data-i18n="modeTT">ZEITFAHREN</button>
+  <div class="m-col">
+    <div class="brand">
+      <div class="brand-mark">APEX</div>
+      <div class="brand-sub" id="brandSub">SCHWARZHORNPASS</div>
     </div>
-    <div class="opts">
-      <div class="opt race-only"><label data-i18n="laps">RUNDEN</label><div class="seg" id="segLaps"><button data-v="2">2</button><button data-v="3">3</button><button data-v="5">5</button><button data-v="8">8</button></div></div>
-      <div class="opt race-only"><label data-i18n="opponents">GEGNER</label><div class="seg" id="segOpp"><button data-v="3">3</button><button data-v="5">5</button><button data-v="7">7</button><button data-v="9">9</button></div></div>
-      <div class="opt race-only"><label data-i18n="difficulty">KI-STÄRKE</label><div class="seg" id="segDiff"><button data-v="0" data-i18n="d0">LEICHT</button><button data-v="1" data-i18n="d1">MITTEL</button><button data-v="2" data-i18n="d2">SCHWER</button><button data-v="3" data-i18n="d3">PROFI</button></div></div>
-      <div class="opt"><label data-i18n="assists">FAHRHILFEN</label><div class="seg" id="segAssist"><button data-v="easy" data-i18n="a0">VOLL</button><button data-v="sport" data-i18n="a1">SPORT</button><button data-v="pro" data-i18n="a2">AUS</button></div></div>
-      <div class="opt-note" id="assistNote"></div>
-      <div class="opt"><label data-i18n="camera">KAMERA</label><div class="seg" id="segCam"><button data-v="chase" data-i18n="c0">VERFOLGER</button><button data-v="pov" data-i18n="c1">FAHRERSICHT</button><button data-v="tv" data-i18n="c2">TOP-DOWN</button></div></div>
-      <div class="opt"><label data-i18n="kbAssist">LENKHILFE</label><div class="seg" id="segKbA"><button data-v="on" data-i18n="on">AN</button><button data-v="off" data-i18n="off">AUS</button></div></div>
-      <div class="opt-note" id="kbANote"></div>
-      <div class="opt"><label data-i18n="quality">GRAFIK</label><div class="seg" id="segQ"><button data-v="low" data-i18n="q0">NIEDRIG</button><button data-v="medium" data-i18n="q1">MITTEL</button><button data-v="high" data-i18n="q2">HOCH</button></div></div>
-      <div class="opt"><label data-i18n="volume">LAUTSTÄRKE</label><input type="range" id="vol" min="0" max="100" value="80"><div class="seg" id="segLang"><button data-v="de">DE</button><button data-v="en">EN</button></div></div>
-    </div>
-    <button id="startBtn" class="go"><span data-i18n="start">START</span><em>ENTER</em></button>
-    <div class="keys" id="keysHelp"></div>
+    <div class="m-head" id="mHead"></div>
+    <div class="m-list" id="mList"></div>
+    <div class="m-note" id="mNote"></div>
+    <div class="m-keys" id="mKeys"></div>
   </div>
-  <div class="menu-right">
-    <div class="sect"><span data-i18n="chooseBike">MOTORRAD</span></div>
-    <div class="cards" id="bikeCards"></div>
-    <div class="sect"><span data-i18n="chooseTrack">STRECKE</span></div>
-    <div class="cards" id="trackCards"></div>
+  <div class="m-side" id="mSide">
+    <div class="info" id="bikeInfo"></div>
+    <div class="info" id="trackInfo"></div>
   </div>
+  <div class="controls hidden" id="mControls"></div>
 </div>
 
 <!-- ============ PAUSE / RESULTS ============ -->
 <div id="pause" class="screen overlay hidden">
-  <div class="panel">
+  <div class="ov">
+    <div class="ov-kicker" id="pauseSub"></div>
     <h2 data-i18n="paused">PAUSE</h2>
-    <button id="btnResume" class="go small"><span data-i18n="resume">WEITER</span><em>ESC</em></button>
-    <button id="btnRestart" class="ghost" data-i18n="restart">NEUSTART</button>
-    <button id="btnQuit" class="ghost" data-i18n="toMenu">HAUPTMENÜ</button>
-    <div class="keys" id="keysHelp2"></div>
+    <div class="m-list" id="pList"></div>
   </div>
 </div>
 <div id="results" class="screen overlay hidden">
-  <div class="panel wide">
-    <h2 id="resTitle">ERGEBNIS</h2>
-    <div id="resSub" class="res-sub"></div>
+  <div class="ov wide">
+    <div class="ov-kicker" id="resSub"></div>
+    <h2 id="resTitle">0:00.000</h2>
+    <div class="res-delta" id="resDelta"></div>
+    <div class="medals" id="resMedals"></div>
     <table id="resTable"></table>
-    <div class="row">
-      <button id="btnAgain" class="go small"><span data-i18n="again">NOCHMAL</span><em>ENTER</em></button>
-      <button id="btnMenu" class="ghost" data-i18n="toMenu">HAUPTMENÜ</button>
-    </div>
+    <div class="m-list horiz" id="rList"></div>
   </div>
 </div>
 <div id="loading" class="hidden"><div><b>APEX</b><span id="loadText">…</span></div></div>
 
-<script src="three.min.js?v=42"></script>
-<script src="js/core.js?v=42"></script>
-<script src="js/track.js?v=42"></script>
-<script src="js/physics.js?v=42"></script>
-<script src="js/ai.js?v=42"></script>
-<script src="js/assets.js?v=42"></script>
-<script src="assets/pack_nature.js?v=42"></script>
-<script src="assets/pack_kenney.js?v=42"></script>
-<script src="assets/pack_pass.js?v=42"></script>
-<script src="assets/pack_props.js?v=42"></script>
-<script src="assets/pack_kaykit.js?v=42"></script>
-<script src="assets/pack_bike.js?v=42"></script>
-<script src="assets/pack_rider.js?v=42"></script>
-<script src="js/models.js?v=42"></script>
-<script src="js/world.js?v=42"></script>
-<script src="js/pass.js?v=42"></script>
-<script src="js/fx.js?v=42"></script>
-<script src="js/audio.js?v=42"></script>
-<script src="js/game.js?v=42"></script>
+<script src="three.min.js?v=43"></script>
+<script src="js/core.js?v=43"></script>
+<script src="js/track.js?v=43"></script>
+<script src="js/physics.js?v=43"></script>
+<script src="js/ai.js?v=43"></script>
+<script src="js/assets.js?v=43"></script>
+<script src="assets/pack_nature.js?v=43"></script>
+<script src="assets/pack_kenney.js?v=43"></script>
+<script src="assets/pack_pass.js?v=43"></script>
+<script src="assets/pack_props.js?v=43"></script>
+<script src="assets/pack_kaykit.js?v=43"></script>
+<script src="assets/pack_bike.js?v=43"></script>
+<script src="assets/pack_rider.js?v=43"></script>
+<script src="js/models.js?v=43"></script>
+<script src="js/world.js?v=43"></script>
+<script src="js/pass.js?v=43"></script>
+<script src="js/fx.js?v=43"></script>
+<script src="js/audio.js?v=43"></script>
+<script src="js/game.js?v=43"></script>
 </body>
 </html>

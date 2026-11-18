@@ -9,14 +9,27 @@
   /* ------------------------------------------------------------------ text */
   const STR = {
     de: { lap: 'RUNDE', best: 'BEST', last: 'LETZTE', modeRace: 'RENNEN', modeTT: 'ZEITFAHREN', laps: 'RUNDEN', opponents: 'GEGNER', difficulty: 'KI-STÄRKE', d0: 'LEICHT', d1: 'MITTEL', d2: 'SCHWER', d3: 'PROFI',
-      assists: 'FAHRHILFEN', a0: 'VOLL', a1: 'SPORT', a2: 'AUS', camera: 'KAMERA', c0: 'VERFOLGER', c1: 'FAHRERSICHT', c2: 'TOP-DOWN', quality: 'GRAFIK', q0: 'NIEDRIG', q1: 'MITTEL', q2: 'HOCH', volume: 'LAUTSTÄRKE', kbAssist: 'LENKHILFE', on: 'AN', off: 'AUS', noteKbA: 'Tastatur: A/D halten legt das Motorrad so weit in die Kurve, wie die Straße vor dir verlangt. Länger halten = mehr Schräglage.', noteKbOff: 'Tastatur: A/D halten legt das Motorrad voll um, Antippen hält eine mittlere Schräglage.',
+      assists: 'FAHRHILFEN', a0: 'VOLL', a1: 'SPORT', a2: 'AUS', camera: 'KAMERA', c0: 'VERFOLGER', c1: 'FAHRERSICHT', c2: 'VON OBEN', quality: 'GRAFIK', q0: 'NIEDRIG', q1: 'MITTEL', q2: 'HOCH', volume: 'LAUTSTÄRKE', kbAssist: 'LENKHILFE', on: 'AN', off: 'AUS', noteKbA: 'Tastatur: A/D halten legt das Motorrad so weit in die Kurve, wie die Straße vor dir verlangt. Länger halten = mehr Schräglage.', noteKbOff: 'Tastatur: A/D halten legt das Motorrad voll um, Antippen hält eine mittlere Schräglage.',
       start: 'START', chooseBike: 'MOTORRAD', chooseTrack: 'STRECKE', paused: 'PAUSE', resume: 'WEITER', restart: 'NEUSTART', toMenu: 'HAUPTMENÜ', again: 'NOCHMAL',
       noteEasy: 'Traktions-, Wheelie- und Kurven-ABS greifen früh ein. Zum Reinkommen.', noteSport: 'Keine Hilfen: Highsider, Überschlag und wegrutschendes Vorderrad gibt es. Hinterradbremse und Slides gehören dir.', notePro: 'Wie Sport, nur mit mehr Spielraum: ein paar Grad mehr Schräglage, etwas mehr Grip am Limit, Slides kommen leichter und werfen dich später ab, Trail-Braking zieht stärker. Schneller als Sport, wenn du es kannst.',
       speed: 'TEMPO', accel: 'SCHUB', agility: 'HANDLING', brake: 'BREMSE', record: 'REKORD', go: 'LOS!', finish: 'ZIEL', result: 'ERGEBNIS', ttResult: 'ZEITFAHREN', place: 'PLATZ', fastest: 'SCHNELLSTE RUNDE', newBest: 'NEUE BESTZEIT', lastLap: 'LETZTE RUNDE',
       wheelie: 'WHEELIE', crash_lowside: 'LOWSIDER', crash_highside: 'HIGHSIDER', crash_wall: 'EINSCHLAG', crash_loop: 'ÜBERSCHLAG', crash_stoppie: 'STOPPIE-ABFLUG', crash_contact: 'KOLLISION', you: 'DU', lapsDone: 'Runden', bestLap: 'Beste Runde', loading: 'STRECKE WIRD GEBAUT',
       keys: '<kbd>A</kbd><kbd>D</kbd> Lenken · <kbd>W</kbd> Gas · <kbd>S</kbd> Vorderradbremse · <kbd>Leertaste</kbd> Hinterradbremse<br><kbd>←</kbd><kbd>→</kbd> Körper zur Kurveninnenseite (mehr Grip, mehr Schräglage) · <kbd>↑</kbd> Gewicht nach vorn (besser beschleunigen, weniger Wheelie, Windschatten) · <kbd>↓</kbd> Gewicht nach hinten / aufrichten (besser bremsen, kein Stoppie, Wheelie mit Gas)<br>Leicht bremsen in Schräglage (Trail-Braking) lenkt schärfer ein · Hinterradbremse oder Gewicht nach vorn beim Bremsen stellt das Heck quer<br><kbd>Shift</kbd> halten: sanft Gas geben und bremsen · ohne Körper-Taste hängt sich der Fahrer selbst in die Kurve<br><kbd>C</kbd> Kamera · <kbd>R</kbd> Zurücksetzen · <kbd>Esc</kbd> Pause · <kbd>M</kbd> Ton<br>Gamepad: linker Stick lenken · rechter Stick Körper · RT Gas · LT Vorderradbremse · LB Hinterradbremse',
       cam_chase: 'VERFOLGER', cam_pov: 'FAHRERSICHT', cam_tv: 'TOP-DOWN', cam_follow: 'MITDREHEND', toSummit: 'BIS ZUM GIPFEL', alt: 'HÖHE', hillclimb: 'Bergrennen', summit: 'GIPFEL',
-      hint: '<kbd>W</kbd> Gas · <kbd>S</kbd> Bremse · <kbd>Leertaste</kbd> Hinterrad · <kbd>A</kbd><kbd>D</kbd> Lenken · <kbd>Shift</kbd> sanft · <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> Körpergewicht · <kbd>C</kbd> Kamera' },
+      hint: [['W', 'GAS'], ['S', 'BREMSE'], ['Leertaste', 'HINTERRAD'], ['A D', 'LENKEN'], ['← → ↑ ↓', 'KÖRPER'], ['C', 'KAMERA']],
+      settings: 'EINSTELLUNGEN', controls: 'STEUERUNG', back: 'ZURÜCK', mainHead: 'HAUPTMENÜ', subTT: 'Allein gegen die Uhr', subRace: 'Gegen die KI zum Gipfel',
+      noteTT: 'Du gegen die Uhr, vom Dorf bis auf den Pass. Deine Bestfahrt fährt als Ghost mit, Zwischenzeiten zeigen dir, wo du Zeit gewinnst oder verlierst.',
+      noteRace: 'Massenstart auf der Passstraße gegen KI-Fahrer. Wer zuerst oben ist, gewinnt.', noteSettings: 'Grafik, Lenkhilfe, Lautstärke und Sprache.', noteControls: 'Alle Tasten und ein paar Fahrtipps.',
+      nav: [['↑ ↓', 'WÄHLEN'], ['← →', 'ÄNDERN'], ['Enter', 'OK'], ['Esc', 'ZURÜCK']], noteStart: 'Los geht’s.',
+      camNote: { chase: 'Hinter dem Motorrad, schwenkt sanft mit.', pov: 'Cockpit-Sicht über dem Tank, ruhig geführt.', tv: 'Hoch von oben, wie eine Übersichtskarte.' },
+      qNote: { low: 'Für ältere Rechner und Laptops.', medium: 'Ausgewogen, mit weichem Licht.', high: 'Alles an, inklusive Umgebungsverschattung. Für starke Grafikkarten.' },
+      volNote: 'Gesamtlautstärke. M schaltet im Spiel stumm.', langNote: 'Sprache der Menüs.', oppNote: 'Anzahl der KI-Fahrer.', diffNote: 'Wie schnell die KI fährt.',
+      length: 'LÄNGE', hairpins: 'KEHREN', climb: 'HÖHE', yourBest: 'DEINE BESTZEIT', sector: 'SEKTOR', gold: 'GOLD', silver: 'SILBER', bronze: 'BRONZE', toBest: 'ZUR BESTZEIT', firstRun: 'ERSTE ZEIT',
+      ctlRide: 'FAHREN', ctlBody: 'KÖRPER', ctlMore: 'SONSTIGES',
+      ctl: [['W', 'Gas'], ['S', 'Vorderradbremse'], ['Leertaste', 'Hinterradbremse'], ['A D', 'Lenken'], ['Shift', 'gehalten: sanft Gas und Bremse']],
+      ctlB: [['← →', 'Hanging-off zur Seite: mehr Grip, mehr Schräglage'], ['↑', 'Gewicht vorne: Wheelie unterdrücken, Windschatten'], ['↓', 'Gewicht hinten: stabiler bremsen, Wheelie mit Gas']],
+      ctlM: [['C', 'Kamera'], ['R', 'zurück auf die Straße'], ['Esc', 'Pause'], ['M', 'Ton aus'], ['F', 'FPS'], ['Mausrad', 'Kamera-Abstand']],
+      ctlTip: 'Leicht weiterbremsen beim Einlenken zieht das Motorrad enger in die Kurve. Hart bremsen und kurz lenken, dazu die Hinterradbremse, stellt das Heck quer. Ohne Körper-Taste hängt sich der Fahrer selbst in die Kurve.' },
     en: { lap: 'LAP', best: 'BEST', last: 'LAST', modeRace: 'RACE', modeTT: 'TIME TRIAL', laps: 'LAPS', opponents: 'OPPONENTS', difficulty: 'AI LEVEL', d0: 'EASY', d1: 'MEDIUM', d2: 'HARD', d3: 'EXPERT',
       assists: 'ASSISTS', a0: 'FULL', a1: 'SPORT', a2: 'OFF', camera: 'CAMERA', c0: 'CHASE', c1: 'HELMET', c2: 'TOP-DOWN', quality: 'GRAPHICS', q0: 'LOW', q1: 'MEDIUM', q2: 'HIGH', volume: 'VOLUME', kbAssist: 'STEER ASSIST', on: 'ON', off: 'OFF', noteKbA: 'Keyboard: holding A/D leans the bike as far as the road ahead needs. Hold longer for more lean.', noteKbOff: 'Keyboard: holding A/D leans the bike all the way, tapping holds a medium lean.',
       start: 'START', chooseBike: 'BIKE', chooseTrack: 'CIRCUIT', paused: 'PAUSED', resume: 'RESUME', restart: 'RESTART', toMenu: 'MAIN MENU', again: 'AGAIN',
@@ -25,7 +38,20 @@
       wheelie: 'WHEELIE', crash_lowside: 'LOWSIDE', crash_highside: 'HIGHSIDE', crash_wall: 'IMPACT', crash_loop: 'LOOPED IT', crash_stoppie: 'OVER THE BARS', crash_contact: 'CONTACT', you: 'YOU', lapsDone: 'laps', bestLap: 'Best lap', loading: 'BUILDING CIRCUIT',
       keys: '<kbd>A</kbd><kbd>D</kbd> steer · <kbd>W</kbd> throttle · <kbd>S</kbd> front brake · <kbd>Space</kbd> rear brake<br><kbd>←</kbd><kbd>→</kbd> hang off to the inside (more grip, more lean) · <kbd>↑</kbd> weight forward (better drive, fewer wheelies, tucks in) · <kbd>↓</kbd> weight back / sit up (better braking, no stoppie, wheelie with throttle)<br>Light braking while leaned (trail braking) turns in sharper · rear brake or weight forward under braking backs the rear in<br>Hold <kbd>Shift</kbd> for gentle throttle and brakes · with no body key held the rider hangs off into the corner by himself<br><kbd>C</kbd> camera · <kbd>R</kbd> reset · <kbd>Esc</kbd> pause · <kbd>M</kbd> mute<br>Gamepad: left stick steer · right stick body · RT throttle · LT front brake · LB rear brake',
       cam_chase: 'CHASE', cam_pov: 'HELMET CAM', cam_tv: 'TOP-DOWN', cam_follow: 'ROTATING', toSummit: 'TO SUMMIT', alt: 'ALTITUDE', hillclimb: 'Hill climb', summit: 'SUMMIT',
-      hint: '<kbd>W</kbd> throttle · <kbd>S</kbd> brake · <kbd>Space</kbd> rear · <kbd>A</kbd><kbd>D</kbd> steer · <kbd>Shift</kbd> gentle · <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> body weight · <kbd>C</kbd> camera' }
+      hint: [['W', 'THROTTLE'], ['S', 'BRAKE'], ['Space', 'REAR'], ['A D', 'STEER'], ['← → ↑ ↓', 'BODY'], ['C', 'CAMERA']],
+      settings: 'SETTINGS', controls: 'CONTROLS', back: 'BACK', mainHead: 'MAIN MENU', subTT: 'Alone against the clock', subRace: 'Race the AI to the summit',
+      noteTT: 'You against the clock, from the village to the top of the pass. Your best run rides along as a ghost, split times show where you gain or lose.',
+      noteRace: 'Mass start on the pass road against AI riders. First to the top wins.', noteSettings: 'Graphics, steer assist, volume and language.', noteControls: 'Every key and a few riding tips.',
+      nav: [['↑ ↓', 'SELECT'], ['← →', 'CHANGE'], ['Enter', 'OK'], ['Esc', 'BACK']], noteStart: 'Let’s go.',
+      camNote: { chase: 'Behind the bike, swings round gently.', pov: 'Cockpit view over the tank, steady.', tv: 'High overhead, like a map.' },
+      qNote: { low: 'For older computers and laptops.', medium: 'Balanced, with soft light.', high: 'Everything on, including ambient occlusion. For strong graphics cards.' },
+      volNote: 'Master volume. M mutes in game.', langNote: 'Menu language.', oppNote: 'Number of AI riders.', diffNote: 'How fast the AI rides.',
+      length: 'LENGTH', hairpins: 'HAIRPINS', climb: 'CLIMB', yourBest: 'YOUR BEST', sector: 'SECTOR', gold: 'GOLD', silver: 'SILVER', bronze: 'BRONZE', toBest: 'TO YOUR BEST', firstRun: 'FIRST TIME',
+      ctlRide: 'RIDING', ctlBody: 'BODY', ctlMore: 'MORE',
+      ctl: [['W', 'Throttle'], ['S', 'Front brake'], ['Space', 'Rear brake'], ['A D', 'Steer'], ['Shift', 'held: gentle throttle and brakes']],
+      ctlB: [['← →', 'Hang off to the side: more grip, more lean'], ['↑', 'Weight forward: keep the front down, tuck in'], ['↓', 'Weight back: steadier braking, wheelie on the gas']],
+      ctlM: [['C', 'Camera'], ['R', 'Back onto the road'], ['Esc', 'Pause'], ['M', 'Mute'], ['F', 'FPS'], ['Wheel', 'Camera distance']],
+      ctlTip: 'A little brake while turning in pulls the bike tighter. Brake hard, flick the bars and add rear brake to back it in. With no body key held the rider hangs off by himself.' }
   };
   let T = STR.de;
 
@@ -33,6 +59,7 @@
   const KEY = 'apex3_settings';
   const S = Object.assign({ lang: (navigator.language || 'de').toLowerCase().startsWith('de') ? 'de' : 'en', bike: 'strada', track: 'pass', mode: 'tt', laps: 3, opp: 5, diff: 1, assist: 'pro', cam: 'chase', quality: 'medium', vol: 0.8, kbAssist: 'on' },
     (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } })());
+  S.track = 'pass';                               // the circuits are out of the menu for now
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* private mode */ } };
   const recKey = (track, bike) => 'apex2_best_' + track + '_' + bike + (track === 'pass' ? '_v2' : '');   // v2: the pass was re-routed, old records and ghosts no longer fit
   const loadRec = (track, bike) => { try { return JSON.parse(localStorage.getItem(recKey(track, bike))); } catch (e) { return null; } };
@@ -72,7 +99,7 @@
     if (e.repeat) { if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault(); return; }
     keys[e.code] = true; sound.init();
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
-    if (e.code === 'Enter') { if (G.state === 'menu') startFromMenu(); else if (G.state === 'results') restart(); }
+    if (G.state === 'menu' || G.state === 'paused' || G.state === 'results') { if (navKey(e.code)) { e.preventDefault(); return; } }
     if (e.code === 'Escape' || e.code === 'KeyP') togglePause();
     if (e.code === 'KeyC' && G.state !== 'menu') cycleCam();
     if (e.code === 'KeyF') { $('fps').classList.toggle('hidden'); }
@@ -170,6 +197,7 @@
     }
   }
   function onSummit(tf) {
+    G.lastFinish = tf;
     if (!G.fastest || tf < G.fastest) { G.fastest = tf; G.fastestBike = G.player; }
     const old = G.best && G.best.t;
     if (!old || tf < old) {
@@ -273,7 +301,7 @@
 
   /* ------------------------------------------------------------------ camera */
   const _look = new THREE.Vector3(), _pos = new THREE.Vector3();
-  function cycleCam() { const o = ['chase', 'pov', 'tv', 'follow']; S.cam = o[(o.indexOf(S.cam) + 1) % 3]; save(); markSeg('segCam', S.cam); toast(T['cam_' + S.cam]); }
+  function cycleCam() { const o = ['chase', 'pov', 'tv', 'follow']; S.cam = o[(o.indexOf(S.cam) + 1) % 3]; save(); toast(T['cam_' + S.cam]); }
   /* helmet camera: sits in the rider's head, rolls with the bike but less (riders keep their eyes level) */
   const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _e = new THREE.Euler(), _hp = new THREE.Vector3();
   let povOn = false;
@@ -370,11 +398,22 @@
   }
 
   /* ------------------------------------------------------------------ HUD */
-  const hud = { pos: $('hPos'), posOf: $('hPosOf'), lap: $('hLap'), time: $('hTime'), delta: $('hDelta'), best: $('hBest'), last: $('hLast'), gear: $('hGear'), speed: $('hSpeed'), rev: $('hRev'), thr: $('hThr'), brk: $('hBrk'), tower: $('tower'), lapLabel: document.querySelector('.pos-lap'), body: $('hBodyDot'), bodyBox: $('hBody') };
+  const hud = { pos: $('hPos'), posOf: $('hPosOf'), posBox: $('hPosBox'), rem: $('hRem'), time: $('hTime'), delta: $('hDelta'), best: $('hBest'), gear: $('hGear'), speed: $('hSpeed'), rev: $('hRev'), thr: $('hThr'), brk: $('hBrk'), tower: $('tower'), body: $('hBodyDot'), bodyBox: $('hBody') };
   let toastTimer = 0;
   function toast(text, cls) { const e = $('toast'); e.textContent = text; e.className = 'show ' + (cls || ''); clearTimeout(toastTimer); toastTimer = setTimeout(() => { e.className = ''; }, 2300); }
   function banner(text, cls, sec) { const e = $('banner'); e.textContent = text; e.className = cls || ''; G.bannerT = sec || 1.4; }
   function setLights(n) { const l = $('lights'); l.classList.remove('hidden'); l.classList.toggle('go', n < 0); const el = l.children; for (let k = 0; k < 5; k++) el[k].classList.toggle('on', k < n); }
+  // split times: the climb is cut into four sectors; at each line the time so far and the gap to the best run show up
+  function updateSplits(p, started) {
+    const t = G.track; if (!t.open || !started || p.finished || G.s0 == null) return;
+    const f = (p.sPrev - G.s0) / Math.max(1, t.finishS - G.s0), sec = Math.floor(f * 4);
+    if (sec > (G.secDone || 0) && sec < 4) {
+      G.secDone = sec; let d = '';
+      if (G.best && G.best.sp) { const ref = G.best.sp[Math.floor(p.trackPos / 10)]; if (ref != null) { const x = p.lapTime - ref; d = '<div class="d ' + (x >= 0 ? 'up' : 'down') + '">' + (x >= 0 ? '+' : '−') + Math.abs(x).toFixed(2) + '</div>'; } }
+      const el = $('split'); el.innerHTML = '<div class="k">' + T.sector + ' ' + sec + '</div><div class="t">' + AX.formatTime(p.lapTime) + '</div>' + d; el.classList.add('show');
+      clearTimeout(G.splitTimer); G.splitTimer = setTimeout(() => el.classList.remove('show'), 3200);
+    }
+  }
   function updateHUD(dt) {
     const p = G.player; if (!p) return; const race = S.mode === 'race';
     { const sb = $('steerBar').firstChild; const s = clamp(p.steer || 0, -1, 1); if (Math.abs(s - (G.sbS || 0)) > 0.004) { G.sbS = s; sb.style.transform = 'translateX(' + (s * 104).toFixed(1) + 'px)'; } }
@@ -383,7 +422,8 @@
     hud.body.style.transform = 'translate(' + (p.hang * 14).toFixed(1) + 'px,' + (-p.fb * 14).toFixed(1) + 'px)'; hud.bodyBox.classList.toggle('good', p.hangIn > 0.4); hud.thr.style.setProperty('--v', (p.throttle * 100).toFixed(0) + '%'); hud.brk.style.setProperty('--v', (p.brake * 100).toFixed(0) + '%');
     const started = p.lap >= 0 && G.state !== 'countdown';
     hud.time.textContent = AX.formatTime(started ? (race ? p.lapTime : p.lapTime) : 0);
-    hud.best.textContent = (race ? p.bestLap : (G.best && G.best.t)) ? AX.formatTime(race ? p.bestLap : G.best.t) : '–'; hud.last.textContent = p.lastLap ? AX.formatTime(p.lastLap) : '–';
+    hud.best.textContent = (race ? p.bestLap : (G.best && G.best.t)) ? AX.formatTime(race ? p.bestLap : G.best.t) : '–';
+    updateSplits(p, started);
     // live delta against the stored best lap
     let dl = '';
     if (started && G.best && G.best.sp && !p.finished) { const k = Math.floor(p.trackPos / 10), ref = G.best.sp[k]; if (ref != null && p.lapTime > 1) { const d = p.lapTime - ref; dl = (d >= 0 ? '+' : '−') + Math.abs(d).toFixed(2); hud.delta.className = 'delta ' + (d >= 0 ? 'up' : 'down'); } }
@@ -391,14 +431,12 @@
     G.towerT -= dt;
     if (G.towerT <= 0) {
       G.towerT = 0.25; const ord = standings();
-      if (G.track.open) {
-        const t = G.track, rem = Math.max(0, t.finishS - p.sPrev), alt = Math.round(1800 + ((p.y || 0) - t.py[0]) * 3.6);
-        hud.lapLabel.innerHTML = T.toSummit + ' <b>' + (rem >= 1000 ? (rem / 1000).toFixed(2) + ' km' : Math.round(rem) + ' m') + '</b>';
-        if (race) { const me = ord.indexOf(0); hud.pos.textContent = me + 1; hud.posOf.textContent = '/' + G.bikes.length; }
-        else { hud.pos.textContent = alt; hud.posOf.textContent = ' m'; }
-      }
+      const t = G.track;
+      if (t.open) { const rem = Math.max(0, t.finishS - p.sPrev); hud.rem.innerHTML = T.toSummit + '<b>' + (rem >= 1000 ? (rem / 1000).toFixed(2) + ' km' : Math.round(rem) + ' m') + '</b>'; }
+      else hud.rem.innerHTML = T.lap + '<b>' + clamp(p.lap + 1, 1, S.laps) + ' / ' + S.laps + '</b>';
+      hud.posBox.classList.toggle('hidden', !race);
       if (race) {
-        const me = ord.indexOf(0); if (!G.track.open) hud.pos.textContent = me + 1; if (!G.track.open) { hud.posOf.textContent = '/' + G.bikes.length; hud.lap.textContent = clamp(p.lap + 1, 1, S.laps) + '/' + S.laps; }
+        const me = ord.indexOf(0); hud.pos.textContent = me + 1; hud.posOf.textContent = '/' + G.bikes.length;
         const lead = G.bikes[ord[0]]; let html = '';
         for (let r = 0; r < ord.length; r++) {
           const b = G.bikes[ord[r]]; let gap = '';
@@ -406,7 +444,7 @@
           html += '<div class="r' + (ord[r] === 0 ? ' me' : '') + (b.crashed ? ' out' : '') + '"><span class="p">' + (r + 1) + '</span><span class="c" style="background:' + b.rider.c1 + '"></span><span class="n">' + b.rider.name + '</span><span class="g">' + gap + '</span></div>';
         }
         hud.tower.innerHTML = html;
-      } else { if (!G.track.open) { hud.pos.textContent = Math.max(1, p.lap + 1); hud.posOf.textContent = ''; hud.lap.textContent = Math.max(1, p.lap + 1); } hud.tower.innerHTML = ''; }
+      } else hud.tower.innerHTML = '';
     }
     if (G.bannerT > 0) { G.bannerT -= dt; if (G.bannerT <= 0) $('banner').classList.add('hidden'); }
     if (G.hintT > 0) { G.hintT -= dt; if (G.hintT <= 0) $('hint').style.opacity = 0; }
@@ -423,14 +461,14 @@
   }
   function buildMinimap() {
     mapBase = document.createElement('canvas'); mapBase.width = mapBase.height = 220; const c = mapBase.getContext('2d');
-    trackPath(c, G.track, 220, 22, 9, 'rgba(0,0,0,0.55)'); mapT = trackPath(c, G.track, 220, 22, 5, '#f4f3ef');
-    const t = G.track; for (const [i, col] of t.open ? [[t.startIdx, '#53e08a'], [t.finishIdx, '#e8372c']] : [[0, '#e8372c']]) { c.fillStyle = col; c.save(); c.translate(t.px[i] * mapT.sc + mapT.ox, t.pz[i] * mapT.sc + mapT.oz); c.rotate(t.yaw[i]); c.fillRect(-2, -8, 4, 16); c.restore(); }
+    trackPath(c, G.track, 220, 22, 8, 'rgba(0,0,0,0.28)'); mapT = trackPath(c, G.track, 220, 22, 2.5, 'rgba(243,239,230,0.9)');
+    const t = G.track; for (const [i, col] of t.open ? [[t.startIdx, '#8fd6a2'], [t.finishIdx, '#e9a23b']] : [[0, '#e9a23b']]) { c.fillStyle = col; c.save(); c.translate(t.px[i] * mapT.sc + mapT.ox, t.pz[i] * mapT.sc + mapT.oz); c.rotate(t.yaw[i]); c.fillRect(-1.5, -7, 3, 14); c.restore(); }
   }
   function drawMinimap() {
     const cv = $('minimap'), c = cv.getContext('2d'); c.clearRect(0, 0, 220, 220); c.drawImage(mapBase, 0, 0);
     for (let i = G.bikes.length - 1; i >= 0; i--) {
       const b = G.bikes[i], x = b.x * mapT.sc + mapT.ox, y = b.z * mapT.sc + mapT.oz;
-      c.beginPath(); c.arc(x, y, i === 0 ? 6 : 4.2, 0, 7); c.fillStyle = i === 0 ? '#ffffff' : b.rider.c1; c.fill(); c.lineWidth = i === 0 ? 3 : 1.5; c.strokeStyle = i === 0 ? '#e8372c' : 'rgba(0,0,0,0.7)'; c.stroke();
+      c.beginPath(); c.arc(x, y, i === 0 ? 5.5 : 3.6, 0, 7); c.fillStyle = i === 0 ? '#e9a23b' : b.rider.c1; c.fill(); c.lineWidth = 1.5; c.strokeStyle = 'rgba(0,0,0,0.45)'; c.stroke();
     }
   }
 
@@ -439,79 +477,164 @@
   function loading(on, then) { $('loadText').textContent = T.loading; show('loading', on); if (then) requestAnimationFrame(() => setTimeout(then, 30)); }
   function startFromMenu() { sound.init(); sound.click(); loading(true, () => { beginSession(); loading(false); }); }
   function beginSession() {
-    setupSession(); show('menu', false); show('results', false); show('pause', false); show('hud', true); $('banner').classList.add('hidden');
-    $('hint').innerHTML = T.hint; $('hint').style.opacity = 1; G.hintT = 9; G.camInit = false; G.zoom = 1; G.towerT = 0; sound.setDuck(1);
-    document.querySelector('.hud-time .time-sub').style.display = '';
+    setupSession(); show('menu', false); show('results', false); show('pause', false); show('hud', true); document.body.classList.add('playing'); $('banner').classList.add('hidden');
+    $('hint').innerHTML = keyList(T.hint); $('hint').style.opacity = 1; G.hintT = 9; G.camInit = false; G.zoom = 1; G.towerT = 0; sound.setDuck(1);
     if (S.mode === 'race' || G.track.open) { G.state = 'countdown'; G.lightsT = 0; G.lightsN = 0; G.goT = 5.6 + 0.5 + Math.random() * 1.3; G.revRpm = G.player.spec.idle; G.world.setStartLights(0); setLights(0); }
     else { G.state = 'race'; show('lights', false); G.world.setStartLights(0); G.player.vx = Math.cos(G.player.yaw) * 8; G.player.vz = Math.sin(G.player.yaw) * 8; }
-    G.splits = []; G.rec = [];
-    if (!G.track.open) hud.lapLabel.innerHTML = '<span>' + T.lap + '</span> <b id="hLap">1/3</b>', hud.lap = $('hLap');
+    G.splits = []; G.rec = []; G.s0 = G.player.sPrev; G.secDone = 0; G.prevBestT = G.best && G.best.t; G.lastFinish = 0; $('split').classList.remove('show');
   }
   function restart() { sound.click(); beginSession(); }
+  function kicker() { return (S.mode === 'race' ? T.modeRace : T.modeTT) + ' · ' + (G.track ? G.track.name : '') + ' · ' + AX.BIKES[S.bike].name; }
   function togglePause() {
-    if (G.state === 'race' || G.state === 'countdown') { G.prevState = G.state; G.state = 'paused'; show('pause', true); sound.setDuck(0.15); }
-    else if (G.state === 'paused') { G.state = G.prevState; show('pause', false); sound.setDuck(1); last = performance.now(); }
+    if (G.state === 'race' || G.state === 'countdown') {
+      G.prevState = G.state; G.state = 'paused'; show('pause', true); sound.setDuck(0.15); $('pauseSub').textContent = kicker();
+      LISTS.p.items = [{ label: T.resume, run: togglePause }, { label: T.restart, run: restart }, { label: T.toMenu, run: toMenu }]; LISTS.p.sel = 0; renderList(LISTS.p);
+    } else if (G.state === 'paused') { G.state = G.prevState; show('pause', false); sound.setDuck(1); last = performance.now(); }
   }
   function toMenu() {
-    G.state = 'menu'; show('pause', false); show('results', false); show('hud', false); show('menu', true); sound.setDuck(0.5); menuPreview(); renderMenu();
+    G.state = 'menu'; show('pause', false); show('results', false); show('hud', false); show('menu', true); document.body.classList.remove('playing');
+    sound.setDuck(0.5); MS.scr = 'main'; LISTS.m.sel = S.mode === 'race' ? 1 : 0; menuPreview(); renderMenu();
   }
   function menuPreview() {
     buildWorld(S.track); clearBikes(); G.skid.clear(); G.smoke.clear(); G.sparks.clear();
     const p = addBike(AX.BIKES[S.bike], AX.RIDERS[0], { isPlayer: true }); p.placeOnGrid(0); G.player = p; G.ai.push(null); G.order = [0]; G.camInit = false;
     AX.Models.syncBike(G.vis[0], p, 0.016, 0); G.world.setStartLights(0);
   }
+
+  // medal times per bike, set from what a quick, clean AI run manages on the pass
+  const PAR = { corsa: 73.0, strada: 73.3, duetto: 76.5 };
+  function medalTimes(bike) { const p = PAR[bike] || 75; return [['g', T.gold, p + 1.5], ['s', T.silver, p + 6], ['b', T.bronze, p + 14]]; }
+
   function showResults() {
-    const race = S.mode === 'race'; const ord = standings(); let html = '';
-    const me = ord.indexOf(0); $('resTitle').textContent = race ? (me + 1) + '. ' + T.place : T.ttResult; $('resSub').textContent = G.track.name + ' · ' + G.player.spec.name + ' · ' + (G.track.open ? T.hillclimb : S.laps + ' ' + T.lapsDone);
-    const lead = G.bikes[ord[0]];
-    ord.forEach((bi, r) => {
-      const b = G.bikes[bi]; let tm;
-      if (r === 0) tm = b.finished ? AX.formatTime(b.finishTime) : '–'; else if (b.finished && lead.finished) tm = '+' + (b.finishTime - lead.finishTime).toFixed(3); else { const dp = lead.prog - b.prog; tm = '+' + (dp / Math.max(20, b.speed)).toFixed(1); }
-      html += '<tr class="' + (bi === 0 ? 'me' : '') + '"><td>' + (r + 1) + '</td><td><span class="chip" style="background:' + b.rider.c1 + '"></span>' + b.rider.name + '</td><td class="t">' + tm + '</td><td class="b' + (b === G.fastestBike ? ' fl' : '') + '">' + (b.bestLap ? AX.formatTime(b.bestLap) : '–') + '</td></tr>';
-    });
-    $('resTable').innerHTML = html; G.state = 'results'; show('results', true); show('lights', false); sound.setDuck(0.45);
+    const race = S.mode === 'race'; const ord = standings(); const me = ord.indexOf(0);
+    $('resSub').textContent = kicker();
+    const dl = $('resDelta'); dl.className = 'res-delta'; dl.textContent = ''; $('resMedals').innerHTML = ''; $('resTable').innerHTML = '';
+    if (!race) {
+      const tf = G.lastFinish, prev = G.prevBestT;
+      $('resTitle').textContent = tf ? AX.formatTime(tf) : '–';
+      if (tf) {
+        if (!prev) { dl.textContent = T.firstRun; dl.classList.add('new'); }
+        else if (tf < prev) { dl.textContent = T.newBest + '  −' + (prev - tf).toFixed(3); dl.classList.add('new'); }
+        else { dl.textContent = '+' + (tf - prev).toFixed(3) + '  ' + T.toBest; dl.classList.add('up'); }
+        $('resMedals').innerHTML = medalTimes(S.bike).map(([c, n, mt]) => '<div class="medal ' + c + (tf <= mt ? ' got' : '') + '"><div class="disc"></div><div class="n">' + n + '</div><div class="t">' + AX.formatTime(mt) + '</div></div>').join('');
+      }
+    } else {
+      $('resTitle').textContent = (me + 1) + '. ' + T.place;
+      const lead = G.bikes[ord[0]]; let html = '';
+      ord.forEach((bi, r) => {
+        const b = G.bikes[bi]; let tm;
+        if (r === 0) tm = b.finished ? AX.formatTime(b.finishTime) : '–'; else if (b.finished && lead.finished) tm = '+' + (b.finishTime - lead.finishTime).toFixed(3); else { const dp = lead.prog - b.prog; tm = '+' + (dp / Math.max(20, b.speed)).toFixed(1); }
+        html += '<tr class="' + (bi === 0 ? 'me' : '') + '"><td>' + (r + 1) + '</td><td><span class="chip" style="background:' + b.rider.c1 + '"></span>' + b.rider.name + '</td><td class="t">' + tm + '</td></tr>';
+      });
+      $('resTable').innerHTML = html;
+    }
+    LISTS.r.items = [{ label: T.again, run: restart }, { label: T.toMenu, run: toMenu }]; LISTS.r.sel = 0; renderList(LISTS.r);
+    G.state = 'results'; show('results', true); show('lights', false); show('hud', false); sound.setDuck(0.45);
   }
 
-  /* ------------------------------------------------------------------ menu UI */
-  function markSeg(id, v) { $(id).querySelectorAll('button').forEach((b) => b.classList.toggle('on', b.dataset.v === String(v))); }
-  function bindSeg(id, key, num, after) {
-    $(id).addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; S[key] = num ? +b.dataset.v : b.dataset.v; save(); markSeg(id, S[key]); sound.init(); sound.click(); if (after) after(); });
-    markSeg(id, S[key]);
+  /* ------------------------------------------------------------------ menu UI: screens are short lists, driven by keys or mouse */
+  const MS = { scr: 'main' };
+  const LISTS = { m: { el: 'mList', items: [], sel: 0 }, p: { el: 'pList', items: [], sel: 0 }, r: { el: 'rList', items: [], sel: 0 } };
+  const keyList = (arr) => arr.map(([k, l]) => '<span>' + k.split(' ').map((x) => '<kbd>' + x + '</kbd>').join('') + ' ' + l + '</span>').join('');
+  function activeList() { return G.state === 'menu' ? LISTS.m : G.state === 'paused' ? LISTS.p : LISTS.r; }
+  function curOpt(it) { return it.opts.find((o) => String(o[0]) === String(S[it.k])) || it.opts[0]; }
+  function renderList(L) {
+    const el = $(L.el); el.innerHTML = '';
+    L.items.forEach((it, i) => {
+      const b = document.createElement('div'); b.className = 'm-item' + (it.cls ? ' ' + it.cls : '') + (it.opts ? ' opt' : '') + (i === L.sel ? ' sel' : '');
+      if (it.opts) b.innerHTML = '<span class="lab">' + it.label + '</span><span class="val"><i data-d="-1">‹</i><span>' + curOpt(it)[1] + '</span><i data-d="1">›</i></span>';
+      else b.innerHTML = '<span class="lab">' + it.label + '</span>' + (it.sub ? '<span class="sub">' + it.sub + '</span>' : '');
+      b.onmouseenter = () => { if (L.sel !== i) { L.sel = i; markSel(L); } };
+      b.onclick = (e) => { sound.init(); L.sel = i; const d = e.target.dataset && e.target.dataset.d; if (it.opts) changeOpt(it, d ? +d : 1); else activate(it); };
+      el.appendChild(b);
+    });
+    if (L === LISTS.m) updateNote();
+  }
+  function markSel(L) { Array.from($(L.el).children).forEach((c, i) => c.classList.toggle('sel', i === L.sel)); if (L === LISTS.m) updateNote(); }
+  function updateNote() { const it = LISTS.m.items[LISTS.m.sel]; const n = it && it.note; $('mNote').textContent = typeof n === 'function' ? n() : (n || ''); }
+  function changeOpt(it, d) {
+    const i = it.opts.indexOf(curOpt(it)), o = it.opts[(i + d + it.opts.length) % it.opts.length];
+    S[it.k] = o[0]; save(); sound.click(); if (it.after) it.after(); renderMenu();
+  }
+  function activate(it) { sound.click(); it.run(); }
+  function navKey(code) {
+    const L = activeList(), n = L.items.length; if (!n) return false;
+    const horiz = L === LISTS.r, it = L.items[L.sel];
+    const up = code === 'ArrowUp' || code === 'KeyW' || (horiz && (code === 'ArrowLeft' || code === 'KeyA'));
+    const down = code === 'ArrowDown' || code === 'KeyS' || (horiz && (code === 'ArrowRight' || code === 'KeyD'));
+    if (up || down) { L.sel = (L.sel + (up ? -1 : 1) + n) % n; markSel(L); sound.click(); return true; }
+    if (!horiz && it.opts && (code === 'ArrowLeft' || code === 'KeyA' || code === 'ArrowRight' || code === 'KeyD')) { changeOpt(it, code === 'ArrowLeft' || code === 'KeyA' ? -1 : 1); return true; }
+    if (code === 'Enter' || code === 'Space') { if (it.opts) changeOpt(it, 1); else activate(it); return true; }
+    if (code === 'Escape' || code === 'Backspace') {
+      if (G.state === 'menu') { if (MS.scr !== 'main') { sound.click(); goScr('main'); return true; } return false; }
+      if (G.state === 'paused') { togglePause(); return true; }
+      if (G.state === 'results') { toMenu(); return true; }
+    }
+    return false;
+  }
+  function goScr(s) {
+    const from = MS.scr; MS.scr = s;
+    LISTS.m.sel = s === 'main' ? Math.max(0, ['setup', '', 'settings', 'controls'].indexOf(from === 'setup' ? (S.mode === 'race' ? '' : 'setup') : from)) : 0;
+    if (s === 'main' && from === 'setup' && S.mode === 'race') LISTS.m.sel = 1;
+    renderMenu();
+  }
+  function menuItems() {
+    const back = { label: T.back, cls: 'small', run: () => goScr('main') };
+    if (MS.scr === 'main') return [
+      { label: T.modeTT, sub: T.subTT, note: T.noteTT, run: () => { S.mode = 'tt'; save(); goScr('setup'); } },
+      { label: T.modeRace, sub: T.subRace, note: T.noteRace, run: () => { S.mode = 'race'; save(); goScr('setup'); } },
+      { label: T.settings, cls: 'small', note: T.noteSettings, run: () => goScr('settings') },
+      { label: T.controls, cls: 'small', note: T.noteControls, run: () => goScr('controls') }];
+    if (MS.scr === 'setup') {
+      const it = [
+        { k: 'bike', label: T.chooseBike, opts: AX.BIKE_ORDER.map((id) => [id, AX.BIKES[id].name]), note: () => AX.BIKES[S.bike].blurb[S.lang], after: menuPreview },
+        { k: 'assist', label: T.assists, opts: [['easy', T.a0], ['sport', T.a1], ['pro', T.a2]], note: () => T[{ easy: 'noteEasy', sport: 'noteSport', pro: 'notePro' }[S.assist]] },
+        { k: 'cam', label: T.camera, opts: [['chase', T.c0], ['pov', T.c1], ['tv', T.c2]], note: () => T.camNote[S.cam] }];
+      if (S.mode === 'race') it.push({ k: 'opp', label: T.opponents, opts: [[3, '3'], [5, '5'], [7, '7'], [9, '9']], note: T.oppNote }, { k: 'diff', label: T.difficulty, opts: [[0, T.d0], [1, T.d1], [2, T.d2], [3, T.d3]], note: T.diffNote });
+      it.push({ label: T.start, cls: 'act-go', note: T.noteStart, run: startFromMenu }, back);
+      return it;
+    }
+    if (MS.scr === 'settings') return [
+      { k: 'quality', label: T.quality, opts: [['low', T.q0], ['medium', T.q1], ['high', T.q2]], note: () => T.qNote[S.quality], after: () => loading(true, () => { resize(); menuPreview(); loading(false); }) },
+      { k: 'kbAssist', label: T.kbAssist, opts: [['on', T.on], ['off', T.off]], note: () => (S.kbAssist === 'on' ? T.noteKbA : T.noteKbOff) },
+      { k: 'vol', label: T.volume, opts: Array.from({ length: 11 }, (_, i) => [i / 10, i * 10 + ' %']), note: T.volNote, after: () => { sound.init(); sound.setVolume(S.vol); } },
+      { k: 'lang', label: S.lang === 'de' ? 'SPRACHE' : 'LANGUAGE', opts: [['de', 'DEUTSCH'], ['en', 'ENGLISH']], note: T.langNote },
+      back];
+    return [back];
   }
   function applyLang() {
     T = STR[S.lang] || STR.de; document.documentElement.lang = S.lang;
-    document.querySelectorAll('[data-i18n]').forEach((e) => { const k = e.dataset.i18n; if (T[k]) e.textContent = T[k]; });
-    $('keysHelp').innerHTML = T.keys; $('keysHelp2').innerHTML = T.keys;
+    document.querySelectorAll('[data-i18n]').forEach((e) => { const k = e.dataset.i18n; if (typeof T[k] === 'string') e.textContent = T[k]; });
   }
   function renderMenu() {
-    applyLang(); $('assistNote').textContent = T[{ easy: 'noteEasy', sport: 'noteSport', pro: 'notePro' }[S.assist]]; $('kbANote').textContent = S.kbAssist === 'on' ? T.noteKbA : T.noteKbOff;
-    document.querySelectorAll('.race-only').forEach((e) => { e.style.display = S.mode === 'race' ? '' : 'none'; });
-    $('segLaps').parentElement.style.display = S.mode === 'race' && !(AX.TRACKS[S.track] || {}).open ? '' : 'none';
-    const bc = $('bikeCards'); bc.innerHTML = '';
-    AX.BIKE_ORDER.forEach((id) => {
-      const s = AX.BIKES[id], st = s.stats; const el = document.createElement('button'); el.className = 'card' + (S.bike === id ? ' on' : '');
-      el.innerHTML = '<div class="body"><h3>' + s.name + '</h3><p>' + s.cls + ' · ' + s.engineLabel + ' · ' + s.power + ' kW</p><p>' + s.blurb[S.lang] + '</p></div><div class="stats">' +
+    applyLang(); const L = LISTS.m;
+    L.items = menuItems(); L.sel = clamp(L.sel, 0, L.items.length - 1);
+    $('mHead').textContent = { main: T.mainHead, setup: S.mode === 'race' ? T.modeRace : T.modeTT, settings: T.settings, controls: T.controls }[MS.scr];
+    renderList(L); $('mKeys').innerHTML = keyList(T.nav); renderSide();
+  }
+  function renderSide() {
+    const scr = MS.scr, bi = $('bikeInfo'), ti = $('trackInfo'), ctl = $('mControls');
+    show('mSide', scr === 'main' || scr === 'setup'); show('mControls', scr === 'controls');
+    if (scr === 'controls') {
+      const grp = (h, rows) => '<div class="grp"><h4>' + h + '</h4><div class="rows">' + rows.map(([k, d]) => '<div class="r"><span class="ks">' + k.split(' ').map((x) => '<kbd>' + x + '</kbd>').join('') + '</span><span class="d">' + d + '</span></div>').join('') + '</div></div>';
+      ctl.innerHTML = grp(T.ctlRide, T.ctl) + grp(T.ctlBody, T.ctlB).replace('class="grp"', 'class="grp one"') + grp(T.ctlMore, T.ctlM) + '<div class="grp"><div class="rows"><div class="tip">' + T.ctlTip + '</div></div></div>';
+      return;
+    }
+    if (scr === 'setup') {
+      const s = AX.BIKES[S.bike], st = s.stats;
+      bi.innerHTML = '<div class="k">' + T.chooseBike + '</div><h3>' + s.name + '</h3><p>' + s.cls + ' · ' + s.engineLabel + ' · ' + s.power + ' kW</p><div class="stats">' +
         [['speed', st.speed], ['accel', st.accel], ['agility', st.agility], ['brake', st.brake]].map((q) => '<span>' + T[q[0]] + '</span><b style="--v:' + Math.round(q[1] * 100) + '%"></b>').join('') + '</div>';
-      el.onclick = () => { if (S.bike === id) return; S.bike = id; save(); sound.init(); sound.click(); menuPreview(); renderMenu(); }; bc.appendChild(el);
-    });
-    const tc = $('trackCards'); tc.innerHTML = '';
-    AX.TRACK_ORDER.forEach((id) => {
-      const d = AX.TRACKS[id]; const el = document.createElement('button'); el.className = 'card' + (S.track === id ? ' on' : ''); const rec = loadRec(id, S.bike);
-      const cv = document.createElement('canvas'); cv.width = 156; cv.height = 116; el.appendChild(cv);
-      const body = document.createElement('div'); body.className = 'body'; const tr = thumbTrack(id); body.innerHTML = '<h3' + (d.name.length > 13 ? ' style="font-size:20px"' : '') + '>' + d.name + '</h3><p>' + d.sub[S.lang] + ' · ' + (tr.length / 1000).toFixed(2) + ' km</p>'; el.appendChild(body);
-      const rc = document.createElement('div'); rc.className = 'rec'; rc.innerHTML = '<small>' + T.record + '</small>' + (rec && rec.t ? AX.formatTime(rec.t) : '–'); el.appendChild(rc);
-      const c = cv.getContext('2d'); c.save(); c.translate(20, 0); trackPath(c, tr, 116, 10, 7, 'rgba(0,0,0,0.5)'); trackPath(c, tr, 116, 10, 3.5, '#f4f3ef'); c.restore();
-      el.onclick = () => { if (S.track === id) return; S.track = id; save(); sound.init(); sound.click(); loading(true, () => { menuPreview(); renderMenu(); loading(false); }); }; tc.appendChild(el);
-      if (d.open) body.querySelector('p').textContent = d.sub[S.lang] + ' · ' + (tr.length / 1000).toFixed(1) + ' km · ' + Math.round(tr.py[tr.finishIdx] - tr.py[tr.startIdx]) + ' Hm';
-    });
+    } else bi.innerHTML = '';
+    const d = AX.TRACKS[S.track], tr = thumbTrack(S.track), rec = loadRec(S.track, S.bike), rt = rec && rec.t;
+    const climb = tr.open ? Math.round(tr.py[tr.finishIdx] - tr.py[tr.startIdx]) : 0, len = tr.open ? (tr.finishS - (tr.startS || 0)) : tr.length;
+    ti.innerHTML = '<div class="k">' + T.chooseTrack + '</div><h3>' + d.name + '</h3><p>' + d.sub[S.lang] + '</p>' +
+      '<div class="tmap"><canvas width="192" height="192"></canvas><div class="facts"><span>' + T.length + '</span><b>' + (len / 1000).toFixed(1) + ' km</b><span>' + T.hairpins + '</span><b>10</b><span>' + T.climb + '</span><b>+' + climb + ' m</b></div></div>' +
+      '<div class="rec"><span class="k">' + T.yourBest + '</span><span class="t">' + (rt ? AX.formatTime(rt) : '–') + '</span></div>' +
+      '<div class="medal-row">' + medalTimes(S.bike).map(([c, , mt]) => '<span class="' + c + (rt && rt <= mt ? ' got' : '') + '">' + AX.formatTime(mt) + '</span>').join('') + '</div>';
+    const c = ti.querySelector('canvas').getContext('2d'); trackPath(c, tr, 192, 14, 7, 'rgba(0,0,0,0.25)'); trackPath(c, tr, 192, 14, 2.5, 'rgba(243,239,230,0.92)');
   }
   const thumbs = {}; function thumbTrack(id) { return thumbs[id] || (thumbs[id] = (G.track && G.track.id === id) ? G.track : new AX.Track(id)); }
-  function initUI() {
-    bindSeg('segMode', 'mode', false, renderMenu); bindSeg('segLaps', 'laps', true); bindSeg('segOpp', 'opp', true); bindSeg('segDiff', 'diff', true); bindSeg('segAssist', 'assist', false, renderMenu); bindSeg('segCam', 'cam', false); bindSeg('segKbA', 'kbAssist', false, renderMenu);
-    bindSeg('segQ', 'quality', false, () => loading(true, () => { menuPreview(); loading(false); })); bindSeg('segLang', 'lang', false, renderMenu);
-    $('vol').value = Math.round(S.vol * 100); $('vol').addEventListener('input', (e) => { S.vol = e.target.value / 100; save(); sound.init(); sound.setVolume(S.vol); });
-    $('startBtn').onclick = startFromMenu; $('btnResume').onclick = togglePause; $('btnRestart').onclick = restart; $('btnQuit').onclick = toMenu; $('btnAgain').onclick = restart; $('btnMenu').onclick = toMenu;
-  }
+  function initUI() { S.vol = Math.round(S.vol * 10) / 10; }
 
   /* ------------------------------------------------------------------ main loop */
   let last = performance.now();
@@ -611,6 +734,6 @@
       toMenu(); show('loading', false); requestAnimationFrame(frame);
     }, 40);
   }
-  G._step = (n) => { for (let i = 0; i < n; i++) stepSim(); }; G._settings = S;
+  G._step = (n) => { for (let i = 0; i < n; i++) stepSim(); }; G._settings = S; G._ui = { showResults, togglePause, startFromMenu };
   boot();
 })();
