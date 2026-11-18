@@ -284,7 +284,7 @@
       // ---- front brake (S)
       const q = Math.max(0, -this.pitch);
       // no ABS, keys only: the rider eases the lever as the rear lifts - unless the weight is thrown forward, then it goes over
-      let aBrkF = this.brake * spec.brake * (as.stop < 0 && !inp.analog ? 1 - smoothstep(fwd > 0.5 ? 0.45 : 0.14, fwd > 0.5 ? 0.85 : 0.34, q) : 1);
+      let aBrkF = this.brake * spec.brake * (as.stop < 0 && !inp.analog ? 1 - smoothstep(fwd > 0.5 ? 0.45 : 0.05, fwd > 0.5 ? 0.85 : 0.17, q) : 1);
       if (as.abs) {
         const cq = Math.cos(q), sq = Math.sin(q);
         const bf = (spec.wheelbase - cgB) * cq - spec.cgH * sq, hf = spec.cgH * cq + (spec.wheelbase - cgB) * sq;
@@ -337,12 +337,12 @@
       const turnSign = Math.abs(ayDem) > 0.5 ? Math.sign(ayDem) : (Math.abs(this.steer) > 0.05 ? Math.sign(this.steer) : 0);
       let stepOut = 2.2 * Math.max(0, Math.min(uRear, 1.9) - 1) * (this.throttle > 0.2 ? 1 : 0);
       if (aBrk > 0.4) {
-        const soB = (0.55 * (as.brakeSlide || 1) * (aBrkF / spec.brake) * latFrac * (1 + 0.35 * fwd) * (1 - 0.85 * back) + this.rearLock * (1.2 + 1.6 * latFrac)) * (rearUp ? 0 : 1);
+        const soB = 0.55 * (as.brakeSlide || 1) * (aBrkF / spec.brake) * latFrac * (1 + 0.35 * fwd) * (1 - 0.5 * back) * (rearUp ? 1.2 : 1) + this.rearLock * (1.2 + 1.6 * latFrac) * (rearUp ? 0 : 1);
         stepOut += soB;
         // backing it in from (nearly) upright: hard on the front the rear is almost unloaded, so a small steering input
         // already swings it round - the bike comes in a little sideways before it is properly leaned over
         const light = smoothstep(0.5, 0.92, aBrkF / Gr), stK = smoothstep(0.06, 0.35, Math.abs(this.steer));
-        const soU = (as.id === 'ai' ? 0 : 1.6) * light * stK * (1 + 0.7 * this.rearBrake) * (1 - 0.5 * latFrac) * (1 + 0.35 * fwd) * (1 - 0.85 * back) * smoothstep(9, 16, vf) * (rearUp ? 0 : 1);
+        const soU = (as.id === 'ai' ? 0 : 1.6) * light * stK * (1 + 0.7 * this.rearBrake) * (1 - 0.5 * latFrac) * (1 + 0.35 * fwd) * (1 - 0.15 * back) * smoothstep(9, 16, vf) * (rearUp ? 1.3 : 1);   // a rear in the air swings round even more easily
         stepOut += soU;
         // a light, braking rear has little side grip left: it lets go and the bike backs in
         capY *= 1 - clamp(soB * 0.2, 0, 0.25);   // the sliding rear still drags sideways and the front still bites
