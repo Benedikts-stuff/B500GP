@@ -115,16 +115,21 @@
       const spec = this.spec, as = this.assist, t = this.track, f = this.fx;
 
       // ---- inputs
+      const stA = inp.steerAnalog || inp.analog;
+      if (stA) this.steer = damp(this.steer, inp.steer, 18, dt);
       if (inp.analog) {
-        this.steer = damp(this.steer, inp.steer, 18, dt);
         this.throttle = damp(this.throttle, inp.throttle, 22, dt);
         this.brake = damp(this.brake, inp.brake, 26, dt);
       } else {
-        const sv = this.speed;
-        const up = lerp(3.6, 2.5, smoothstep(20, 65, sv)) * (1 + 0.0 * as.steerHelp);
-        const tgt = inp.steer;
-        const rate = (tgt === 0 || Math.sign(tgt) !== Math.sign(this.steer)) && this.steer !== 0 ? 5.0 : up;
-        this.steer = approach(this.steer, tgt, rate, rate, dt);
+        if (!stA) {
+          // keys: the bars come in at a steady rate; let go and they ease back - slower at speed, so tapping the key
+          // holds a medium lean instead of flicking between full lean and upright. The other key pulls back quickly.
+          const sv = this.speed, tgt = inp.steer;
+          const up = lerp(3.6, 2.4, smoothstep(20, 65, sv));
+          const rel = lerp(5.0, 2.2, smoothstep(12, 45, sv));
+          const rate = this.steer !== 0 && tgt !== 0 && Math.sign(tgt) !== Math.sign(this.steer) ? 6.0 : tgt === 0 ? rel : up;
+          this.steer = approach(this.steer, tgt, rate, rate, dt);
+        }
         // keys are on/off: roll the throttle on and off at a rate that suits the assist level
         this.throttle = approach(this.throttle, inp.throttle, as.thrUp || 5.5, as.thrDn || 11, dt);
         this.brake = approach(this.brake, inp.brake, as.stop < 0 ? 4.5 : 7.5, 13, dt);
@@ -142,7 +147,10 @@
       const Gr = spec.mu * G * sd.grip * this.gripScale;
       // ---- rider body weight: hanging off to the inside gives grip and lean, to the outside costs grip.
       //      Weight forward/back moves the centre of mass along the bike (wheelies, stoppies, rear brake bite).
-      this.hang = approach(this.hang, clamp(inp.bodyX || 0, -1, 1), 5, 5, dt);
+      let hangT = clamp(inp.bodyX || 0, -1, 1), auto = false;
+      // keyboard / mouse: with no body key held the rider hangs off into the corner by himself as the bike leans
+      if (inp.autoHang && Math.abs(hangT) < 0.01 ) { auto = true; hangT = Math.sign(this.lean) * smoothstep(0.22, 0.6, Math.abs(this.lean) / (this.spec.maxLean * DEG)); }
+      this.hang = approach(this.hang, hangT, auto ? 3.5 : 5, auto ? 3.5 : 5, dt);
       this.fb = approach(this.fb, clamp(inp.bodyY || 0, -1, 1), 6, 6, dt);
       const turnDir = Math.abs(this.lean) > 0.05 ? Math.sign(this.lean) : Math.sign(this.steer);
       const hi = this.hangIn = clamp(this.hang * turnDir, -1, 1);

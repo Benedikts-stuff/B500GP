@@ -9,29 +9,31 @@
   /* ------------------------------------------------------------------ text */
   const STR = {
     de: { lap: 'RUNDE', best: 'BEST', last: 'LETZTE', modeRace: 'RENNEN', modeTT: 'ZEITFAHREN', laps: 'RUNDEN', opponents: 'GEGNER', difficulty: 'KI-STÄRKE', d0: 'LEICHT', d1: 'MITTEL', d2: 'SCHWER', d3: 'PROFI',
-      assists: 'FAHRHILFEN', a0: 'VOLL', a1: 'SPORT', a2: 'AUS', camera: 'KAMERA', c0: 'VERFOLGER', c1: 'FAHRERSICHT', c2: 'TOP-DOWN', quality: 'GRAFIK', q0: 'NIEDRIG', q1: 'MITTEL', q2: 'HOCH', volume: 'LAUTSTÄRKE',
+      assists: 'FAHRHILFEN', a0: 'VOLL', a1: 'SPORT', a2: 'AUS', camera: 'KAMERA', c0: 'VERFOLGER', c1: 'FAHRERSICHT', c2: 'TOP-DOWN', quality: 'GRAFIK', q0: 'NIEDRIG', q1: 'MITTEL', q2: 'HOCH', volume: 'LAUTSTÄRKE', steering: 'LENKUNG', s0: 'TASTATUR', s1: 'MAUS', mouseGo: 'Klicken, um mit der Maus zu lenken', noteKb: 'A/D lenken. Antippen hält eine mittlere Schräglage. Der Fahrer hängt sich automatisch in die Kurve. Shift halten = sanft Gas geben und bremsen.', noteMouse: 'Maus nach links/rechts lenkt (Klick ins Spiel fängt die Maus ein, Esc gibt sie frei). W Gas, S Bremse, A/D Körper zur Seite, Q/E Gewicht hinten/vorne.',
       start: 'START', chooseBike: 'MOTORRAD', chooseTrack: 'STRECKE', paused: 'PAUSE', resume: 'WEITER', restart: 'NEUSTART', toMenu: 'HAUPTMENÜ', again: 'NOCHMAL',
       noteEasy: 'Traktions-, Wheelie- und Kurven-ABS greifen früh ein. Zum Reinkommen.', noteSport: 'Slides beim Anbremsen und Rausbeschleunigen, Power-Wheelies und kleine Stoppies sind erlaubt. Die Hilfen fangen dich nur ab, bevor es schiefgeht.', notePro: 'Keine Hilfen: Highsider, Überschlag und wegrutschendes Vorderrad inklusive.',
       speed: 'TEMPO', accel: 'SCHUB', agility: 'HANDLING', brake: 'BREMSE', record: 'REKORD', go: 'LOS!', finish: 'ZIEL', result: 'ERGEBNIS', ttResult: 'ZEITFAHREN', place: 'PLATZ', fastest: 'SCHNELLSTE RUNDE', newBest: 'NEUE BESTZEIT', lastLap: 'LETZTE RUNDE',
       wheelie: 'WHEELIE', crash_lowside: 'LOWSIDER', crash_highside: 'HIGHSIDER', crash_wall: 'EINSCHLAG', crash_loop: 'ÜBERSCHLAG', crash_stoppie: 'STOPPIE-ABFLUG', crash_contact: 'KOLLISION', you: 'DU', lapsDone: 'Runden', bestLap: 'Beste Runde', loading: 'STRECKE WIRD GEBAUT',
       keys: '<kbd>A</kbd><kbd>D</kbd> Lenken · <kbd>W</kbd> Gas · <kbd>S</kbd> Vorderradbremse · <kbd>Leertaste</kbd> Hinterradbremse<br><kbd>←</kbd><kbd>→</kbd> Körper zur Kurveninnenseite (mehr Grip, mehr Schräglage) · <kbd>↑</kbd> Gewicht nach vorn (besser beschleunigen, weniger Wheelie, Windschatten) · <kbd>↓</kbd> Gewicht nach hinten / aufrichten (besser bremsen, kein Stoppie, Wheelie mit Gas)<br>Leicht bremsen in Schräglage (Trail-Braking) lenkt schärfer ein · Hinterradbremse oder Gewicht nach vorn beim Bremsen stellt das Heck quer<br><kbd>C</kbd> Kamera · <kbd>R</kbd> Zurücksetzen · <kbd>Esc</kbd> Pause · <kbd>M</kbd> Ton<br>Gamepad: linker Stick lenken · rechter Stick Körper · RT Gas · LT Vorderradbremse · LB Hinterradbremse',
       cam_chase: 'VERFOLGER', cam_pov: 'FAHRERSICHT', cam_tv: 'TOP-DOWN', cam_follow: 'MITDREHEND', toSummit: 'BIS ZUM GIPFEL', alt: 'HÖHE', hillclimb: 'Bergrennen', summit: 'GIPFEL',
-      hint: '<kbd>W</kbd> Gas · <kbd>S</kbd> Bremse · <kbd>Leertaste</kbd> Hinterrad · <kbd>A</kbd><kbd>D</kbd> Lenken · <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> Körpergewicht · <kbd>C</kbd> Kamera' },
+      hint: '<kbd>W</kbd> Gas · <kbd>S</kbd> Bremse · <kbd>Leertaste</kbd> Hinterrad · <kbd>A</kbd><kbd>D</kbd> Lenken · <kbd>Shift</kbd> sanft · <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> Körpergewicht · <kbd>C</kbd> Kamera',
+      hintMouse: '<kbd>Maus</kbd> Lenken · <kbd>W</kbd> Gas · <kbd>S</kbd> Bremse · <kbd>Leertaste</kbd> Hinterrad · <kbd>Shift</kbd> sanft · <kbd>A</kbd><kbd>D</kbd> Körper · <kbd>Q</kbd><kbd>E</kbd> Gewicht hinten/vorne · <kbd>C</kbd> Kamera' },
     en: { lap: 'LAP', best: 'BEST', last: 'LAST', modeRace: 'RACE', modeTT: 'TIME TRIAL', laps: 'LAPS', opponents: 'OPPONENTS', difficulty: 'AI LEVEL', d0: 'EASY', d1: 'MEDIUM', d2: 'HARD', d3: 'EXPERT',
-      assists: 'ASSISTS', a0: 'FULL', a1: 'SPORT', a2: 'OFF', camera: 'CAMERA', c0: 'CHASE', c1: 'HELMET', c2: 'TOP-DOWN', quality: 'GRAPHICS', q0: 'LOW', q1: 'MEDIUM', q2: 'HIGH', volume: 'VOLUME',
+      assists: 'ASSISTS', a0: 'FULL', a1: 'SPORT', a2: 'OFF', camera: 'CAMERA', c0: 'CHASE', c1: 'HELMET', c2: 'TOP-DOWN', quality: 'GRAPHICS', q0: 'LOW', q1: 'MEDIUM', q2: 'HIGH', volume: 'VOLUME', steering: 'STEERING', s0: 'KEYBOARD', s1: 'MOUSE', mouseGo: 'Click to steer with the mouse', noteKb: 'A/D steer. Tapping holds a medium lean. The rider hangs off into the corner by himself. Hold Shift for gentle throttle and brakes.', noteMouse: 'Move the mouse left/right to steer (click into the game to capture it, Esc releases it). W throttle, S brake, A/D body to the side, Q/E weight back/forward.',
       start: 'START', chooseBike: 'BIKE', chooseTrack: 'CIRCUIT', paused: 'PAUSED', resume: 'RESUME', restart: 'RESTART', toMenu: 'MAIN MENU', again: 'AGAIN',
       noteEasy: 'Traction, wheelie and cornering ABS step in early. Good for learning.', noteSport: 'Slides on the way in and out, power wheelies and small stoppies are allowed, the assists only catch you before it goes wrong.', notePro: 'No assists: highsides, loop-outs and front-end tucks included.',
       speed: 'SPEED', accel: 'DRIVE', agility: 'HANDLING', brake: 'BRAKES', record: 'RECORD', go: 'GO!', finish: 'FINISH', result: 'RESULT', ttResult: 'TIME TRIAL', place: 'PLACE', fastest: 'FASTEST LAP', newBest: 'NEW BEST LAP', lastLap: 'FINAL LAP',
       wheelie: 'WHEELIE', crash_lowside: 'LOWSIDE', crash_highside: 'HIGHSIDE', crash_wall: 'IMPACT', crash_loop: 'LOOPED IT', crash_stoppie: 'OVER THE BARS', crash_contact: 'CONTACT', you: 'YOU', lapsDone: 'laps', bestLap: 'Best lap', loading: 'BUILDING CIRCUIT',
       keys: '<kbd>A</kbd><kbd>D</kbd> steer · <kbd>W</kbd> throttle · <kbd>S</kbd> front brake · <kbd>Space</kbd> rear brake<br><kbd>←</kbd><kbd>→</kbd> hang off to the inside (more grip, more lean) · <kbd>↑</kbd> weight forward (better drive, fewer wheelies, tucks in) · <kbd>↓</kbd> weight back / sit up (better braking, no stoppie, wheelie with throttle)<br>Light braking while leaned (trail braking) turns in sharper · rear brake or weight forward under braking backs the rear in<br><kbd>C</kbd> camera · <kbd>R</kbd> reset · <kbd>Esc</kbd> pause · <kbd>M</kbd> mute<br>Gamepad: left stick steer · right stick body · RT throttle · LT front brake · LB rear brake',
       cam_chase: 'CHASE', cam_pov: 'HELMET CAM', cam_tv: 'TOP-DOWN', cam_follow: 'ROTATING', toSummit: 'TO SUMMIT', alt: 'ALTITUDE', hillclimb: 'Hill climb', summit: 'SUMMIT',
-      hint: '<kbd>W</kbd> throttle · <kbd>S</kbd> brake · <kbd>Space</kbd> rear · <kbd>A</kbd><kbd>D</kbd> steer · <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> body weight · <kbd>C</kbd> camera' }
+      hint: '<kbd>W</kbd> throttle · <kbd>S</kbd> brake · <kbd>Space</kbd> rear · <kbd>A</kbd><kbd>D</kbd> steer · <kbd>Shift</kbd> gentle · <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> body weight · <kbd>C</kbd> camera',
+      hintMouse: '<kbd>Mouse</kbd> steer · <kbd>W</kbd> throttle · <kbd>S</kbd> brake · <kbd>Space</kbd> rear · <kbd>Shift</kbd> gentle · <kbd>A</kbd><kbd>D</kbd> body · <kbd>Q</kbd><kbd>E</kbd> weight back/fwd · <kbd>C</kbd> camera' }
   };
   let T = STR.de;
 
   /* ------------------------------------------------------------------ settings */
   const KEY = 'apex3_settings';
-  const S = Object.assign({ lang: (navigator.language || 'de').toLowerCase().startsWith('de') ? 'de' : 'en', bike: 'strada', track: 'pass', mode: 'tt', laps: 3, opp: 5, diff: 1, assist: 'pro', cam: 'chase', quality: 'medium', vol: 0.8 },
+  const S = Object.assign({ lang: (navigator.language || 'de').toLowerCase().startsWith('de') ? 'de' : 'en', bike: 'strada', track: 'pass', mode: 'tt', laps: 3, opp: 5, diff: 1, assist: 'pro', cam: 'chase', quality: 'medium', vol: 0.8, steerDev: 'kb' },
     (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } })());
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* private mode */ } };
   const recKey = (track, bike) => 'apex2_best_' + track + '_' + bike + (track === 'pass' ? '_v2' : '');   // v2: the pass was re-routed, old records and ghosts no longer fit
@@ -67,13 +69,25 @@
 
   /* ------------------------------------------------------------------ input */
   const keys = {}; let padPrev = {};
-  const inp = { steer: 0, throttle: 0, brake: 0, rearBrake: 0, wheelie: false, analog: false, bodyX: 0, bodyY: 0 };
+  const inp = { steer: 0, throttle: 0, brake: 0, rearBrake: 0, wheelie: false, analog: false, steerAnalog: false, autoHang: true, bodyX: 0, bodyY: 0 };
+  // mouse steering: with the pointer captured, sideways movement moves a virtual bar - its position is the steering input
+  const mouse = { steer: 0, locked: false };
+  const mouseMode = () => S.steerDev === 'mouse';
+  const lockMouse = () => { if (mouseMode() && !mouse.locked && canvas.requestPointerLock) { try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => {}); } catch (e) { /* not allowed now */ } } };
+  document.addEventListener('pointerlockchange', () => {
+    mouse.locked = document.pointerLockElement === canvas;
+    if (!mouse.locked && mouseMode() && (G.state === 'race' || G.state === 'countdown')) { togglePause(); G.plPauseT = performance.now(); }
+    updateMouseHint();
+  });
+  window.addEventListener('mousemove', (e) => { if (mouse.locked) mouse.steer = clamp(mouse.steer + (e.movementX || 0) / 340, -1, 1); });
+  canvas.addEventListener('click', () => { if (G.state === 'race' || G.state === 'countdown') lockMouse(); });
+  function updateMouseHint() { const el = $('mouseGo'); if (el) el.classList.toggle('hidden', !(mouseMode() && !mouse.locked && (G.state === 'race' || G.state === 'countdown'))); }
   window.addEventListener('keydown', (e) => {
     if (e.repeat) { if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault(); return; }
     keys[e.code] = true; sound.init();
     if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
     if (e.code === 'Enter') { if (G.state === 'menu') startFromMenu(); else if (G.state === 'results') restart(); }
-    if (e.code === 'Escape' || e.code === 'KeyP') togglePause();
+    if ((e.code === 'Escape' || e.code === 'KeyP') && !(e.code === 'Escape' && performance.now() - (G.plPauseT || -1e9) < 500)) togglePause();
     if (e.code === 'KeyC' && G.state !== 'menu') cycleCam();
     if (e.code === 'KeyF') { $('fps').classList.toggle('hidden'); }
     if (e.code === 'KeyM') { sound.setMuted(!sound.muted); toast(sound.muted ? '🔇' : '🔊'); }
@@ -85,11 +99,19 @@
   window.addEventListener('wheel', (e) => { if (G.state !== 'menu') G.zoom = clamp(G.zoom * (e.deltaY > 0 ? 1.08 : 0.925), 0.6, 1.7); }, { passive: true });
   function readInput() {
     let st = 0, th = 0, br = 0, rb = 0, wh = false, analog = false, bx = 0, by = 0;
-    if (keys.KeyA) st -= 1; if (keys.KeyD) st += 1;                       // steer
+    let sa = false;
+    if (mouseMode()) {
+      // mouse: the bar holds where you leave it; a slow pull back to the middle keeps it from drifting off
+      mouse.steer *= Math.exp(-0.35 * (G.dtIn || 0.016));
+      st = Math.sign(mouse.steer) * Math.pow(Math.abs(mouse.steer), 1.15); sa = true;
+      if (keys.KeyA) bx -= 1; if (keys.KeyD) bx += 1;                     // A / D: body to the side
+    } else { if (keys.KeyA) st -= 1; if (keys.KeyD) st += 1; }           // steer
     if (keys.KeyW) th = 1; if (keys.KeyS) br = 1;                         // throttle / front brake
+    if (keys.ShiftLeft || keys.ShiftRight) { th *= 0.45; br *= 0.5; }    // Shift: gentle - part throttle, trail braking
     if (keys.Space) rb = 1;                                                // rear brake
     if (keys.ArrowLeft) bx -= 1; if (keys.ArrowRight) bx += 1;            // rider hangs off left / right
-    if (keys.ArrowUp) by += 1; if (keys.ArrowDown) by -= 1;               // weight forward / back
+    if (keys.ArrowUp || keys.KeyE) by += 1; if (keys.ArrowDown || keys.KeyQ) by -= 1;   // weight forward / back
+    let padBody = false;
 
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
     for (const p of pads) {
@@ -97,11 +119,11 @@
       const dz = (v) => (Math.abs(v) < 0.1 ? 0 : (v - Math.sign(v) * 0.1) / 0.9); const ax = dz(p.axes[0] || 0);
       const gs = ax + (pr(15) ? 1 : 0) - (pr(14) ? 1 : 0), gt = Math.max(b(7), pr(0) && !p.buttons[7] ? 1 : 0), gb = b(6);
       if (Math.abs(gs) > 0.02 || gt > 0.02 || gb > 0.02) { analog = true; st = clamp(Math.sign(gs) * Math.pow(Math.abs(gs), 1.5), -1, 1); th = Math.max(th, gt); br = Math.max(br, gb); sound.init(); }
-      rb = Math.max(rb, b(4), b(5) * 0); const rx = dz(p.axes[2] || 0), ry = dz(p.axes[3] || 0); if (Math.abs(rx) > 0.02) bx = rx; if (Math.abs(ry) > 0.02) by = -ry;
+      rb = Math.max(rb, b(4), b(5) * 0); const rx = dz(p.axes[2] || 0), ry = dz(p.axes[3] || 0); padBody = true; if (Math.abs(rx) > 0.02) bx = rx; if (Math.abs(ry) > 0.02) by = -ry;
       const edge = (i) => pr(i) && !padPrev[i]; if (edge(9)) { if (G.state === 'menu') startFromMenu(); else if (G.state === 'results') restart(); else togglePause(); } if (edge(3)) cycleCam(); if (edge(1) && G.player && !G.player.crashed && G.state === 'race') G.player.respawn();
       padPrev = {}; for (let i = 0; i < p.buttons.length; i++) padPrev[i] = pr(i); break;
     }
-    inp.steer = st; inp.throttle = th; inp.brake = br; inp.rearBrake = rb; inp.wheelie = wh; inp.analog = analog; inp.bodyX = bx; inp.bodyY = by; return inp;
+    inp.steer = st; inp.throttle = th; inp.brake = br; inp.rearBrake = rb; inp.wheelie = wh; inp.analog = analog; inp.steerAnalog = analog || sa; inp.autoHang = !padBody; inp.bodyX = bx; inp.bodyY = by; return inp;
   }
 
   /* ------------------------------------------------------------------ building a session */
@@ -374,6 +396,7 @@
   function setLights(n) { const l = $('lights'); l.classList.remove('hidden'); l.classList.toggle('go', n < 0); const el = l.children; for (let k = 0; k < 5; k++) el[k].classList.toggle('on', k < n); }
   function updateHUD(dt) {
     const p = G.player; if (!p) return; const race = S.mode === 'race';
+    { const sb = $('steerBar').firstChild; const s = clamp(p.steer || 0, -1, 1); if (Math.abs(s - (G.sbS || 0)) > 0.004) { G.sbS = s; sb.style.transform = 'translateX(' + (s * 104).toFixed(1) + 'px)'; } }
     hud.speed.textContent = Math.round(p.speed * 3.6); hud.gear.textContent = p.crashed ? '–' : p.gear + 1;
     const rn = clamp(p.rpm / p.spec.redline, 0, 1); hud.rev.style.width = (rn * 100).toFixed(1) + '%'; hud.rev.classList.toggle('lim', rn > 0.955);
     hud.body.style.transform = 'translate(' + (p.hang * 14).toFixed(1) + 'px,' + (-p.fb * 14).toFixed(1) + 'px)'; hud.bodyBox.classList.toggle('good', p.hangIn > 0.4); hud.thr.style.setProperty('--v', (p.throttle * 100).toFixed(0) + '%'); hud.brk.style.setProperty('--v', (p.brake * 100).toFixed(0) + '%');
@@ -436,20 +459,22 @@
   function startFromMenu() { sound.init(); sound.click(); loading(true, () => { beginSession(); loading(false); }); }
   function beginSession() {
     setupSession(); show('menu', false); show('results', false); show('pause', false); show('hud', true); $('banner').classList.add('hidden');
-    $('hint').innerHTML = T.hint; $('hint').style.opacity = 1; G.hintT = 9; G.camInit = false; G.zoom = 1; G.towerT = 0; sound.setDuck(1);
+    $('hint').innerHTML = mouseMode() ? T.hintMouse : T.hint; mouse.steer = 0; lockMouse(); $('hint').style.opacity = 1; G.hintT = 9; G.camInit = false; G.zoom = 1; G.towerT = 0; sound.setDuck(1);
     document.querySelector('.hud-time .time-sub').style.display = '';
     if (S.mode === 'race' || G.track.open) { G.state = 'countdown'; G.lightsT = 0; G.lightsN = 0; G.goT = 5.6 + 0.5 + Math.random() * 1.3; G.revRpm = G.player.spec.idle; G.world.setStartLights(0); setLights(0); }
     else { G.state = 'race'; show('lights', false); G.world.setStartLights(0); G.player.vx = Math.cos(G.player.yaw) * 8; G.player.vz = Math.sin(G.player.yaw) * 8; }
+    updateMouseHint();
     G.splits = []; G.rec = [];
     if (!G.track.open) hud.lapLabel.innerHTML = '<span>' + T.lap + '</span> <b id="hLap">1/3</b>', hud.lap = $('hLap');
   }
   function restart() { sound.click(); beginSession(); }
   function togglePause() {
     if (G.state === 'race' || G.state === 'countdown') { G.prevState = G.state; G.state = 'paused'; show('pause', true); sound.setDuck(0.15); }
-    else if (G.state === 'paused') { G.state = G.prevState; show('pause', false); sound.setDuck(1); last = performance.now(); }
+    else if (G.state === 'paused') { G.state = G.prevState; show('pause', false); sound.setDuck(1); last = performance.now(); lockMouse(); updateMouseHint(); }
   }
   function toMenu() {
-    G.state = 'menu'; show('pause', false); show('results', false); show('hud', false); show('menu', true); sound.setDuck(0.5); menuPreview(); renderMenu();
+    if (document.exitPointerLock && mouse.locked) document.exitPointerLock();
+    G.state = 'menu'; updateMouseHint(); show('pause', false); show('results', false); show('hud', false); show('menu', true); sound.setDuck(0.5); menuPreview(); renderMenu();
   }
   function menuPreview() {
     buildWorld(S.track); clearBikes(); G.skid.clear(); G.smoke.clear(); G.sparks.clear();
@@ -480,7 +505,7 @@
     $('keysHelp').innerHTML = T.keys; $('keysHelp2').innerHTML = T.keys;
   }
   function renderMenu() {
-    applyLang(); $('assistNote').textContent = T[{ easy: 'noteEasy', sport: 'noteSport', pro: 'notePro' }[S.assist]];
+    applyLang(); $('assistNote').textContent = T[{ easy: 'noteEasy', sport: 'noteSport', pro: 'notePro' }[S.assist]]; $('steerNote').textContent = mouseMode() ? T.noteMouse : T.noteKb;
     document.querySelectorAll('.race-only').forEach((e) => { e.style.display = S.mode === 'race' ? '' : 'none'; });
     $('segLaps').parentElement.style.display = S.mode === 'race' && !(AX.TRACKS[S.track] || {}).open ? '' : 'none';
     const bc = $('bikeCards'); bc.innerHTML = '';
@@ -503,7 +528,7 @@
   }
   const thumbs = {}; function thumbTrack(id) { return thumbs[id] || (thumbs[id] = (G.track && G.track.id === id) ? G.track : new AX.Track(id)); }
   function initUI() {
-    bindSeg('segMode', 'mode', false, renderMenu); bindSeg('segLaps', 'laps', true); bindSeg('segOpp', 'opp', true); bindSeg('segDiff', 'diff', true); bindSeg('segAssist', 'assist', false, renderMenu); bindSeg('segCam', 'cam', false);
+    bindSeg('segMode', 'mode', false, renderMenu); bindSeg('segLaps', 'laps', true); bindSeg('segOpp', 'opp', true); bindSeg('segDiff', 'diff', true); bindSeg('segAssist', 'assist', false, renderMenu); bindSeg('segCam', 'cam', false); bindSeg('segSteer', 'steerDev', false, renderMenu);
     bindSeg('segQ', 'quality', false, () => loading(true, () => { menuPreview(); loading(false); })); bindSeg('segLang', 'lang', false, renderMenu);
     $('vol').value = Math.round(S.vol * 100); $('vol').addEventListener('input', (e) => { S.vol = e.target.value / 100; save(); sound.init(); sound.setVolume(S.vol); });
     $('startBtn').onclick = startFromMenu; $('btnResume').onclick = togglePause; $('btnRestart').onclick = restart; $('btnQuit').onclick = toMenu; $('btnAgain').onclick = restart; $('btnMenu').onclick = toMenu;
@@ -515,7 +540,7 @@
     requestAnimationFrame(frame);
     const rawDt = (now - last) / 1000, dt = Math.min(0.05, rawDt); last = now; if (!G.world) return;
     measure(rawDt);
-    readInput();
+    G.dtIn = dt; readInput();
     const running = G.state === 'race' || G.state === 'countdown' || G.state === 'finished' || G.state === 'results';
     if (running) { G.acc += dt; let n = 0; while (G.acc >= H && n++ < 8) { stepSim(); G.acc -= H; } if (n >= 8) G.acc = 0; } else G.time += G.state === 'menu' ? dt : 0;
     const p = G.player;

@@ -124,3 +124,9 @@ td.fl { color: #b46bff; } tr.me td.fl { color: #7a2fd0; }
 
 #fps { position: absolute; right: 18px; top: 222px; width: 200px; text-align: center; font-size: 13px; font-style: normal; letter-spacing: 0.06em; color: #9ff0b8; background: var(--panel); border-radius: 6px; padding: 3px 0; font-variant-numeric: tabular-nums; }
 #fps.mid { color: #ffd36a; } #fps.bad { color: #ff7a6a; }
+
+/* steering bar: where the bars are pointing (mouse mode shows where the mouse holds them) */
+#steerBar { position: absolute; left: 50%; bottom: 64px; width: 220px; height: 6px; margin-left: -110px; border-radius: 3px; background: rgba(255,255,255,0.14); pointer-events: none; }
+#steerBar::before { content: ''; position: absolute; left: 50%; top: -3px; width: 2px; height: 12px; margin-left: -1px; background: rgba(255,255,255,0.35); }
+#steerBar i { position: absolute; top: -3px; left: 50%; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.4); }
+#mouseGo { position: absolute; left: 50%; top: 26%; transform: translateX(-50%); background: var(--panel); color: #fff; padding: 10px 18px; border-radius: 10px; font-size: 17px; letter-spacing: 0.06em; pointer-events: none; }
