@@ -9,7 +9,7 @@
   /* ------------------------------------------------------------------ text */
   const STR = {
     de: { lap: 'RUNDE', best: 'BEST', last: 'LETZTE', modeRace: 'RENNEN', modeTT: 'ZEITFAHREN', laps: 'RUNDEN', opponents: 'GEGNER', difficulty: 'KI-STÄRKE', d0: 'LEICHT', d1: 'MITTEL', d2: 'SCHWER', d3: 'PROFI',
-      assists: 'FAHRHILFEN', a0: 'VOLL', a1: 'SPORT', a2: 'AUS', camera: 'KAMERA', c0: 'VERFOLGER', c1: 'FAHRERSICHT', c2: 'TOP-DOWN', quality: 'GRAFIK', q0: 'NIEDRIG', q1: 'MITTEL', q2: 'HOCH', volume: 'LAUTSTÄRKE',
+      assists: 'FAHRHILFEN', a0: 'VOLL', a1: 'SPORT', a2: 'AUS', camera: 'KAMERA', c0: 'VERFOLGER', c1: 'FAHRERSICHT', c2: 'TOP-DOWN', quality: 'GRAFIK', q0: 'NIEDRIG', q1: 'MITTEL', q2: 'HOCH', volume: 'LAUTSTÄRKE', kbAssist: 'LENKHILFE', on: 'AN', off: 'AUS', noteKbA: 'Tastatur: A/D halten legt das Motorrad so weit in die Kurve, wie die Straße vor dir verlangt. Länger halten = mehr Schräglage.', noteKbOff: 'Tastatur: A/D halten legt das Motorrad voll um, Antippen hält eine mittlere Schräglage.',
       start: 'START', chooseBike: 'MOTORRAD', chooseTrack: 'STRECKE', paused: 'PAUSE', resume: 'WEITER', restart: 'NEUSTART', toMenu: 'HAUPTMENÜ', again: 'NOCHMAL',
       noteEasy: 'Traktions-, Wheelie- und Kurven-ABS greifen früh ein. Zum Reinkommen.', noteSport: 'Slides beim Anbremsen und Rausbeschleunigen, Power-Wheelies und kleine Stoppies sind erlaubt. Die Hilfen fangen dich nur ab, bevor es schiefgeht.', notePro: 'Keine Hilfen: Highsider, Überschlag und wegrutschendes Vorderrad inklusive.',
       speed: 'TEMPO', accel: 'SCHUB', agility: 'HANDLING', brake: 'BREMSE', record: 'REKORD', go: 'LOS!', finish: 'ZIEL', result: 'ERGEBNIS', ttResult: 'ZEITFAHREN', place: 'PLATZ', fastest: 'SCHNELLSTE RUNDE', newBest: 'NEUE BESTZEIT', lastLap: 'LETZTE RUNDE',
@@ -18,7 +18,7 @@
       cam_chase: 'VERFOLGER', cam_pov: 'FAHRERSICHT', cam_tv: 'TOP-DOWN', cam_follow: 'MITDREHEND', toSummit: 'BIS ZUM GIPFEL', alt: 'HÖHE', hillclimb: 'Bergrennen', summit: 'GIPFEL',
       hint: '<kbd>W</kbd> Gas · <kbd>S</kbd> Bremse · <kbd>Leertaste</kbd> Hinterrad · <kbd>A</kbd><kbd>D</kbd> Lenken · <kbd>Shift</kbd> sanft · <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> Körpergewicht · <kbd>C</kbd> Kamera' },
     en: { lap: 'LAP', best: 'BEST', last: 'LAST', modeRace: 'RACE', modeTT: 'TIME TRIAL', laps: 'LAPS', opponents: 'OPPONENTS', difficulty: 'AI LEVEL', d0: 'EASY', d1: 'MEDIUM', d2: 'HARD', d3: 'EXPERT',
-      assists: 'ASSISTS', a0: 'FULL', a1: 'SPORT', a2: 'OFF', camera: 'CAMERA', c0: 'CHASE', c1: 'HELMET', c2: 'TOP-DOWN', quality: 'GRAPHICS', q0: 'LOW', q1: 'MEDIUM', q2: 'HIGH', volume: 'VOLUME',
+      assists: 'ASSISTS', a0: 'FULL', a1: 'SPORT', a2: 'OFF', camera: 'CAMERA', c0: 'CHASE', c1: 'HELMET', c2: 'TOP-DOWN', quality: 'GRAPHICS', q0: 'LOW', q1: 'MEDIUM', q2: 'HIGH', volume: 'VOLUME', kbAssist: 'STEER ASSIST', on: 'ON', off: 'OFF', noteKbA: 'Keyboard: holding A/D leans the bike as far as the road ahead needs. Hold longer for more lean.', noteKbOff: 'Keyboard: holding A/D leans the bike all the way, tapping holds a medium lean.',
       start: 'START', chooseBike: 'BIKE', chooseTrack: 'CIRCUIT', paused: 'PAUSED', resume: 'RESUME', restart: 'RESTART', toMenu: 'MAIN MENU', again: 'AGAIN',
       noteEasy: 'Traction, wheelie and cornering ABS step in early. Good for learning.', noteSport: 'Slides on the way in and out, power wheelies and small stoppies are allowed, the assists only catch you before it goes wrong.', notePro: 'No assists: highsides, loop-outs and front-end tucks included.',
       speed: 'SPEED', accel: 'DRIVE', agility: 'HANDLING', brake: 'BRAKES', record: 'RECORD', go: 'GO!', finish: 'FINISH', result: 'RESULT', ttResult: 'TIME TRIAL', place: 'PLACE', fastest: 'FASTEST LAP', newBest: 'NEW BEST LAP', lastLap: 'FINAL LAP',
@@ -31,7 +31,7 @@
 
   /* ------------------------------------------------------------------ settings */
   const KEY = 'apex3_settings';
-  const S = Object.assign({ lang: (navigator.language || 'de').toLowerCase().startsWith('de') ? 'de' : 'en', bike: 'strada', track: 'pass', mode: 'tt', laps: 3, opp: 5, diff: 1, assist: 'pro', cam: 'chase', quality: 'medium', vol: 0.8 },
+  const S = Object.assign({ lang: (navigator.language || 'de').toLowerCase().startsWith('de') ? 'de' : 'en', bike: 'strada', track: 'pass', mode: 'tt', laps: 3, opp: 5, diff: 1, assist: 'pro', cam: 'chase', quality: 'medium', vol: 0.8, kbAssist: 'on' },
     (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } })());
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* private mode */ } };
   const recKey = (track, bike) => 'apex2_best_' + track + '_' + bike + (track === 'pass' ? '_v2' : '');   // v2: the pass was re-routed, old records and ghosts no longer fit
@@ -103,7 +103,7 @@
       const edge = (i) => pr(i) && !padPrev[i]; if (edge(9)) { if (G.state === 'menu') startFromMenu(); else if (G.state === 'results') restart(); else togglePause(); } if (edge(3)) cycleCam(); if (edge(1) && G.player && !G.player.crashed && G.state === 'race') G.player.respawn();
       padPrev = {}; for (let i = 0; i < p.buttons.length; i++) padPrev[i] = pr(i); break;
     }
-    inp.steer = st; inp.throttle = th; inp.brake = br; inp.rearBrake = rb; inp.wheelie = wh; inp.analog = analog; inp.steerAnalog = analog; inp.autoHang = !padBody; inp.bodyX = bx; inp.bodyY = by; return inp;
+    inp.steer = st; inp.throttle = th; inp.brake = br; inp.rearBrake = rb; inp.wheelie = wh; inp.analog = analog; inp.steerAnalog = analog; inp.leanAssist = !analog && S.kbAssist === 'on'; inp.autoHang = !padBody; inp.bodyX = bx; inp.bodyY = by; return inp;
   }
 
   /* ------------------------------------------------------------------ building a session */
@@ -483,7 +483,7 @@
     $('keysHelp').innerHTML = T.keys; $('keysHelp2').innerHTML = T.keys;
   }
   function renderMenu() {
-    applyLang(); $('assistNote').textContent = T[{ easy: 'noteEasy', sport: 'noteSport', pro: 'notePro' }[S.assist]];
+    applyLang(); $('assistNote').textContent = T[{ easy: 'noteEasy', sport: 'noteSport', pro: 'notePro' }[S.assist]]; $('kbANote').textContent = S.kbAssist === 'on' ? T.noteKbA : T.noteKbOff;
     document.querySelectorAll('.race-only').forEach((e) => { e.style.display = S.mode === 'race' ? '' : 'none'; });
     $('segLaps').parentElement.style.display = S.mode === 'race' && !(AX.TRACKS[S.track] || {}).open ? '' : 'none';
     const bc = $('bikeCards'); bc.innerHTML = '';
@@ -506,7 +506,7 @@
   }
   const thumbs = {}; function thumbTrack(id) { return thumbs[id] || (thumbs[id] = (G.track && G.track.id === id) ? G.track : new AX.Track(id)); }
   function initUI() {
-    bindSeg('segMode', 'mode', false, renderMenu); bindSeg('segLaps', 'laps', true); bindSeg('segOpp', 'opp', true); bindSeg('segDiff', 'diff', true); bindSeg('segAssist', 'assist', false, renderMenu); bindSeg('segCam', 'cam', false);
+    bindSeg('segMode', 'mode', false, renderMenu); bindSeg('segLaps', 'laps', true); bindSeg('segOpp', 'opp', true); bindSeg('segDiff', 'diff', true); bindSeg('segAssist', 'assist', false, renderMenu); bindSeg('segCam', 'cam', false); bindSeg('segKbA', 'kbAssist', false, renderMenu);
     bindSeg('segQ', 'quality', false, () => loading(true, () => { menuPreview(); loading(false); })); bindSeg('segLang', 'lang', false, renderMenu);
     $('vol').value = Math.round(S.vol * 100); $('vol').addEventListener('input', (e) => { S.vol = e.target.value / 100; save(); sound.init(); sound.setVolume(S.vol); });
     $('startBtn').onclick = startFromMenu; $('btnResume').onclick = togglePause; $('btnRestart').onclick = restart; $('btnQuit').onclick = toMenu; $('btnAgain').onclick = restart; $('btnMenu').onclick = toMenu;
@@ -581,7 +581,7 @@
     for (let i = 1; i < G.bikes.length; i++) { const b = G.bikes[i], dx = b.x - p.x, dz = b.z - p.z, d = Math.hypot(dx, dz); if (d < 90) others.push({ rpm: b.rpm, thr: b.crashed ? 0 : b.throttle, cut: b.limiter || b.shiftT > 0, spec: b.spec, dist: d, pan: clamp((dx * rx + dz * rz) / 30, -0.85, 0.85), doppler: 1 + clamp(((p.vx - b.vx) * dx + (p.vz - b.vz) * dz) / (d + 0.5) / 343, -0.12, 0.12) }); }
     others.sort((a, b) => a.dist - b.dist); others.length = Math.min(others.length, 3);
     const f = p.fx, t = G.track; const nearPit = p.idx > t.pitFrom || p.idx < t.pitTo ? 1 : 0.25;
-    sound.update(dt, { player: { rpm: p.rpm, thr: p.crashed ? 0 : p.throttle, cut: p.limiter || (p.shiftT > 0 && p.shiftDir > 0), pop: G.pop || 0, spec: p.spec, vol: 0.8 }, others, speed: p.speed, vmax: p.spec.dragTop,
+    sound.update(dt, { player: { rpm: p.rpm, thr: p.crashed ? 0 : p.throttle, cut: p.limiter || (p.shiftT > 0 && p.shiftDir > 0), pop: G.pop || 0, spec: p.spec, vol: 0.8, kbAssist: 'on' }, others, speed: p.speed, vmax: p.spec.dragTop,
       squeal: p.crashed ? 0 : f.squeal, skid: p.crashed ? 0 : Math.max(f.rearSkid, f.frontSkid), kerb: p.crashed ? 0 : f.kerb, surf: p.surf, scrape: f.scrape ? clamp(p.speed / 15, 0.2, 1) : clamp((G.kneeOn || 0) * 0.35, 0, 0.35), crowd: t.open ? passCrowd(p) : nearPit, ...(t.open ? passEnv(p) : {}) });
     G.pop = 0;
   }

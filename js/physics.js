@@ -107,6 +107,31 @@
       this.fx.respawn = true;
     }
 
+    // keyboard lean assist: holding a key asks for "turn this way"; the bike leans as far as the road ahead needs
+    // (plus a little), and holding on longer adds more on top. Against the bend, or on a straight, it eases in.
+    _leanAssist(tgt, v, holdT) {
+      const t = this.track, ds = t.ds;
+      // pure pursuit: the curvature that carries the bike from where it is, the way it points, onto the road ahead
+      // (keeping roughly its line across the road) - this also corrects when the bike is running wide
+      const L = clamp(v * 0.75, 9, 42), it = t.wr(this.idx + Math.round(L / ds));
+      const dT = this.d * 0.6, tx = t.px[it] + t.nx[it] * dT, tz = t.pz[it] + t.nz[it] * dT;
+      const dx = tx - this.x, dz = tz - this.z, dist = Math.max(4, Math.hypot(dx, dz));
+      const al = AX.wrapAngle(Math.atan2(dz, dx) - this.yaw);
+      let k = 2 * Math.sin(al) / dist;
+      // and the tightest bit of road coming up, so the lean is there in time for the bend
+      const a = Math.round(Math.max(2, v * 0.15) / ds), b = Math.round(clamp(v * 0.5, 6, 30) / ds);
+      for (let j = a; j < b; j += 2) {
+        const i0 = t.wr(this.idx + j), i1 = t.wr(this.idx + j + 4);
+        const kr = AX.wrapAngle(t.yaw[i1] - t.yaw[i0]) / (4 * ds);
+        if (Math.sign(kr) === Math.sign(k) && Math.abs(kr) > Math.abs(k)) k = lerp(k, kr, 0.6);
+      }
+      const lm = this.spec.maxLean * DEG;
+      const need = Math.atan(v * v * k / G) / lm;              // steer fraction that makes that turn
+      const extra = 0.75 * Math.max(0, holdT - 0.45);
+      if (Math.sign(need) === Math.sign(tgt) && Math.abs(need) > 0.06) return Math.sign(tgt) * Math.min(1, Math.abs(need) * 1.1 + 0.06 + extra);
+      return Math.sign(tgt) * Math.min(1, 0.35 + 0.9 * holdT);
+    }
+
     step(dt, inp) {
       this._clearFx();
       this.time += dt;
@@ -127,8 +152,12 @@
           const sv = this.speed, tgt = inp.steer;
           const up = lerp(3.6, 2.4, smoothstep(20, 65, sv));
           const rel = lerp(5.0, 2.2, smoothstep(12, 45, sv));
+          // how long the key has been held in this direction
+          this.kbHoldT = tgt !== 0 && Math.sign(tgt) === Math.sign(this.kbDir || 0) ? (this.kbHoldT || 0) + dt : 0; this.kbDir = tgt;
+          let aim = tgt;
+          if (inp.leanAssist && tgt !== 0) aim = this._leanAssist(tgt, Math.max(0, this.vx * Math.cos(this.yaw) + this.vz * Math.sin(this.yaw)), this.kbHoldT);
           const rate = this.steer !== 0 && tgt !== 0 && Math.sign(tgt) !== Math.sign(this.steer) ? 6.0 : tgt === 0 ? rel : up;
-          this.steer = approach(this.steer, tgt, rate, rate, dt);
+          this.steer = approach(this.steer, aim, rate, rate, dt);
         }
         // keys are on/off: roll the throttle on and off at a rate that suits the assist level
         this.throttle = approach(this.throttle, inp.throttle, as.thrUp || 5.5, as.thrDn || 11, dt);
@@ -208,9 +237,13 @@
 
       // ---- wheelie: balance acceleration about the rear contact; the assist holds the height the rider asks for
       const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
-      const bEff = cgB * cp - spec.cgH * sp, hEff = spec.cgH * cp + cgB * sp;
+      // leaned over, the bike carries gravity plus the cornering force (g / cos lean in its own plane), so it takes
+      // more drive to lift the front; hanging off drops the centre of mass in the bike's plane, which helps keep it down too
+      const leanA = Math.abs(this.lean), cgHl = spec.cgH * (1 - 0.07 * Math.abs(this.hang) * smoothstep(0.1, 0.45, leanA));
+      const bEff = cgB * cp - cgHl * sp, hEff = cgHl * cp + cgB * sp;
       const aeroHold = (spec.style.winglets ? 0.0011 : 0.0006) * vf * vf;
-      const aBal = G * bEff / hEff + aeroHold;
+      const gPlane = Math.min(G * 2.2, Math.hypot(G, ayDem));
+      const aBal = gPlane * bEff / hEff + aeroHold;
       const aDemRaw = aDem;               // what the engine delivers before wheelie control / instinct trim it
       if (as.wcBase != null && this.throttle > 0) {
         const tp = lerp(as.wcBase, as.wcBack, smoothstep(0.2, 0.9, back)) * (1 - smoothstep(0.15, 0.8, fwd));
