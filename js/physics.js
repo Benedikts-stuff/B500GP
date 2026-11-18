@@ -339,6 +339,11 @@
       if (aBrk > 0.4) {
         const soB = (0.55 * (as.brakeSlide || 1) * (aBrkF / spec.brake) * latFrac * (1 + 0.35 * fwd) * (1 - 0.85 * back) + this.rearLock * (1.2 + 1.6 * latFrac)) * (rearUp ? 0 : 1);
         stepOut += soB;
+        // backing it in from (nearly) upright: hard on the front the rear is almost unloaded, so a small steering input
+        // already swings it round - the bike comes in a little sideways before it is properly leaned over
+        const light = smoothstep(0.5, 0.92, aBrkF / Gr), stK = smoothstep(0.06, 0.35, Math.abs(this.steer));
+        const soU = (as.id === 'ai' ? 0 : 1.6) * light * stK * (1 + 0.7 * this.rearBrake) * (1 - 0.5 * latFrac) * (1 + 0.35 * fwd) * (1 - 0.85 * back) * smoothstep(9, 16, vf) * (rearUp ? 0 : 1);
+        stepOut += soU;
         // a light, braking rear has little side grip left: it lets go and the bike backs in
         capY *= 1 - clamp(soB * 0.2, 0, 0.25);   // the sliding rear still drags sideways and the front still bites
       }
