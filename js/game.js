@@ -537,7 +537,9 @@
         const kd = near && !b.crashed && rig.kneeDown[s], ed = near && !b.crashed && rig.elbowDown[s];
         if (kd) { rig.parts.legs[s].kn.getWorldPosition(_kv); G.skid.mark(5000 + i * 4 + s, _kv.x, _kv.z, 0.022, 0.5, (b.y || 0) + 0.033); } else G.skid.mark(5000 + i * 4 + s, 0, 0, 0, 0);
         if (ed) { rig.parts.arms[s].el.getWorldPosition(_kv); G.skid.mark(5002 + i * 4 + s, _kv.x, _kv.z, 0.02, 0.45, (b.y || 0) + 0.033); } else G.skid.mark(5002 + i * 4 + s, 0, 0, 0, 0);
-        if (b === p) { G.kneeOn = (G.kneeOn || 0) * 0.9 + (kd ? 0.1 : 0) + (ed ? 0.1 : 0); }
+        const fd = near && !b.crashed && rig.footDown[s];
+        if (fd) { rig.parts.legs[s].foot.getWorldPosition(_kv); G.skid.mark(6000 + i * 2 + s, _kv.x, _kv.z, 0.03, 0.5, (b.y || 0) + 0.033); } else G.skid.mark(6000 + i * 2 + s, 0, 0, 0, 0);
+        if (b === p) { G.kneeOn = (G.kneeOn || 0) * 0.9 + (kd ? 0.1 : 0) + (ed ? 0.1 : 0) + (fd ? 0.08 : 0); }
       }
     }
     // ghost playback

@@ -515,7 +515,7 @@
     for (const A of parts.arms) { [A.up, A.sh, A.el].forEach(hideIn); A.lo.userData.povHide = true; }   // the cam is steadier than the rider: only the gloves on the bars stay in view
     const rig = {
       group: g, torso, helmet, parts, naked, bars, pov: false,
-      hang: 0, tuck: 0, sit: 0, kneeOut: 0, headYaw: 0, kneeDown: [false, false], elbowDown: [false, false], dangle: 0,
+      hang: 0, tuck: 0, sit: 0, kneeOut: 0, headYaw: 0, kneeDown: [false, false], elbowDown: [false, false], footDown: [false, false], dangle: 0,
       J: { H: V3(), S: V3(), head: V3(), a: V3(), b: V3(), c: V3(), pole: V3() }
     };
     poseRider(rig, { lean: 0, tuck: 0, sit: 0, steer: 0 }, 1);
@@ -572,10 +572,20 @@
       _a.copy(J.H).addScaledVector(_z, sg * 0.105); _a.y -= 0.03;
       _b.set(-0.25, 0.48, sg * 0.18);
       const dg = sg * rig.dangle > 0 ? Math.abs(rig.dangle) : 0;           // MotoGP leg dangle on the brakes
-      if (dg > 0.01) _b.set(lerp(-0.25, 0.05, dg), lerp(0.48, 0.3, dg), sg * lerp(0.18, 0.5, dg));
-      J.pole.set(0.9, 0.5 - inside * 0.5, sg * (0.25 + inside * 1.6 + dg * 0.6));
+      rig.footDown[s] = false;
+      if (dg > 0.01) {
+        // the boot leaves the peg, swings forward and out beside the front of the engine, toe down, hovering just off the
+        // tarmac; the knee points out and up. A loose leg flaps a little in the wind and over the bumps.
+        const w = Math.min(1, dg), deep = Math.max(0, dg - 1), tt = (rig.dgClock = (rig.dgClock || 0) + 0.016);
+        _b.set(lerp(-0.25, 0.14, w) + Math.sin(tt * 6.3) * 0.03 * w, lerp(0.48, 0.16 - deep * 0.08, w) + Math.sin(tt * 9.1) * 0.012 * w,
+          sg * (lerp(0.18, 0.5, w) + deep * 0.06 + Math.sin(tt * 4.7 + s) * 0.025 * w));
+        // leaned (or sliding) to that side, the boot reaches the asphalt and drags along it
+        rig.footDown[s] = clearGround(_b, ph, 0.03, w > 0.7 ? 0.62 : 0) && w > 0.5;
+      }
+      J.pole.set(0.9 - dg * 0.5, 0.5 - inside * 0.5 + dg * 0.5, sg * (0.25 + inside * 1.6 + dg * 1.1));
       ik(_a, _b, 0.44, 0.44, J.pole, J.c); rig.kneeDown[s] = clearGround(J.c, ph, 0.075, inside > 0.5 && inLean > 0.7 ? 0.7 : 0) && inside > 0.3;
       setLimb(Lg.up, _a, J.c); setLimb(Lg.lo, J.c, _b); Lg.hip.position.copy(_a); Lg.kn.position.copy(J.c); Lg.foot.position.set(_b.x + 0.03, _b.y - 0.01, _b.z);
+      Lg.foot.rotation.set(0, 0, -0.75 * Math.min(1, dg));     // toe down when the leg is out
     }
   }
   /* rag-doll-ish pose for a rider sliding after a crash (rider group is detached and laid flat by the caller) */
