@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
 <title>APEX — Motorcycle Racing</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='12' fill='%23e8372c'/><path d='M14 46 L30 16 h6 L52 46 h-9 l-3-7 H26 l-3 7z M29 32h8l-4-9z' fill='white'/></svg>">
-<link rel="stylesheet" href="style.css?v=30">
+<link rel="stylesheet" href="style.css?v=31">
 </head>
 <body>
 <canvas id="scene"></canvas>
@@ -35,7 +35,6 @@
   <div id="toast"></div>
   <div id="hint"></div>
   <div id="steerBar"><i></i></div>
-  <div id="mouseGo" class="hidden" data-i18n="mouseGo">Klicken, um mit der Maus zu lenken</div>
 </div>
 
 <!-- ============ MENU ============ -->
@@ -53,8 +52,6 @@
       <div class="opt"><label data-i18n="assists">FAHRHILFEN</label><div class="seg" id="segAssist"><button data-v="easy" data-i18n="a0">VOLL</button><button data-v="sport" data-i18n="a1">SPORT</button><button data-v="pro" data-i18n="a2">AUS</button></div></div>
       <div class="opt-note" id="assistNote"></div>
       <div class="opt"><label data-i18n="camera">KAMERA</label><div class="seg" id="segCam"><button data-v="chase" data-i18n="c0">VERFOLGER</button><button data-v="pov" data-i18n="c1">FAHRERSICHT</button><button data-v="tv" data-i18n="c2">TOP-DOWN</button></div></div>
-      <div class="opt"><label data-i18n="steering">LENKUNG</label><div class="seg" id="segSteer"><button data-v="kb" data-i18n="s0">TASTATUR</button><button data-v="mouse" data-i18n="s1">MAUS</button></div></div>
-      <div class="opt-note" id="steerNote"></div>
       <div class="opt"><label data-i18n="quality">GRAFIK</label><div class="seg" id="segQ"><button data-v="low" data-i18n="q0">NIEDRIG</button><button data-v="medium" data-i18n="q1">MITTEL</button><button data-v="high" data-i18n="q2">HOCH</button></div></div>
       <div class="opt"><label data-i18n="volume">LAUTSTÄRKE</label><input type="range" id="vol" min="0" max="100" value="80"><div class="seg" id="segLang"><button data-v="de">DE</button><button data-v="en">EN</button></div></div>
     </div>
@@ -92,24 +89,24 @@
 </div>
 <div id="loading" class="hidden"><div><b>APEX</b><span id="loadText">…</span></div></div>
 
-<script src="three.min.js?v=30"></script>
-<script src="js/core.js?v=30"></script>
-<script src="js/track.js?v=30"></script>
-<script src="js/physics.js?v=30"></script>
-<script src="js/ai.js?v=30"></script>
-<script src="js/assets.js?v=30"></script>
-<script src="assets/pack_nature.js?v=30"></script>
-<script src="assets/pack_kenney.js?v=30"></script>
-<script src="assets/pack_pass.js?v=30"></script>
-<script src="assets/pack_props.js?v=30"></script>
-<script src="assets/pack_kaykit.js?v=30"></script>
-<script src="assets/pack_bike.js?v=30"></script>
-<script src="assets/pack_rider.js?v=30"></script>
-<script src="js/models.js?v=30"></script>
-<script src="js/world.js?v=30"></script>
-<script src="js/pass.js?v=30"></script>
-<script src="js/fx.js?v=30"></script>
-<script src="js/audio.js?v=30"></script>
-<script src="js/game.js?v=30"></script>
+<script src="three.min.js?v=31"></script>
+<script src="js/core.js?v=31"></script>
+<script src="js/track.js?v=31"></script>
+<script src="js/physics.js?v=31"></script>
+<script src="js/ai.js?v=31"></script>
+<script src="js/assets.js?v=31"></script>
+<script src="assets/pack_nature.js?v=31"></script>
+<script src="assets/pack_kenney.js?v=31"></script>
+<script src="assets/pack_pass.js?v=31"></script>
+<script src="assets/pack_props.js?v=31"></script>
+<script src="assets/pack_kaykit.js?v=31"></script>
+<script src="assets/pack_bike.js?v=31"></script>
+<script src="assets/pack_rider.js?v=31"></script>
+<script src="js/models.js?v=31"></script>
+<script src="js/world.js?v=31"></script>
+<script src="js/pass.js?v=31"></script>
+<script src="js/fx.js?v=31"></script>
+<script src="js/audio.js?v=31"></script>
+<script src="js/game.js?v=31"></script>
 </body>
 </html>
