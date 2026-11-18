@@ -307,30 +307,31 @@
   }
   function povCamera(p, dt) {
     const v = G.vis[0], rig = v.rider; v.root.updateMatrixWorld(true);
-    // a steady helmet cam: the eye point is taken from the helmet, but held in a heading-only frame and smoothed,
-    // and the horizon stays nearly level - the bike and the rider lean and work underneath it (no motion sickness)
-    const hp = rig.helmet.position; const nk = rig.naked; _hp.set(Math.min(hp.x - 0.1, nk ? 0.0 : 0.1), hp.y + (nk ? -0.05 : 0.03), hp.z * 0.25); v.susG.localToWorld(_hp);
-    const fx = Math.cos(p.yaw), fz = Math.sin(p.yaw), py = p.y || 0;
-    const ox = _hp.x - p.x, oy = _hp.y - py, oz = _hp.z - p.z;
-    const oF = ox * fx + oz * fz, oL = -ox * fz + oz * fx;            // forward / sideways offset from the contact line
-    if (!G.povO || G.povReset) { G.povO = { f: oF, l: oL, y: oy }; G.povReset = false; }
-    const o = G.povO; o.f = damp(o.f, oF, 7, dt); o.l = damp(o.l, oL * 0.9, 4, dt); o.y = damp(o.y, oy, 5, dt);
-    _hp.set(p.x + fx * o.f - fz * o.l, py + o.y, p.z + fz * o.f + fx * o.l);
-    G.povYaw = G.povYaw == null || G.povReset ? p.yaw : G.povYaw + AX.wrapAngle(p.yaw - G.povYaw) * (1 - Math.exp(-9 * dt));
-    G.povLean = damp(G.povLean || 0, p.lean, 4, dt); G.povPitch = damp(G.povPitch || 0, p.pitch, 4, dt);
-    G.povSlope = damp(G.povSlope || 0, Math.atan(p.slope || 0), 3, dt);
-    // a slow glance into the corner
-    G.povLook = damp(G.povLook || 0, clamp(p.lean * 0.2, -0.3, 0.3), 2, dt);
-    const tuck = Math.max(0, p.fb || 0), sit = Math.max(0, -(p.fb || 0));
-    _e.set(0, -G.povYaw, G.povSlope + G.povPitch * 0.5 - (nk ? 0.33 : 0.19) - tuck * 0.04 + sit * 0.03, 'YZX'); _q.setFromEuler(_e);
+    // arcade cockpit cam: the eye is a fixed point over the bike's centre line, not the rider's head - hanging off,
+    // tucking, head shake and slides don't move it, so the bike stays near the bottom centre of the screen. The horizon
+    // tilts a bit over half as far as the bike; heading, pitch and roll are all eased so nothing snaps.
+    const nk = rig.naked;
+    if (!G.povB || G.povReset) {
+      const hp = rig.helmet.position; G.povB = { x: Math.min(hp.x - 0.1, nk ? 0.0 : 0.1), y: hp.y + (nk ? -0.05 : 0.03) };
+      G.povYaw = p.yaw; G.povRoll = 0; G.povPitch = 0; G.povSlope = Math.atan(p.slope || 0); G.povLook = 0; G.povReset = false;
+    }
+    const py = p.y || 0;
+    // heading: between where the bike points and where it is going, eased - a slide swings the bike, not the view
+    const yT = p.yaw - (p.slipAngle || 0) * 0.4;
+    if (Math.abs(AX.wrapAngle(yT - G.povYaw)) > 1.2) G.povYaw = yT;     // respawned or spun: no long swing round
+    G.povYaw += AX.wrapAngle(yT - G.povYaw) * (1 - Math.exp(-8 * dt));
+    G.povRoll = damp(G.povRoll, p.lean * 0.6, 4, dt);            // the horizon tilts a bit over half as far as the bike, eased
+    G.povPitch = damp(G.povPitch, Math.max(-0.2, p.pitch) * 0.3, 3, dt);
+    G.povSlope = damp(G.povSlope, Math.atan(p.slope || 0), 2, dt);
+    G.povLook = damp(G.povLook, clamp(p.lean * 0.15, -0.2, 0.2), 1.5, dt);
+    _hp.set(G.povB.x, G.povB.y, 0); v.susG.localToWorld(_hp);        // the eye rides on the bike's centre line
+    _e.set(0, -G.povYaw, G.povSlope + G.povPitch - (nk ? 0.31 : 0.18), 'YZX'); _q.setFromEuler(_e);
     _q2.setFromAxisAngle(V3Y, -Math.PI / 2 - G.povLook); _q.multiply(_q2);
-    _q2.setFromAxisAngle(V3Z, -G.povLean * 0.3); _q.multiply(_q2);
-    // only a hint of kerb rumble and head shake, no engine buzz
-    const buzz = (p.surf === AX.SURF.KERB ? 0.0015 : 0) + (p.headShake || 0) * 0.002;
-    _hp.y += Math.sin(G.time * 53) * buzz;
+    _q2.setFromAxisAngle(V3Z, -G.povRoll); _q.multiply(_q2);
+    if (p.surf === AX.SURF.KERB) _hp.y += Math.sin(G.time * 53) * 0.001;      // just a whisper of the kerbs
     drawDash(v, p, dt);
     camera.position.copy(_hp); camera.quaternion.copy(_q);
-    const fov = 72 + clamp(p.speed / 68, 0, 1) * 6; if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = damp(camera.fov, fov, 3, dt); camera.updateProjectionMatrix(); }
+    const fov = 74 + clamp(p.speed / 68, 0, 1) * 6; if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = damp(camera.fov, fov, 2, dt); camera.updateProjectionMatrix(); }
     G.camLook.set(p.x, py, p.z); G.camPos.copy(camera.position); post.tilt = 0;
   }
   const V3Y = new THREE.Vector3(0, 1, 0), V3Z = new THREE.Vector3(0, 0, 1), _hd = new THREE.Vector3();
