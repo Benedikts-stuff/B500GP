@@ -317,7 +317,11 @@
         } else this.tuckT = 0;
       } else {
         this.tuckT = 0;
-        capY = GrL * Math.sqrt(Math.max(0.03, 1 - (aDrive / (Gr * Kx)) * (aDrive / (Gr * Kx))));
+        // drive only loads the rear tyre: the front keeps its full side grip, so a bike sliding on the throttle still turns
+        capY = GrL * (0.45 + 0.55 * Math.sqrt(Math.max(0.03, 1 - (aDrive / (Gr * Kx)) * (aDrive / (Gr * Kx)))));
+        // leaned past what the front tyre holds: it washes wide instead of swinging the bike round faster than it can travel
+        const capF = GrL * 1.04;
+        if (Math.abs(ayDem) > capF) { const ratio = capF / Math.abs(ayDem); omega *= lerp(1, ratio, 0.6); ayDem = vf * omega; f.frontSkid = Math.max(f.frontSkid || 0, clamp((1 / ratio - 1) * 2.2, 0, 1)); }
       }
       if (frontLock) f.frontSkid = 1;
       let uRear = Math.hypot(aDrive / (Gr * KxR), ayDem / GrL) + overDrive / (Gr * 0.8);
@@ -334,10 +338,14 @@
         const soB = (0.55 * (as.brakeSlide || 1) * (aBrkF / spec.brake) * latFrac * (1 + 0.35 * fwd) * (1 - 0.85 * back) + this.rearLock * (1.2 + 1.6 * latFrac)) * (rearUp ? 0 : 1);
         stepOut += soB;
         // a light, braking rear has little side grip left: it lets go and the bike backs in
-        capY *= 1 - clamp(soB * 0.38, 0, 0.5);
+        capY *= 1 - clamp(soB * 0.2, 0, 0.25);   // the sliding rear still drags sideways and the front still bites
       }
       const restore = 2.0 + catchK + 0.8 * back * (aBrk > 0.4 ? 1 : 0);
-      omega += turnSign * stepOut * as.slide * smoothstep(5, 12, vf) - restore * this.slipAngle * smoothstep(3, 8, vf);
+      // while something keeps the rear stepping out, the chassis' stability holds the slide angle in check. Once that
+      // stops (throttle rolled off, brake released) the slide closes up mostly by the tyres swinging the direction of
+      // travel round to where the bike points: the rotation gained in the slide is kept and the bike comes out tighter.
+      const yawShare = lerp(0.4, 1, smoothstep(0.05, 0.4, stepOut * as.slide));
+      omega += turnSign * stepOut * as.slide * smoothstep(5, 12, vf) - restore * this.slipAngle * smoothstep(3, 8, vf) * yawShare;
       // keyboard steer assist on the brakes: the rider holds a backing-in slide at around 15-20 degrees -
       // it neither dies straight away nor keeps swinging round until it throws him off
       const holdS = inp.leanAssist && vf > 8 && (this.brake > 0.3 || this.rearBrake > 0.3) && this.throttle < 0.3;
