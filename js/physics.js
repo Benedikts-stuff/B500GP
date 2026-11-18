@@ -202,9 +202,14 @@
       let lm = (spec.maxLean + (as.leanX || 0) + 9 * Math.max(0, hi)) * DEG * smoothstep(0.8, 8.5, vf);
       if (as.leanLimit) lm = Math.min(lm, Math.atan(0.985 * GrL / G));
       // grabbing a handful of front brake mid-corner stands the bike up
-      const leanT = this.steer * lm * (1 - 0.3 * smoothstep(0.65, 1.0, bf0) * (1 - trail));
+      // rear stepping out: the side force drops and the bike would fall in, so the rider steers into the slide and the
+      // bike comes up a bit - quickly, the way trail and a loose grip on the bars do it by themselves. The slide itself
+      // keeps turning the bike, so it holds its line with less lean.
+      const sOut = Math.sign(this.slipAngle) === Math.sign(this.lean) ? Math.abs(this.slipAngle) : 0;
+      const slideUp = smoothstep(0.06, 0.45, sOut) * smoothstep(6, 12, vf);
+      const leanT = this.steer * lm * (1 - 0.3 * smoothstep(0.65, 1.0, bf0) * (1 - trail)) * (1 - 0.42 * slideUp);
       let wn = spec.leanRate * lerp(1, 0.72, smoothstep(25, 72, vf));
-      wn *= (1 - 0.55 * frontLight) * (1 + 0.45 * trail * (as.trailX || 1));
+      wn *= (1 - 0.55 * frontLight) * (1 + 0.45 * trail * (as.trailX || 1)) * (1 + 0.7 * slideUp);
       const zeta = 0.86;
       this.leanVel += (wn * wn * (leanT - this.lean) - 2 * zeta * wn * this.leanVel) * dt;
       this.lean += this.leanVel * dt;
