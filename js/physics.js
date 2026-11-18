@@ -19,7 +19,7 @@
     sport: { id: 'sport', tc: 0,    wcBase: null, wcBack: 0,    catchSa: 9,    catchK: 0,   slide: 1,    abs: false, rearAbs: false, stop: -1,   leanLimit: false, highside: true,  slipper: 1,    kick: true,  thrUp: 3.2, thrDn: 5,  steerHelp: 0 },
     // Off: everything Sport has (no aids), plus a few degrees more lean, a little more side grip at the edge and more
     // room before a slide or an over-lean throws you off - faster in skilled hands, but the limit is yours to find
-    pro:   { id: 'pro',   tc: 0,    wcBase: null, wcBack: 0,    catchSa: 9,    catchK: 0,   slide: 1.15, abs: false, rearAbs: false, stop: -1,   leanLimit: false, highside: true,  slipper: 1,    kick: true,  thrUp: 3.2, thrDn: 5,  steerHelp: 0, leanX: 5, gripL: 1.05, crashX: 1.15, trailX: 1.3 },
+    pro:   { id: 'pro',   tc: 0,    wcBase: null, wcBack: 0,    catchSa: 9,    catchK: 0,   slide: 1.15, abs: false, rearAbs: false, stop: -1,   leanLimit: false, highside: true,  slipper: 1,    kick: true,  thrUp: 3.2, thrDn: 5,  steerHelp: 0, leanX: 5, gripL: 1.05, crashX: 1.3, trailX: 1.3, kbCirc: 1.12, saSoft: 0.5 },
     // the AI rides with tidy, conservative assists
     ai:    { id: 'ai',    tc: 1.14, wcBase: 0.05, wcBack: 0.52, catchSa: 0.3,  catchK: 1.4, slide: 1,    abs: true,  rearAbs: true,  stop: 0.09, leanLimit: true,  highside: false, slipper: 0.5,  kick: false, thrUp: 5.5, thrDn: 11, steerHelp: 0.5 }
   };
@@ -292,6 +292,9 @@
         const circ = GrL * Math.sqrt(Math.max(0.02, 1 - latFrac * latFrac)) * (1 + 0.1 * trail);
         if (aBrkF > circ) aBrkF = Math.max(circ, Math.min(aBrkF, Gr * 0.22));
       }
+      // Off, keys only: the rider squeezes the lever no harder than the leaned front tyre can take (a little over - the
+      // front pushes wide and moans, but it doesn't fold) - full brake comes as the bike stands up
+      if (as.kbCirc && !inp.analog && !as.abs && latFrac > 0.15) { const circK = GrL * Math.sqrt(Math.max(0.02, 1 - latFrac * latFrac)) * (1 + 0.1 * trail) * as.kbCirc; if (aBrkF > circK) aBrkF = Math.max(circK, Gr * 0.25); }
       let frontLock = false;
       if (aBrkF > Gr * 1.04) { aBrkF = Gr * 0.86; frontLock = true; }
 
@@ -358,6 +361,9 @@
       const holdS = inp.leanAssist && vf > 8 && (this.brake > 0.3 || this.rearBrake > 0.3) && this.throttle < 0.3;
       this.slideHold = holdS;
       if (holdS && Math.abs(this.slipAngle) > 0.07) { const s0 = Math.abs(this.slipAngle); omega += Math.sign(this.slipAngle) * (0.3 - s0) * (s0 < 0.3 ? 1.6 : 7); }
+      // Off: past ~30 degrees the rider fights a slide that keeps opening (counter-steer, off the brake) - it can still go,
+      // but it takes a lot more than a moment too long on the lever
+      if (as.saSoft && Math.abs(this.slipAngle) > as.saSoft) omega -= Math.sign(this.slipAngle) * (Math.abs(this.slipAngle) - as.saSoft) * 9;
       if (as.saMax && Math.abs(this.slipAngle) > as.saMax * 0.8) omega -= Math.sign(this.slipAngle) * (Math.abs(this.slipAngle) - as.saMax * 0.8) * 22;
 
       // ---- integrate
