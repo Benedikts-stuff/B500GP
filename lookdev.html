@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>APEX — Look-Demo</title>
+<link rel="stylesheet" href="style.css?v=46">
+<style>
+  #demoUi { position: fixed; left: 44px; bottom: 36px; font-size: 11px; font-weight: 600; letter-spacing: 0.18em; color: rgba(243, 239, 230, 0.75); text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5); display: flex; gap: 18px; }
+  #demoUi span { display: inline-flex; align-items: center; gap: 6px; }
+  #demoLoad { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: #15171a; font-size: 11px; font-weight: 600; letter-spacing: 0.34em; color: rgba(243, 239, 230, 0.7); }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div id="demoUi"><span><kbd>1</kbd> VERFOLGER</span><span><kbd>2</kbd> ORBIT · MAUS ZIEHEN</span><span><kbd>3</kbd> KINO</span><span><kbd>Leertaste</kbd> PAUSE</span></div>
+<div id="demoLoad">LOOK-DEMO WIRD GEBAUT</div>
+<script src="three.min.js?v=46"></script>
+<script src="js/core.js?v=46"></script>
+<script src="js/track.js?v=46"></script>
+<script src="js/physics.js?v=46"></script>
+<script src="js/assets.js?v=46"></script>
+<script src="assets/pack_bike.js?v=46"></script>
+<script src="assets/pack_rider.js?v=46"></script>
+<script src="js/models.js?v=46"></script>
+<script src="js/fx.js?v=46"></script>
+<script src="js/demo.js?v=46"></script>
+</body>
+</html>
