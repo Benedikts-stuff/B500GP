@@ -276,7 +276,7 @@
     const faceMat = new THREE.MeshStandardMaterial({ map: ptex('wall', 'a', an), normalMap: ptex('wall', 'n', an), roughness: 0.95, side: THREE.DoubleSide });
     if (AX.Assets && AX.Assets.has('kaykit/Tree_4_A')) faceMat.color = new THREE.Color(0.72, 0.72, 0.72);
     const flat = AX.Assets && AX.Assets.has('kaykit/Tree_4_A');
-    const stoneMat = flat ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 })
+    const stoneMat = flat ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, name: 'passStone' })
       : new THREE.MeshStandardMaterial({ map: ptex('granite', 'a', an), normalMap: ptex('granite', 'n', an), normalScale: new THREE.Vector2(0.8, 0.8), vertexColors: true, roughness: 0.88 });
     const capMat = flat ? new THREE.MeshStandardMaterial({ color: lin(0xcdc8be), roughness: 0.95, side: THREE.DoubleSide })
       : new THREE.MeshStandardMaterial({ map: ptex('granite', 'a', an), normalMap: ptex('granite', 'n', an), color: lin(0xc9c4ba), roughness: 0.9, side: THREE.DoubleSide });

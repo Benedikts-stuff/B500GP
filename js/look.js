@@ -11,10 +11,11 @@
     sunCol: '#ffc283', sunI: 2.7, hemiSky: '#c7c4ec', hemiGround: '#a8825c', hemiI: 1.15,
     fog: '#f3b98e', fogNear: 15, fogFar: 270, haze: [0.96, 0.76, 0.62],
     skyTop: '#7f9fd4', skyHor: '#ffcf9e', skyGlow: '#fff0c8',
-    grassLo: '#56763f', grassMid: '#82a04c', grassHi: '#d8cc6c', grassDry: '#c9ab5e',
+    grassLo: '#3f6a34', grassMid: '#76a046', grassHi: '#e2d070', grassDry: '#d0a957',
     pine: ['#36553f', '#3d5c44', '#30503c', '#456649'], trunk: '#4a3528',
     larch: ['#f2b232', '#f7c94a', '#e98f2a', '#ffd86a', '#d9761f'],
-    flowers: ['#fff6e8', '#fff3b0', '#ffd34d', '#f4a6c9', '#c9a6ff'],
+    flowers: ['#fffaf0', '#fff6e0', '#fff1a8', '#ffd84d', '#f6b0cf'],
+    maple: ['#ff8a2a', '#ff6d1f', '#ffa640', '#f25a1c', '#ffbf55'],
     road: '#5b5560', rock: '#c2a78c', wall: '#9c8a78'
   };
 
@@ -71,10 +72,10 @@
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vMat; varying vec3 vWP;\nfloat lkN(vec2 p){ return sin(p.x) * sin(p.y * 1.3 + 1.7) * 0.5 + sin(p.x * 2.1 + p.y * 1.7) * 0.25; }')
         .replace('#include <color_fragment>', `#include <color_fragment>
           float pn = lkN(vWP.xz * 0.035) + lkN(vWP.xz * 0.11 + 3.0) * 0.4;
-          vec3 meadow = mix(${v3([0.20, 0.30, 0.11])}, ${v3([0.42, 0.42, 0.16])}, clamp(0.5 + pn * 0.6, 0.0, 1.0));
-          diffuseColor.rgb = mix(meadow, diffuseColor.rgb * meadow * 2.2, 0.35);
-          vec3 rock = mix(${v3([0.36, 0.33, 0.35])}, ${v3([0.48, 0.42, 0.38])}, clamp(0.5 + pn, 0.0, 1.0));
-          diffuseColor.rgb = mix(diffuseColor.rgb, ${v3([0.52, 0.47, 0.42])}, vMat.z);
+          vec3 meadow = mix(${v3([0.13, 0.24, 0.08])}, ${v3([0.42, 0.40, 0.10])}, clamp(0.45 + pn * 0.7, 0.0, 1.0));
+          diffuseColor.rgb = mix(meadow, diffuseColor.rgb * meadow * 2.2, 0.2);
+          vec3 rock = mix(${v3([0.24, 0.21, 0.24])}, ${v3([0.34, 0.29, 0.27])}, clamp(0.5 + pn, 0.0, 1.0));
+          diffuseColor.rgb = mix(diffuseColor.rgb, ${v3([0.38, 0.33, 0.29])}, vMat.z);
           diffuseColor.rgb = mix(diffuseColor.rgb, rock, vMat.x);
           diffuseColor.rgb = mix(diffuseColor.rgb, ${v3([0.92, 0.92, 0.96])}, vMat.y);`);
     };
@@ -87,6 +88,7 @@
       for (const m of [].concat(o.material)) {
         if (!m.isMeshStandardMaterial || m.userData.lookDone) continue; m.userData.lookDone = true;
         if (/^passTerrain/.test(m.name || '')) { lookTerrain(m); n++; continue; }
+        if (m.name === 'passStone') { m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.30, 0.26, 0.23), 0.55);'); }; m.customProgramCacheKey = () => 'look-stone'; }
         if (m.map && !/^kk_/.test(m.name || '')) { const a = avgColor(m.map); if (a) { m.color.multiply(a); m.map = null; n++; } }
         m.normalMap = null; m.roughnessMap = null; m.bumpMap = null;
         m.roughness = 1; m.metalness = Math.min(m.metalness, 0.15); m.envMapIntensity = 0.35;
@@ -108,6 +110,22 @@
     for (let k = 0; k < seg - 1; k++) { const a = k * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
     const a = (seg - 1) * 2; idx.push(a, a + 1, a + 2);
     g.setIndex(idx); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('aT', new THREE.Float32BufferAttribute(tt, 1));
+    return g;
+  }
+  function tuftGeometry() {
+    const pos = [], nor = [], tt = [], idx = []; let base = 0;
+    const blades = [[0, 0, 1.0, 0], [0.07, 0.03, 0.8, 2.1], [-0.06, 0.05, 0.9, 4.0], [0.02, -0.07, 0.7, 5.3]];
+    for (const [ox, oz, hh, rot] of blades) {
+      const c = Math.cos(rot), sn = Math.sin(rot), seg = 3;
+      for (let k = 0; k <= seg; k++) {
+        const t = k / seg, w = 0.5 * (1 - t) * (1 - t * 0.15) * 0.07, lean = t * t * 0.22 * hh, y = t * hh;
+        const lx = (x) => [ox + (x * c) + lean * Math.cos(rot + 1.2), y, oz + (x * sn) + lean * Math.sin(rot + 1.2)];
+        if (k < seg) { pos.push(...lx(-w), ...lx(w)); nor.push(0, 1, 0, 0, 1, 0); tt.push(t, t); } else { pos.push(...lx(0)); nor.push(0, 1, 0); tt.push(t); }
+      }
+      for (let k = 0; k < seg - 1; k++) { const a = base + k * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
+      const a = base + (seg - 1) * 2; idx.push(a, a + 1, a + 2); base += seg * 2 + 1;
+    }
+    const g = new THREE.BufferGeometry(); g.setIndex(idx); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('aT', new THREE.Float32BufferAttribute(tt, 1));
     return g;
   }
   function grassMaterial() {
@@ -149,7 +167,7 @@
 
   /* --- leaf-cloud larch: a few bare branches, thousands of small leaves in round clusters. Leaf normals come from the
      cluster centre, so the whole cloud shades like a soft ball while every leaf keeps its own sparkle of colour */
-  function larchGeometry(rng, h) {
+  function larchGeometry(rng, h, palette) {
     const pos = [], nor = [], col = [], trunk = C(PAL.trunk);
     const tri = (a, b, c, n, cl) => { pos.push(...a, ...b, ...c); nor.push(...n, ...n, ...n); for (let k = 0; k < 3; k++) col.push(cl.r, cl.g, cl.b); };
     // trunk + branches as thin prisms
@@ -169,9 +187,9 @@
       limb(p0, p1, h * 0.009 + 0.03); clusters.push({ c: p1, r: h * (0.13 + 0.07 * rng()) });
     }
     clusters.push({ c: [top[0], h * 0.93, top[2]], r: h * 0.17 }); clusters.push({ c: [top[0] * 0.6, h * 0.72, top[2] * 0.6], r: h * 0.22 });
-    const pal = PAL.larch.map(C), tmp = new THREE.Color(), sz = 0.1 + h * 0.004;
+    const pal = (palette || PAL.larch).map(C), tmp = new THREE.Color(), sz = 0.075 + h * 0.003;
     for (const cl of clusters) {
-      const n = Math.floor(cl.r * cl.r * 150);
+      const n = Math.floor(cl.r * cl.r * 240);
       for (let k = 0; k < n; k++) {
         // points mostly near the surface of the ball, a few inside
         const u = rng() * 2 - 1, th = rng() * 6.283, rr = cl.r * (0.55 + 0.45 * Math.cbrt(rng())), sq = Math.sqrt(1 - u * u);
@@ -225,7 +243,7 @@
 
   /* ================================================================== whole-track version */
   const SUN = new THREE.Vector3(-0.55, 0.23, 0.70).normalize();
-  const WARM = [1.0, 0.77, 0.56], COOL = [0.80, 0.74, 0.86];
+  const WARM = [1.0, 0.72, 0.48], COOL = [0.84, 0.68, 0.80];
   const v3 = (a) => 'vec3(' + a.map((x) => x.toFixed(3)).join(', ') + ')';
   // fog and haze take their colour from where you look: golden toward the sun, lavender away from it
   function patchFog() {
@@ -278,6 +296,36 @@
     return m;
   }
 
+  // where things may grow: clear of every road, of the dry-stone walls and their caps, the gallery and the bridge
+  function placer(world) {
+    const t = world.track, gr = world.galleryRange, st = t.stream;
+    return (x, z, hint, margin) => {
+      const i = t.nearest(x, z, hint == null ? -1 : hint), lat = t.lateral(i, x, z), s = lat > 0 ? 1 : 0, d = Math.abs(lat);
+      const wall = t.barType[s][i] === 2, H = t.wallH[s][i] || 0;
+      if (d < t.bar[s][i] + (wall ? 0.06 * H + 1.5 : 0.3) + margin) return false;
+      if (gr && i >= gr[0] - 6 && i <= gr[1] + 6 && d < t.bar[s][i] + 10) return false;
+      if (st && Math.abs(i - st.idx) < 14 && d < t.bar[s][i] + 8) return false;
+      t.terrainH(x, z); return t.lastRoadD > t.hw + 0.4 + margin;
+    };
+  }
+  // earth skirt hanging from the road edge down into the slope, so the road never floats over a gap
+  function roadSkirt(world) {
+    const t = world.track, P = [], idx = []; let rows = 0;
+    for (const s of [0, 1]) {
+      const sg = s ? 1 : -1; let prev = false;
+      for (let i = 0; i < t.n; i++) {
+        const lat = t.hw + 0.1, x = t.px[i] + t.nx[i] * sg * lat, z = t.pz[i] + t.nz[i] * sg * lat, xo = t.px[i] + t.nx[i] * sg * (lat + 1.2), zo = t.pz[i] + t.nz[i] * sg * (lat + 1.2);
+        const g = Math.min(world.heightAt(xo, zo), world.heightAt(x, z)), top = t.py[i] - 0.04, bot = Math.min(g, top) - 0.8;
+        P.push(x, top, z, xo, bot, zo);
+        if (prev) { const a = (rows - 1) * 2, b = rows * 2; idx.push(a, b, a + 1, a + 1, b, b + 1); }
+        prev = true; rows++;
+      }
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setIndex(idx); g.computeVertexNormals();
+    const m = new THREE.MeshStandardMaterial({ color: C('#5a4a37'), roughness: 1, side: THREE.DoubleSide }); m.userData.lookDone = true;
+    const mesh = new THREE.Mesh(g, m); mesh.receiveShadow = true; mesh.userData.lookNew = true; world.scene.add(mesh); return mesh;
+  }
+
   function applyWorld(world, renderer, post) {
     const sc = world.scene, t = world.track, rng = AX.RNG(777), t0 = performance.now();
     patchFog();
@@ -289,7 +337,7 @@
     renderer.shadowMap.type = THREE.VSMShadowMap; renderer.toneMappingExposure = 1.12;
     sc.traverse((o) => { if (o.isHemisphereLight) { o.color.copy(C(PAL.hemiSky)); o.groundColor.copy(C(PAL.hemiGround)); o.intensity = PAL.hemiI; } });
     world.sky.material = skyMaterial2(); world.skyFog = null; if (world.backdrop) world.backdrop.visible = true;
-    sc.fog.color.copy(C(PAL.fog)); sc.fog.near = 12; sc.fog.far = 340;
+    sc.fog.color.copy(C(PAL.fog)); sc.fog.near = 10; sc.fog.far = 290;
     const flat = flattenMaterials(sc);
     // big vertex-coloured ground meshes (terrain, corridor strip): bright greens pulled to the meadow's olive
     const olive = C('#5f7d3e'), tmpC = new THREE.Color(), hs = {};
@@ -317,11 +365,17 @@
       }
     });
     // ---- old foliage out: remember where the firs stood, drop bushes and grass tufts
+    const ok = placer(world);
     const spots = [], m4 = new THREE.Matrix4(), p = new THREE.Vector3(), q = new THREE.Quaternion(), sv = new THREE.Vector3();
     const seen = new Set(), dead = [];
     sc.traverse((o) => {
       if (!o.isInstancedMesh || o.userData.lookNew) return; const nm = (o.material && o.material.name) || '';
-      if (/kk_rock/.test(nm)) { if (!o.material.userData.lookRock) { o.material.userData.lookRock = true; o.material.color.multiply(new THREE.Color(0.78, 0.8, 0.86)); } return; }
+      if (/kk_rock/.test(nm)) {
+        if (!o.material.userData.lookRock) { o.material.userData.lookRock = true; o.material.color.multiply(new THREE.Color(0.78, 0.8, 0.86)); }
+        const zero = new THREE.Matrix4().makeScale(0, 0, 0);
+        for (let i = 0; i < o.count; i++) { o.getMatrixAt(i, m4); m4.decompose(p, q, sv); if (!ok(p.x, p.z, -1, Math.max(sv.x, sv.z) * 1.3 + 0.3)) o.setMatrixAt(i, zero); }
+        o.instanceMatrix.needsUpdate = true; return;
+      }
       if (!/kk_tree|kk_bush|kk_grass|^Lea|Leaf|Wood|Bark|Trunk/i.test(nm)) return;
       if (/kk_tree|^Lea/.test(nm)) for (let i = 0; i < o.count; i++) { o.getMatrixAt(i, m4); m4.decompose(p, q, sv); const k = Math.round(p.x * 2) + ',' + Math.round(p.z * 2); if (!seen.has(k)) { seen.add(k); spots.push([p.x, p.y, p.z, sv.y]); } }
       dead.push(o);
@@ -332,12 +386,12 @@
     const vcMat = (flatShade, key) => { const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, flatShading: !!flatShade, side: THREE.DoubleSide }); m.userData.lookDone = true; return m; };
     const PV = 8, LV = 6, pineGeo = [], larchGeo = [];
     for (let k = 0; k < PV; k++) pineGeo.push(pineGeometry(rng, 13 + k * 0.9, 2.6 + (k % 3) * 0.35));
-    for (let k = 0; k < LV; k++) larchGeo.push(larchGeometry(rng, 8.5 + k * 0.7));
+    for (let k = 0; k < LV; k++) larchGeo.push(larchGeometry(rng, 8.5 + k * 0.7, k % 3 === 2 ? PAL.maple : PAL.larch));
     const pineSet = pineGeo.map(() => []), larchSet = larchGeo.map(() => []);
     for (const [x, y, z, s] of spots) {
-      const d = near(x, z); if (d < 4.5) continue;
-      const gold = rng() < (d < 30 ? 0.22 : 0.07) && y < 140;
       const ry = rng() * 6.283, sc2 = clamp(s / 1.7, 0.35, 1.35) * (0.9 + rng() * 0.2);
+      if (!ok(x, z, -1, 1.2 + 2.6 * sc2)) continue; const d = near(x, z);
+      const gold = rng() < (d < 30 ? 0.24 : 0.07) && y < 140;
       if (gold) larchSet[Math.floor(rng() * LV)].push([x, y - 0.2, z, ry, sc2 * 0.95]); else pineSet[Math.floor(rng() * PV)].push([x, y - 0.3, z, ry, sc2]);
     }
     const tint = new THREE.Color(), add = (geo, mat, list, cast, tintFn) => {
@@ -349,28 +403,29 @@
     pineGeo.forEach((g, k) => add(g, pm, pineSet[k], true, () => tint.setHSL(0, 0, 0.82 + rng() * 0.3)));
     larchGeo.forEach((g, k) => add(g, lm, larchSet[k], true, () => tint.setHSL(0, 0, 0.85 + rng() * 0.25)));
     // ---- grass along the road in chunks; each chunk thins out with distance from the camera (see update)
-    const blade = bladeGeometry(), gm = grassMaterial2(), chunks = [];
+    const blade = tuftGeometry(), gm = grassMaterial2(), chunks = [];
     const lo = C(PAL.grassLo), mid = C(PAL.grassMid), hi = C(PAL.grassHi), dry = C(PAL.grassDry), col = new THREE.Color(), e = new THREE.Euler();
     const fl = PAL.flowers.map(C), flGeo = new THREE.PlaneGeometry(0.07, 0.07), flMat = new THREE.MeshStandardMaterial({ roughness: 1, side: THREE.DoubleSide, emissive: new THREE.Color(0x261c12) }); flMat.userData.lookDone = true;
     const CH = 28, N = t.n, ds = t.length / N;
     let total = 0;
     for (let c0 = 0; c0 < N; c0 += CH) {
-      const c1 = Math.min(N, c0 + CH), len = (c1 - c0) * ds, cap = Math.round(len * 2 * 330), mats = [], cols = [], fmats = [], fcols = [];
+      const c1 = Math.min(N, c0 + CH), len = (c1 - c0) * ds, cap = Math.round(len * 2 * 300), mats = [], cols = [], fmats = [], fcols = [];
       let cx = 0, cz = 0; for (let i = c0; i < c1; i++) { cx += t.px[i]; cz += t.pz[i]; } cx /= (c1 - c0); cz /= (c1 - c0);
       for (let k = 0; k < cap; k++) {
         const i = c0 + Math.floor(rng() * (c1 - c0)), s = rng() < 0.5 ? 0 : 1, sg = s ? 1 : -1, wall = t.barType[s][i] === 2;
         const dd = rng() < 0.62 ? Math.min(45, -9 * Math.log(1 - rng() * 0.993)) : rng() * 45;
-        const edge = t.bar[s][i] + (wall ? 0.7 + 0.06 * t.wallH[s][i] : 0.25), lat = edge + dd, f = rng() - 0.5;
+        const gap = wall ? t.bar[s][i] - t.hw - 0.6 : 0, verge = gap > 0.3 && rng() < 0.45;   // the strip at the foot of a wall
+        const edge = t.bar[s][i] + (wall ? 1.5 + 0.06 * t.wallH[s][i] : 0.3), lat = verge ? t.hw + 0.3 + rng() * gap : edge + dd, f = rng() - 0.5;
         const x = t.px[i] + t.nx[i] * sg * lat + Math.cos(t.yaw[i]) * f * ds, z = t.pz[i] + t.nz[i] * sg * lat + Math.sin(t.yaw[i]) * f * ds;
-        t.terrainH(x, z); if (!(t.lastRoadD > t.hw + 0.35)) continue; const y = world.heightAt(x, z); if (!isFinite(y)) continue;
+        if (!(verge ? (t.terrainH(x, z), t.lastRoadD > t.hw + 0.25) : ok(x, z, i, 0))) continue; const y = world.heightAt(x, z); if (!isFinite(y)) continue;
         const patch = fbm(x * 0.045, z * 0.045), fine = fbm(x * 0.35, z * 0.35), alp = smoothstep(90, 160, y);
         const tall = (0.3 + 0.42 * patch + 0.2 * rng()) * (1 - 0.45 * alp) * smoothstep(0.0, 1.6, dd + 0.3);
-        e.set((rng() - 0.5) * 0.5, rng() * 6.283, (rng() - 0.5) * 0.5); q.setFromEuler(e); sv.set(0.9 + rng() * 0.6, tall, 1); p.set(x, y - 0.03, z); m4.compose(p, q, sv);
+        e.set((rng() - 0.5) * 0.5, rng() * 6.283, (rng() - 0.5) * 0.5); q.setFromEuler(e); const wd = 0.9 + rng() * 0.5; sv.set(wd, tall, wd); p.set(x, y - 0.03, z); m4.compose(p, q, sv);
         mats.push(m4.clone());
         col.copy(lo).lerp(mid, clamp(patch * 1.3, 0, 1)).lerp(hi, clamp((fine - 0.45) * 1.4, 0, 0.75)).lerp(dry, clamp((patch - 0.62) * 2.2 + alp * 0.4, 0, 0.7)).multiplyScalar(0.9 + rng() * 0.2);
         cols.push(col.clone());
         const drift = fbm(x * 0.08 + 40, z * 0.08 - 13);
-        if (rng() < Math.pow(clamp((drift - 0.5) * 3, 0, 1), 2) * 0.05) {
+        if (rng() < Math.pow(clamp((drift - 0.42) * 2.6, 0, 1), 2) * 0.22) {
           e.set(-Math.PI / 2 + (rng() - 0.5) * 0.6, rng() * 6.283, 0); q.setFromEuler(e); const fs = 0.9 + rng() * 0.8; sv.set(fs, fs, fs); p.set(x, y + 0.15 + tall * 0.6, z); m4.compose(p, q, sv);
           fmats.push(m4.clone()); fcols.push(fl[Math.floor(Math.pow(rng(), 1.6) * fl.length)]);
         }
@@ -383,6 +438,7 @@
       chunks.push({ x: cx, z: cz, r: len * 0.5 + 50, im, cap: mats.length, fim, fcap: fmats.length });
       total += mats.length;
     }
+    roadSkirt(world);
     world.look = { chunks };
     sc.traverse((o) => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; });
     post.mFinal.uniforms.uBloom.value = 0.5; post.mFinal.uniforms.uVig.value = 0.26; post.mFinal.uniforms.uSat.value = 1.04;
