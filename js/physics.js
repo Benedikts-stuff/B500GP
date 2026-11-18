@@ -16,8 +16,10 @@
      · thrUp / thrDn: keyboard throttle roll-on / roll-off rates */
   AX.ASSISTS = {
     easy:  { id: 'easy',  tc: 1.02, wcBase: 0.0,  wcBack: 0.14, catchSa: 0.18, catchK: 2.5, slide: 0.45, abs: true,  rearAbs: true,  stop: 0.02, leanLimit: true,  highside: false, slipper: 0.35, kick: false, thrUp: 5.5, thrDn: 11, steerHelp: 1 },
-    sport: { id: 'sport', tc: 1.5,  wcBase: 0.2,  wcBack: 0.38,  catchSa: 0.42, catchK: 0.7, slide: 1.25, brakeSlide: 4.5, saMax: 0.5,    abs: true,  rearAbs: false, stop: 0.24, leanLimit: true,  highside: false, slipper: 0.6,  kick: true,  thrUp: 4.5, thrDn: 9,  steerHelp: 0.5 },
-    pro:   { id: 'pro',   tc: 0,    wcBase: null, wcBack: 0,    catchSa: 9,    catchK: 0,   slide: 1,    abs: false, rearAbs: false, stop: -1,   leanLimit: false, highside: true,  slipper: 1,    kick: true,  thrUp: 3.2, thrDn: 5,  steerHelp: 0 },
+    sport: { id: 'sport', tc: 0,    wcBase: null, wcBack: 0,    catchSa: 9,    catchK: 0,   slide: 1,    abs: false, rearAbs: false, stop: -1,   leanLimit: false, highside: true,  slipper: 1,    kick: true,  thrUp: 3.2, thrDn: 5,  steerHelp: 0 },
+    // Off: everything Sport has (no aids), plus a few degrees more lean, a little more side grip at the edge and more
+    // room before a slide or an over-lean throws you off - faster in skilled hands, but the limit is yours to find
+    pro:   { id: 'pro',   tc: 0,    wcBase: null, wcBack: 0,    catchSa: 9,    catchK: 0,   slide: 1.15, abs: false, rearAbs: false, stop: -1,   leanLimit: false, highside: true,  slipper: 1,    kick: true,  thrUp: 3.2, thrDn: 5,  steerHelp: 0, leanX: 5, gripL: 1.05, crashX: 1.15, trailX: 1.3 },
     // the AI rides with tidy, conservative assists
     ai:    { id: 'ai',    tc: 1.14, wcBase: 0.05, wcBack: 0.52, catchSa: 0.3,  catchK: 1.4, slide: 1,    abs: true,  rearAbs: true,  stop: 0.09, leanLimit: true,  highside: false, slipper: 0.5,  kick: false, thrUp: 5.5, thrDn: 11, steerHelp: 0.5 }
   };
@@ -125,7 +127,7 @@
         const kr = AX.wrapAngle(t.yaw[i1] - t.yaw[i0]) / (4 * ds);
         if (Math.sign(kr) === Math.sign(k) && Math.abs(kr) > Math.abs(k)) k = lerp(k, kr, 0.6);
       }
-      const lm = this.spec.maxLean * DEG;
+      const lm = (this.spec.maxLean + (this.assist.leanX || 0)) * DEG;
       const need = Math.atan(v * v * k / G) / lm;              // steer fraction that makes that turn
       const extra = 0.75 * Math.max(0, holdT - 0.45);
       const slideCut = this.slideHold ? 1 - 0.35 * smoothstep(0.1, 0.35, Math.abs(this.slipAngle)) : 1;
@@ -185,7 +187,7 @@
       const turnDir = Math.abs(this.lean) > 0.05 ? Math.sign(this.lean) : Math.sign(this.steer);
       const hi = this.hangIn = clamp(this.hang * turnDir, -1, 1);
       const gripMul = 1 + 0.2 * Math.max(0, hi) - 0.25 * Math.max(0, -hi);
-      const GrL = Gr * gripMul;                                      // lateral grip
+      const GrL = Gr * gripMul * (as.gripL || 1);                                      // lateral grip
       const cgB = spec.cgB + 0.16 * this.fb;                        // distance rear axle -> centre of mass
       const back = Math.max(0, -this.fb), fwd = Math.max(0, this.fb);
       if (this.surf === SURF.GRASS || this.surf === SURF.GRAVEL) this.offT += dt; else this.offT = 0;
@@ -197,19 +199,19 @@
 
       // ---- lean + yaw
       const frontUp = this.pitch > 0.045; const frontLight = smoothstep(0.05, 0.3, this.pitch);
-      let lm = (spec.maxLean + 9 * Math.max(0, hi)) * DEG * smoothstep(0.8, 8.5, vf);
+      let lm = (spec.maxLean + (as.leanX || 0) + 9 * Math.max(0, hi)) * DEG * smoothstep(0.8, 8.5, vf);
       if (as.leanLimit) lm = Math.min(lm, Math.atan(0.985 * GrL / G));
       // grabbing a handful of front brake mid-corner stands the bike up
       const leanT = this.steer * lm * (1 - 0.3 * smoothstep(0.65, 1.0, bf0) * (1 - trail));
       let wn = spec.leanRate * lerp(1, 0.72, smoothstep(25, 72, vf));
-      wn *= (1 - 0.55 * frontLight) * (1 + 0.45 * trail);
+      wn *= (1 - 0.55 * frontLight) * (1 + 0.45 * trail * (as.trailX || 1));
       const zeta = 0.86;
       this.leanVel += (wn * wn * (leanT - this.lean) - 2 * zeta * wn * this.leanVel) * dt;
       this.lean += this.leanVel * dt;
       const omLean = G * Math.tan(this.lean) / Math.max(vf, 6);
       const omLow = this.steer * 2.3 * clamp(vf / 3, 0, 1);
       let omega = lerp(omLow, omLean, smoothstep(2.5, 8.5, vf));
-      omega *= (1 - 0.5 * frontLight) * (1 + 0.18 * trail);
+      omega *= (1 - 0.5 * frontLight) * (1 + 0.18 * trail * (as.trailX || 1));
       let ayDem = vf * omega;
 
       // ---- gearbox + engine
@@ -268,7 +270,7 @@
       }
       // slide control: past the assist's angle the power is taken away
       const sa0 = Math.abs(this.slipAngle);
-      const kbPro = as.stop < 0 && !inp.analog, catchSa = kbPro ? 0.46 : as.catchSa, catchK = kbPro ? 0.7 : as.catchK;
+      const cX = as.crashX || 1, kbPro = as.stop < 0 && !inp.analog, catchSa = kbPro ? 0.46 : as.catchSa, catchK = kbPro ? 0.7 : as.catchK;
       // the wheelie control and the rider's instinct only shape the wheelie height: up to 85 % of the drive still goes into the road
       let aDemP = aDem;
       if (as.tc > 0) { const limT = Gr * Kx * Math.sqrt(Math.max(0, as.tc * as.tc - latFrac * latFrac)); const keep = 0.85 * (1 - 0.15 * frontLight); aDem = Math.max(aDem, Math.min(aDemRaw * keep, limT)); } else aDem = Math.max(aDem, aDemRaw * 0.85 * (1 - 0.15 * frontLight));
@@ -313,7 +315,7 @@
           const ratio = capY / Math.abs(ayDem);
           omega *= lerp(1, ratio, 0.72); ayDem = vf * omega;
           f.frontSkid = clamp((1 / ratio - 1) * 2.2, 0, 1);
-          if (!as.abs && (frontLock || ratio < (kbPro ? 0.62 : 0.72)) && Math.abs(this.lean) > (inp.leanAssist ? 0.55 : 0.42) && vf > 9) { this.tuckT += dt; if (this.tuckT > (inp.leanAssist ? 0.75 : kbPro ? 0.4 : 0.22)) return this.crash('lowside'); }
+          if (!as.abs && (frontLock || ratio < (kbPro ? 0.62 : 0.72)) && Math.abs(this.lean) > (inp.leanAssist ? 0.55 : 0.42) * cX && vf > 9) { this.tuckT += dt; if (this.tuckT > (inp.leanAssist ? 0.75 : kbPro ? 0.4 : 0.22) * cX) return this.crash('lowside'); }
         } else this.tuckT = 0;
       } else {
         this.tuckT = 0;
@@ -403,10 +405,10 @@
 
       // ---- slide limits
       const sa = Math.abs(this.slipAngle);
-      if (vf > 7 && sa > (this.slideHold ? 0.9 : kbPro ? 0.74 : 0.62)) return this.crash('lowside');
+      if (vf > 7 && sa > (this.slideHold ? 0.9 : kbPro ? 0.74 : 0.62) * cX) return this.crash('lowside');
       // highside: a big slide and the throttle snapped shut, the rear finds grip all at once
-      if (as.highside && vf > 14 && sa > (kbPro ? 0.38 : 0.3) && Math.abs(this.lean) > 0.35 && this.thrPrev2 > 0.6 && this.throttle < 0.1) return this.crash('highside');
-      if (!as.leanLimit && vf > 8 && Math.abs(Math.tan(this.lean)) * G > GrL * (this.slideHold ? 1.45 : kbPro ? 1.3 : 1.18) && sa > (this.slideHold ? 0.4 : kbPro ? 0.28 : 0.2)) return this.crash('lowside');
+      if (as.highside && vf > 14 && sa > (kbPro ? 0.38 : 0.3) * cX && Math.abs(this.lean) > 0.35 && this.thrPrev2 > 0.6 && this.throttle < 0.1) return this.crash('highside');
+      if (!as.leanLimit && vf > 8 && Math.abs(Math.tan(this.lean)) * G > GrL * (this.slideHold ? 1.45 : kbPro ? 1.3 : 1.18) * (1 + (cX - 1) * 0.6) && sa > (this.slideHold ? 0.4 : kbPro ? 0.28 : 0.2) * cX) return this.crash('lowside');
 
       // ---- marks, squeal: only real wheelspin, a sliding rear or a locked tyre leave rubber
       const brakeSkid = aBrk > 0.4 ? clamp((sa - 0.05) * 6, 0, 1) : 0;

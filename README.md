@@ -28,7 +28,7 @@ The main mode is now a hill climb on a fictional Swiss-style pass: 2.3 km, 145 m
 
 ## What's in it
 - **Physics** (`js/physics.js`): steering asks for a lean angle and the bike has to roll into it. One friction circle per tyre, so too much throttle while leaned slides the rear and leaves a black line, and braking while leaned pushes the front. Wheelies and stoppies come from the real weight transfer. Automatic 6-speed gearbox, rev limiter, engine braking. Surfaces are tarmac, kerbs, grass and gravel traps. Crashes: lowside, highside, loop-out, over the bars, wall impact, contact.
-- **Assists**: *Full* (learning), *Sport* (slides and wheelies allowed but caught), *Off* (anything goes).
+- **Assists**: *Full* (learning), *Sport* (no aids, anything goes), *Off* (no aids, more lean and grip at the limit and more room before a slide throws you off: fastest, hardest).
 - **3 bikes**: Corsa 600 (inline-4), Strada V4 (superbike), Duetto 900 (naked V-twin). Each has its own handling, power curve and engine sound.
 - **3 original circuits**: Kiefernring, Hafenkurs, Alpenspeedway. They are generated from spline data, with an automatically computed racing line, kerbs, gravel traps, tyre walls, pit building, grandstands with crowds, sponsor boards, marshal posts and scenery.
 - **AI riders** use the same physics and inputs as you, follow the racing line, overtake, give room and make the odd mistake. There are 4 difficulty levels.
@@ -61,7 +61,7 @@ The alp huts and hay barns are modelled in Blender by `tools/blender_props.py`. 
 - **← → hang off**: more grip and lean on the inside, less on the outside. Knee sliders (and at full lean the elbow) touch down and draw a thin line.
 - **Trail braking**: a light-to-medium front brake while leaned turns the bike in quicker and tighter; a handful of brake stands it up.
 - Black lines only come from real wheelspin, a sliding or a locked rear.
-- Assists: *Voll/Full* catches everything; *Sport* lets the rear slide in and out, allows power wheelies (height set by body weight) and small stoppies, but catches you; *Aus/Off* is raw (highsides, loop-outs, tucks, going over the bars). With keys only, the rider instinctively rolls off before a loop and eases the lever before going over, unless the weight is thrown that way.
+- Assists: *Voll/Full* catches everything; *Sport* is raw (highsides, loop-outs, tucks, going over the bars); *Aus/Off* is raw too, but with ~5° more lean, ~5% more side grip, easier slides, harder-biting trail braking and ~15% more room before a slide or over-lean throws you off. With keys only, the rider instinctively rolls off before a loop and eases the lever before going over, unless the weight is thrown that way.
 
 ## Files
 `js/core.js` data and helpers · `assets.js` model loader · `track.js` circuits and racing line · `physics.js` bike model · `ai.js` AI riders · `models.js` 3D bikes and riders · `world.js` environment · `pass.js` the mountain pass world · `fx.js` tyre marks, particles, post-processing · `audio.js` sound · `game.js` game flow, camera, HUD, menus.
