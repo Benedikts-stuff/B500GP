@@ -55,7 +55,8 @@
       wheelbase: 1.38, cgB: 0.66, cgH: 0.58, mu: 1.60, maxLean: 58, leanRate: 9.6, brake: 13.4, dragTop: 68,
       stats: { speed: 0.68, accel: 0.66, agility: 0.98, brake: 0.92 },
       engine: { cyl: 4, fire: [0, 0.25, 0.5, 0.75], rough: 0.05, pipe: 0.0026, bright: 1.25, body: 0.8 },
-      style: { fairing: 'full', tail: 'slim', exhaust: 'under', bars: 'clipon', winglets: false, scale: 0.97 }
+      style: { fairing: 'full', tail: 'slim', exhaust: 'under', bars: 'clipon', winglets: false, scale: 0.97 },
+      livery: ['#1d52d6', '#f3f4f6', '#0c1428']
     },
     strada: {
       id: 'strada', name: 'STRADA V4', cls: 'Superbike', engineLabel: '1103 cm³ · V4',
