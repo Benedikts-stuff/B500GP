@@ -347,7 +347,8 @@
     const wheelR = new THREE.Mesh(wheelGeometry(Rr, wR, RIMS[spec.id] || 0x222, true), mats.gloss); wheelR.position.set(-hx, Rr, 0); bodyG.add(wheelR);
 
     // ---- Blender superbike (faired bikes): swap the procedural parts for the modelled ones, keep the rig
-    const BV = naked ? 'duetto' : 'strada', BWB = naked ? 1.42 : 1.45, BMOD = !!(AX.Assets && AX.Assets.has('bike/' + BV + '_body'));
+    const SUP = spec.id === 'strada' && !!(AX.Assets && AX.Assets.has('bike/super_body'));   // the superbike uses its own supersport model
+    const BV = naked ? 'duetto' : SUP ? 'super' : 'strada', BWB = naked || SUP ? 1.42 : 1.45, BMOD = !!(AX.Assets && AX.Assets.has('bike/' + BV + '_body'));
     if (BMOD) {
       const sx = wb / BWB, Sx = new THREE.Matrix4().makeScale(sx, 1, 1);
       paint.vertexColors = true;
@@ -371,13 +372,14 @@
       merged('bike/' + BV + '_body', Sx).forEach((m) => susG.add(m));
       merged('bike/' + BV + '_front', new THREE.Matrix4().multiplyMatrices(inv, Sx)).forEach((m) => steerG.add(m));
       for (const [w, nm] of [[wheelF, 'bike/' + BV + '_wheelF'], [wheelR, 'bike/' + BV + '_wheelR']]) { w.geometry = new THREE.BufferGeometry(); merged(nm).forEach((m) => w.add(m)); }
-      brakeLight.position.set((naked ? -0.727 : -0.812) * sx, naked ? 0.912 : 0.995, 0); brakeLight.scale.set(1, 0.8, 0.85);
+      if (SUP) { brakeLight.position.set(-0.857 * sx, 0.962, 0); brakeLight.rotation.z = -0.35; brakeLight.scale.set(1, 0.45, 0.95); }
+      else { brakeLight.position.set((naked ? -0.727 : -0.812) * sx, naked ? 0.912 : 0.995, 0); brakeLight.scale.set(1, 0.8, 0.85); }
     }
 
     // number roundels on the tail sides
     const numTex = numberTexture(rider.num, rider.c3 === '#ffffff' ? '#ffffff' : '#f4f4f0', '#111111');
     const numMat = new THREE.MeshBasicMaterial({ map: numTex, transparent: true, toneMapped: true });
-    for (const z of [-1, 1]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.15), numMat); m.position.set(BMOD ? -0.5 * wb / BWB : -0.5, BMOD ? (naked ? 0.85 : 0.875) : 0.86 + tH * 0.5, z * (BMOD ? (naked ? 0.108 : 0.137) : 0.128)); m.rotation.y = z > 0 ? 0 : Math.PI; m.rotation.x = z * -0.25; susG.add(m); }
+    for (const z of [-1, 1]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.15), numMat); if (SUP) m.position.set(-0.56 * wb / BWB, 0.89, z * 0.117); else m.position.set(BMOD ? -0.5 * wb / BWB : -0.5, BMOD ? (naked ? 0.85 : 0.875) : 0.86 + tH * 0.5, z * (BMOD ? (naked ? 0.108 : 0.137) : 0.128)); m.rotation.y = z > 0 ? 0 : Math.PI; m.rotation.x = z * -0.25; susG.add(m); }
 
     // ---- rider
     const riderRig = buildRider(spec, rider, mats, numTex, { barX, barY, barZ });
@@ -393,7 +395,7 @@
       /* contact patches in world space (for skid marks / smoke) */
       rearContact(out) { return out.set(-hx, 0.02, 0).applyMatrix4(leanG.matrixWorld); },
       frontContact(out) { return out.set(hx, 0.02, 0).applyMatrix4(leanG.matrixWorld); },
-      exhaustPos(out) { return (st.exhaust === 'under' ? out.set(-0.78, 0.82, 0) : out.set(-0.5, 0.6, 0.16)).applyMatrix4(susG.matrixWorld); }
+      exhaustPos(out) { return (SUP ? out.set(-0.73 * wb / 1.42, 0.55, 0.205) : st.exhaust === 'under' ? out.set(-0.78, 0.82, 0) : out.set(-0.5, 0.6, 0.16)).applyMatrix4(susG.matrixWorld); }
     };
     if (batched) riderRig.group.traverse((o) => { if (o.isMesh && o.userData.rb) RB.add(o, bike); });
     else riderRig.group.traverse((o) => {   // stand-alone rider (ghost): give each limb its own coloured geometry back

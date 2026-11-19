@@ -10,9 +10,9 @@ import bpy, bmesh, math
 from mathutils import Vector, Matrix
 
 OUT = '/Users/benedikt/Desktop/Apex/blender/'
-VARIANT = globals().get('VARIANT', 'strada')          # 'strada' (faired superbike) or 'duetto' (naked twin)
-NAKED = VARIANT == 'duetto'
-WB = 1.42 if NAKED else 1.45; HX = WB / 2; RR, RF = 0.325, 0.315; WR, WF = 0.115, 0.078
+VARIANT = globals().get('VARIANT', 'strada')          # 'strada' (faired superbike), 'duetto' (naked twin), 'super' (modern supersport, own design)
+NAKED = VARIANT == 'duetto'; SUPER = VARIANT == 'super'
+WB = 1.42 if (NAKED or SUPER) else 1.45; HX = WB / 2; RR, RF = 0.325, 0.315; WR, WF = 0.115, 0.078
 STEER = (HX - 0.27, 0.93)
 BARX, BARY, BARZ = (HX - 0.36, 1.04, 0.36) if NAKED else (HX - 0.27, 0.905, 0.265)
 
@@ -115,8 +115,89 @@ P_body = mat('P_body', 'ffffff')
 M_dark = mat('M_dark', '1c1e22'); M_seat = mat('M_seat', '18191c'); M_engine = mat('M_engine', '2e3136'); M_tyre = mat('M_tyre', '1a1a1c')
 M_carbon = mat('M_carbon', '23252a'); M_red = mat('M_red', 'c8281e'); M_gold = mat('M_gold', 'c79a2a'); M_disc = mat('M_disc', 'a9adb2')
 X_alu = mat('X_alu', 'b9bdc2'); X_steel = mat('X_steel', 'd6d8db'); X_ti = mat('X_ti', '8f8676'); X_rim = mat('X_rim', '25272b')
-X_wheel = mat('X_wheel', 'c4c8cd'); G_light = mat('G_light', 'f4f8ff'); G_tail = mat('G_tail', 'ff2a1a'); S_screen = mat('S_screen', '10151c')
+X_wheel = mat('X_wheel', 'c4c8cd'); G_rim = mat('X_rimgrey', '7c8187'); X_frame = mat('X_frame', '41454c'); X_header = mat('X_header', '8a6c48'); G_tft = mat('G_tft', '0e1822'); G_light = mat('G_light', 'f4f8ff'); G_tail = mat('G_tail', 'ff2a1a'); S_screen = mat('S_screen', '10151c')
 
+
+
+SUPER_BODY = """
+# ---- tank: broad and sculpted, sloping down into the seat
+loft('tank', [dict(x=0.36, y=0.86, w=0.07, ht=0.04, hb=0.05), dict(x=0.30, y=0.875, w=0.15, ht=0.075, hb=0.10, e=2.8),
+              dict(x=0.16, y=0.875, w=0.185, ht=0.095, hb=0.14, e=3.2), dict(x=0.0, y=0.865, w=0.19, ht=0.10, hb=0.16, e=3.4),
+              dict(x=-0.12, y=0.845, w=0.165, ht=0.075, hb=0.15, e=3.0), dict(x=-0.20, y=0.82, w=0.12, ht=0.035, hb=0.10, e=2.6),
+              dict(x=-0.23, y=0.81, w=0.06, ht=0.015, hb=0.05)], P_body, 'body', ring=24, subsurf=1)
+cyl('fuelcap', 0.045, 0.012, (0.06, 0.963, 0), X_alu, 'body', axis='y', seg=24)
+loft('seat', [dict(x=-0.19, y=0.80, w=0.08, ht=0.02, hb=0.02), dict(x=-0.24, y=0.80, w=0.13, ht=0.035, hb=0.03, e=3),
+              dict(x=-0.40, y=0.815, w=0.13, ht=0.035, hb=0.03, e=3), dict(x=-0.48, y=0.84, w=0.10, ht=0.03, hb=0.03)], M_seat, 'body', subsurf=1)
+# ---- long, high tail: painted top, dark underside, LED strip under the tip
+loft('tail', [dict(x=-0.14, y=0.75, w=0.13, ht=0.03, hb=0.05), dict(x=-0.32, y=0.775, w=0.145, ht=0.04, hb=0.07, e=3),
+              dict(x=-0.48, y=0.86, w=0.125, ht=0.065, hb=0.075, e=3.2), dict(x=-0.64, y=0.925, w=0.095, ht=0.06, hb=0.055, e=3.0),
+              dict(x=-0.80, y=0.975, w=0.055, ht=0.035, hb=0.03, e=2.6), dict(x=-0.90, y=1.0, w=0.02, ht=0.012, hb=0.012)], P_body, 'body', ring=20, subsurf=1)
+loft('undertail', [dict(x=-0.40, y=0.79, w=0.10, ht=0.03, hb=0.03), dict(x=-0.60, y=0.86, w=0.08, ht=0.03, hb=0.035, e=2.6),
+                   dict(x=-0.78, y=0.93, w=0.045, ht=0.02, hb=0.02), dict(x=-0.85, y=0.955, w=0.02, ht=0.01, hb=0.01)], M_dark, 'body', ring=16, subsurf=1)
+box('taillight', (0.05, 0.014, 0.09), (-0.855, 0.968, 0), G_tail, 'body', rot=(0, 0, -0.35), bevel=0.005)
+# ---- nose: low and pointed, ahead of the front axle; its own light signature (two slanted LED blades) and a chin intake
+loft('fairing', [dict(x=0.805, y=0.675, w=0.02, ht=0.01, hb=0.012), dict(x=0.77, y=0.70, w=0.07, ht=0.035, hb=0.05, e=3.0),
+                 dict(x=0.71, y=0.735, w=0.12, ht=0.07, hb=0.12, e=3.4), dict(x=0.645, y=0.765, w=0.155, ht=0.10, hb=0.18, e=3.6),
+                 dict(x=0.58, y=0.79, w=0.18, wb=0.15, ht=0.115, hb=0.22, e=3.8), dict(x=0.50, y=0.79, w=0.195, wb=0.15, ht=0.12, hb=0.25, e=3.8),
+                 dict(x=0.40, y=0.75, w=0.205, wb=0.15, ht=0.12, hb=0.32, e=3.8), dict(x=0.28, y=0.70, w=0.215, wb=0.15, ht=0.10, hb=0.32, e=3.8),
+                 dict(x=0.15, y=0.665, w=0.21, wb=0.145, ht=0.075, hb=0.29, e=3.6), dict(x=0.04, y=0.645, w=0.19, wb=0.13, ht=0.05, hb=0.22, e=3.2),
+                 dict(x=-0.04, y=0.63, w=0.15, wb=0.10, ht=0.03, hb=0.12, e=2.8), dict(x=-0.07, y=0.62, w=0.08, ht=0.015, hb=0.05)], P_body, 'body', ring=24, subsurf=1)
+for s in (-1, 1):
+    box('lightbay%d' % s, (0.12, 0.024, 0.075), (0.735, 0.764, s * 0.06), M_dark, 'body', rot=(s * 0.32, s * 0.55, 0.68), bevel=0.009)
+    box('ledblade%d' % s, (0.105, 0.008, 0.05), (0.741, 0.772, s * 0.063), G_light, 'body', rot=(s * 0.32, s * 0.55, 0.68), bevel=0.003)
+    box('ledlow%d' % s, (0.045, 0.006, 0.022), (0.768, 0.722, s * 0.036), G_light, 'body', rot=(s * 0.32, s * 0.55, 0.68), bevel=0.002)
+box('chin', (0.06, 0.035, 0.065), (0.765, 0.655, 0), M_dark, 'body', rot=(0, 0, 0.5), bevel=0.012)
+loft('screen', [dict(x=0.69, y=0.80, w=0.08, ht=0.012, hb=0.002), dict(x=0.63, y=0.855, w=0.13, ht=0.06, hb=0.002, e=2.4),
+                dict(x=0.55, y=0.895, w=0.155, ht=0.12, hb=0.002, e=2.4), dict(x=0.47, y=0.91, w=0.145, ht=0.16, hb=0.002, e=2.4)], S_screen, 'body', ring=16, subsurf=1)
+# ---- side panels (around the radiator) and a separate deep belly; the engine shows between them
+loft('belly', [dict(x=0.33, y=0.30, w=0.08, ht=0.11, hb=0.10), dict(x=0.28, y=0.285, w=0.16, wb=0.11, ht=0.16, hb=0.15, e=3.0),
+               dict(x=0.12, y=0.27, w=0.17, wb=0.12, ht=0.13, hb=0.13, e=3.2), dict(x=-0.02, y=0.27, w=0.16, wb=0.11, ht=0.08, hb=0.10, e=3.0),
+               dict(x=-0.14, y=0.28, w=0.11, wb=0.08, ht=0.04, hb=0.06), dict(x=-0.18, y=0.29, w=0.05, ht=0.02, hb=0.03)], P_body, 'body', ring=20, subsurf=1)
+for s in (-1, 1):   # a dark duct inlay on each side panel instead of winglets
+    for k in range(3):
+        box('duct%d%d' % (s, k), (0.16 - k * 0.03, 0.011, 0.018), (0.36 - k * 0.035, 0.62 - k * 0.04, s * (0.208 - k * 0.003)), M_dark, 'body', rot=(0, 0, -0.42), bevel=0.004)
+# ---- mirrors on stalks, TFT dash
+for s in (-1, 1):
+    tube('mstalk%d' % s, [(0.60, 0.87, s * 0.17), (0.585, 0.92, s * 0.25)], 0.008, M_dark, 'body', seg=8)
+    loft('mirror%d' % s, [dict(x=0.62, y=0.94, w=0.06, ht=0.022, hb=0.022, e=2.6), dict(x=0.585, y=0.945, w=0.075, ht=0.028, hb=0.026, e=3.0),
+                          dict(x=0.55, y=0.945, w=0.07, ht=0.026, hb=0.024, e=3.0)], M_dark, 'body', ring=14, xform=Matrix.Translation(V(0, 0, s * 0.31)))
+    box('mglass%d' % s, (0.006, 0.042, 0.11), (0.548, 0.945, s * 0.31), G_tft, 'body', bevel=0.003)
+box('tft', (0.02, 0.075, 0.13), (0.515, 0.958, 0), G_tft, 'body', rot=(0, 0, 0.75), bevel=0.006)
+box('tftframe', (0.03, 0.09, 0.15), (0.522, 0.952, 0), M_dark, 'body', rot=(0, 0, 0.75), bevel=0.01)
+# ---- frame: dark twin spars, subframe
+for s in (-1, 1):
+    loft('spar%d' % s, [dict(x=0.42, y=0.86, w=0.022, ht=0.03, hb=0.03, e=3), dict(x=0.30, y=0.79, w=0.024, ht=0.055, hb=0.05, e=3.4), dict(x=0.10, y=0.71, w=0.024, ht=0.06, hb=0.055, e=3.4),
+                         dict(x=-0.08, y=0.64, w=0.024, ht=0.07, hb=0.07, e=3.4), dict(x=-0.17, y=0.53, w=0.022, ht=0.07, hb=0.06, e=3)], X_frame, 'body', ring=16, subsurf=1,
+         xform=Matrix.Translation(V(0, 0, s * 0.125)))
+    tube('sub%d' % s, [(-0.15, 0.74, s * 0.08), (-0.45, 0.80, s * 0.07), (-0.70, 0.90, s * 0.05)], 0.013, M_dark, 'body', seg=8)
+# ---- engine: inline four, crankcase with round covers, block behind the radiator
+loft('crank', [dict(x=0.24, y=0.40, w=0.10, ht=0.10, hb=0.10, e=2.6), dict(x=0.18, y=0.40, w=0.135, ht=0.13, hb=0.13, e=3.2), dict(x=-0.10, y=0.40, w=0.14, ht=0.13, hb=0.12, e=3.2),
+                dict(x=-0.17, y=0.42, w=0.12, ht=0.09, hb=0.08, e=2.8)], M_engine, 'body', ring=20, subsurf=1)
+box('block', (0.24, 0.24, 0.27), (0.17, 0.60, 0), M_engine, 'body', rot=(0, 0, 0.45), bevel=0.04)
+box('valvecover', (0.20, 0.07, 0.25), (0.25, 0.72, 0), M_dark, 'body', rot=(0, 0, 0.45), bevel=0.025)
+cyl('clutch', 0.075, 0.026, (0.0, 0.40, 0.142), M_dark, 'body', seg=28)
+for k in range(6):
+    a = k / 6 * math.pi * 2
+    cyl('cbolt%d' % k, 0.007, 0.03, (math.cos(a) * 0.06, 0.40 + math.sin(a) * 0.06, 0.143), X_alu, 'body', seg=8, bevel=0)
+cyl('alternator', 0.08, 0.03, (0.06, 0.43, -0.145), M_dark, 'body', seg=28)
+cyl('sprocketcover', 0.05, 0.028, (-0.07, 0.38, -0.145), X_alu, 'body', seg=20)
+box('radiator', (0.04, 0.32, 0.34), (0.40, 0.56, 0), M_dark, 'body', rot=(0, 0, -0.3), bevel=0.01)
+# ---- exhaust: four bronze headers into a collector under the engine, then a short steep silencer beside the rear wheel
+for k in range(4):
+    z = -0.075 + k * 0.05
+    tube('hdr%d' % k, [(0.33, 0.56, z), (0.38, 0.40, z * 1.1), (0.32, 0.22, z * 0.6), (0.18, 0.18, z * 0.3)], 0.019, X_header, 'body', seg=10)
+box('collector', (0.50, 0.09, 0.19), (-0.06, 0.185, 0.02), X_steel, 'body', bevel=0.03, seg=3)
+tube('link', [(-0.26, 0.19, 0.06), (-0.31, 0.21, 0.14), (-0.33, 0.24, 0.19)], 0.032, X_steel, 'body', seg=12)
+loft('can', [dict(x=-0.31, y=0.235, w=0.045, ht=0.05), dict(x=-0.36, y=0.272, w=0.068, ht=0.082, e=3.2), dict(x=-0.66, y=0.50, w=0.064, ht=0.078, e=3.2),
+             dict(x=-0.70, y=0.53, w=0.05, ht=0.058, e=3.0)], X_steel, 'body', ring=18, subsurf=1, xform=Matrix.Translation(V(0, 0, 0.205)))
+loft('canend', [dict(x=-0.695, y=0.527, w=0.052, ht=0.06, e=3), dict(x=-0.725, y=0.55, w=0.044, ht=0.05, e=3)], M_carbon, 'body', ring=18, xform=Matrix.Translation(V(0, 0, 0.205)))
+# ---- box-section swingarm
+for s in (-1, 1):
+    loft('swing%d' % s, [dict(x=-0.19, y=0.47, w=0.03, ht=0.065, hb=0.065, e=3.2), dict(x=-0.40, y=0.43, w=0.028, ht=0.07, hb=0.06, e=3.2),
+                         dict(x=-0.62, y=0.355, w=0.024, ht=0.048, hb=0.04, e=3.0), dict(x=-0.73, y=0.325, w=0.022, ht=0.036, hb=0.036, e=2.6)], M_dark, 'body', ring=16, subsurf=1,
+         xform=Matrix.Translation(V(0, 0, s * 0.128)))
+box('swingbrace', (0.08, 0.06, 0.26), (-0.24, 0.47, 0), M_dark, 'body', bevel=0.02)
+"""
 
 NAKED_BODY = """
 # slim tail
@@ -156,15 +237,19 @@ for k, (dy, rr) in enumerate(((0.0, 0.05), (0.075, 0.045))):
 """
 
 # ------------------------------------------------------------------ BODY
-# tank
-loft('tank', [
-    dict(x=0.44, y=0.83, w=0.06, ht=0.04, hb=0.05), dict(x=0.40, y=0.85, w=0.13, ht=0.09 + (0.02 if NAKED else 0), hb=0.10, e=2.6),
-    dict(x=0.28, y=0.85, w=0.17, ht=0.125 + (0.015 if NAKED else 0), hb=0.14, e=3.0), dict(x=0.10, y=0.84, w=0.18, ht=0.12, hb=0.16, e=3.2),
-    dict(x=-0.05, y=0.82, w=0.155, ht=0.095, hb=0.14, e=3.0), dict(x=-0.15, y=0.795, w=0.11, ht=0.04, hb=0.09, e=2.4)], P_body, 'body')
-# seat
-loft('seat', [dict(x=-0.12, y=0.79, w=0.06, ht=0.015, hb=0.02), dict(x=-0.17, y=0.795, w=0.13, ht=0.035, hb=0.03, e=3),
-              dict(x=-0.36, y=0.81, w=0.135, ht=0.035, hb=0.03, e=3), dict(x=-0.45, y=0.835, w=0.10, ht=0.03, hb=0.03)], M_seat, 'body')
-if not NAKED:
+if not SUPER:
+    # tank
+    loft('tank', [
+        dict(x=0.44, y=0.83, w=0.06, ht=0.04, hb=0.05), dict(x=0.40, y=0.85, w=0.13, ht=0.09 + (0.02 if NAKED else 0), hb=0.10, e=2.6),
+        dict(x=0.28, y=0.85, w=0.17, ht=0.125 + (0.015 if NAKED else 0), hb=0.14, e=3.0), dict(x=0.10, y=0.84, w=0.18, ht=0.12, hb=0.16, e=3.2),
+        dict(x=-0.05, y=0.82, w=0.155, ht=0.095, hb=0.14, e=3.0), dict(x=-0.15, y=0.795, w=0.11, ht=0.04, hb=0.09, e=2.4)], P_body, 'body')
+    # seat
+    loft('seat', [dict(x=-0.12, y=0.79, w=0.06, ht=0.015, hb=0.02), dict(x=-0.17, y=0.795, w=0.13, ht=0.035, hb=0.03, e=3),
+                  dict(x=-0.36, y=0.81, w=0.135, ht=0.035, hb=0.03, e=3), dict(x=-0.45, y=0.835, w=0.10, ht=0.03, hb=0.03)], M_seat, 'body')
+
+if SUPER:
+    exec(SUPER_BODY)
+elif not NAKED:
     # tall tail unit with a sharp upswept tip
     loft('tail', [
         dict(x=-0.10, y=0.74, w=0.12, ht=0.03, hb=0.05), dict(x=-0.30, y=0.76, w=0.145, ht=0.035, hb=0.07, e=3),
@@ -206,7 +291,7 @@ if not NAKED:
 else:
     exec(NAKED_BODY)
 # swingarm (banana arm on the right, straight on the left), chain and sprockets
-for s in (-1, 1):
+for s in ((-1, 1) if not SUPER else ()):
     pts = [(-0.18, 0.46, s * 0.11), (-0.45, 0.41, s * 0.13), (-HX, RR, s * 0.125)] if s < 0 else [(-0.18, 0.46, s * 0.11), (-0.40, 0.49, s * 0.135), (-HX, RR, s * 0.125)]
     tube('arm%d' % s, pts, [0.05, 0.042, 0.03], X_alu, 'body', seg=10)
 cyl('sprocketF', 0.05, 0.012, (-0.02, 0.36, -0.13), X_steel, 'body', seg=18)
@@ -222,7 +307,7 @@ for k in range(90):
     a = k / 90 * math.pi * 2 * 7; t = k / 89; p = A + ax * t
     coil.append((p.x + nrm.x * math.cos(a) * 0.036, p.y + nrm.y * math.cos(a) * 0.036, math.sin(a) * 0.036))
 tube('spring', coil, 0.007, M_gold, 'body', seg=6, closed_ends=False)
-if not NAKED:
+if not NAKED and not SUPER:
     # exhaust: header sweeping to a side-mounted titanium silencer (right side)
     tube('header', [(0.30, 0.30, 0.05), (0.12, 0.24, 0.11), (-0.06, 0.28, 0.17), (-0.17, 0.36, 0.19)], 0.03, X_ti, 'body', seg=12)
     loft('silencer', [dict(x=-0.15, y=0.35, w=0.04, ht=0.04), dict(x=-0.20, y=0.375, w=0.055, ht=0.065, e=3),
@@ -233,8 +318,8 @@ if not NAKED:
 for s in (-1, 1):
     tube('hanger%d' % s, [(-0.18, 0.54, s * 0.14), (-0.24, 0.46, s * 0.17)], 0.012, X_alu, 'body', seg=8)
     tube('peg%d' % s, [(-0.24, 0.46, s * 0.15), (-0.24, 0.46, s * 0.22)], 0.013, M_dark, 'body', seg=8)
-# rear hugger
-loft('hugger', [dict(x=-HX + 0.05, y=RR + 0.36, w=0.08, ht=0.01, hb=0.01), dict(x=-HX + 0.2, y=RR + 0.33, w=0.085, ht=0.012, hb=0.012),
+# rear hugger (the supersport has none: its tail and swingarm frame the wheel)
+if not SUPER: loft('hugger', [dict(x=-HX + 0.05, y=RR + 0.36, w=0.08, ht=0.01, hb=0.01), dict(x=-HX + 0.2, y=RR + 0.33, w=0.085, ht=0.012, hb=0.012),
                 dict(x=-HX + 0.32, y=RR + 0.24, w=0.08, ht=0.012, hb=0.012)], M_carbon, 'body', ring=12, subsurf=1)
 
 # ------------------------------------------------------------------ FRONT (steered)
@@ -257,7 +342,11 @@ for s in (-1, 1):
         box('lever%d' % s, (0.14, 0.008, 0.016), (BARX + 0.06, BARY + 0.005, s * (BARZ - 0.02)), X_alu, 'front', rot=(0, s * 0.35, 0), bevel=0.003)
         tube('clipon%d' % s, [(sx - 0.03, BARY + 0.01, s * 0.1), (BARX - 0.02, BARY - 0.02, s * (BARZ + 0.02))], 0.014, M_dark, 'front', seg=8)
         tube('grip%d' % s, [(BARX - 0.015, BARY - 0.017, s * (BARZ - 0.04)), (BARX - 0.025, BARY - 0.025, s * (BARZ + 0.06))], 0.019, M_tyre, 'front', seg=10)
-box('clamp', (0.08, 0.03, 0.28), (sx - 0.02, sy + 0.035, 0), X_alu, 'front', bevel=0.01)
+box('clamp', (0.08, 0.03, 0.28), (sx - 0.02, sy + 0.035, 0), X_frame if SUPER else X_alu, 'front', bevel=0.01)
+if SUPER:
+    for s in (-1, 1): cyl('forkcap%d' % s, 0.02, 0.014, (sx - 0.035, sy + 0.048, s * 0.105), M_gold, 'front', axis='y', seg=18)
+    cyl('reservoir', 0.02, 0.045, (BARX + 0.02, BARY + 0.05, 0.18), X_alu, 'front', axis='y', seg=16)
+    cyl('resercap', 0.022, 0.01, (BARX + 0.02, BARY + 0.077, 0.18), M_dark, 'front', axis='y', seg=16)
 if not NAKED: box('damper', (0.16, 0.022, 0.022), (sx - 0.05, sy + 0.06, 0.06), M_gold, 'front', rot=(0, 0.3, 0), bevel=0.008)
 loft('fender', [dict(x=fx + 0.20, y=fy + 0.24, w=0.07, ht=0.008, hb=0.008), dict(x=fx + 0.05, y=fy + 0.34, w=0.085, ht=0.012, hb=0.012),
                 dict(x=fx - 0.10, y=fy + 0.33, w=0.085, ht=0.012, hb=0.012), dict(x=fx - 0.22, y=fy + 0.22, w=0.07, ht=0.008, hb=0.008)], P_body, 'front', ring=12, subsurf=1)
@@ -270,7 +359,8 @@ if NAKED:
     for s in (-1, 1): box('hlbracket%d' % s, (0.12, 0.02, 0.012), (0.56, 0.86, s * 0.1), M_dark, 'front', bevel=0.004)
 
 # ------------------------------------------------------------------ WHEELS
-def wheel(asm, R, W, cx, cy, discs, nsp=5):
+def wheel(asm, R, W, cx, cy, discs, nsp=5, rimM=None, split=False):
+    rimM = rimM or X_wheel
     c = (cx, cy, 0); H = 0.095 if R < 0.32 else 0.105            # tyre height (sidewall)
     Rc = R - H / 2; rr = R - H                                    # tyre cross-section centre, rim bead radius
     # round tyre: elliptical cross-section wrapped onto the rim
@@ -284,25 +374,30 @@ def wheel(asm, R, W, cx, cy, discs, nsp=5):
     # rim as a solid ring: flanges holding the tyre, a visible side face and the inner barrel (rim bed) between the spokes
     rim = [(rr + 0.014, -W * 0.93), (rr + 0.014, -W * 0.82), (rr - 0.002, -W * 0.79), (rr - 0.002, W * 0.79), (rr + 0.014, W * 0.82), (rr + 0.014, W * 0.93),
            (rr - 0.018, W * 0.90), (rr - 0.036, W * 0.72), (rr - 0.036, -W * 0.72), (rr - 0.018, -W * 0.90), (rr + 0.014, -W * 0.93)]
-    lathe(asm + '_rim', rim, X_wheel, asm, 72, c, 35)
+    lathe(asm + '_rim', rim, rimM, asm, 72, c, 35)
     # hub
-    lathe(asm + '_hub', [(0.0, -W * 0.75), (0.038, -W * 0.75), (0.05, -W * 0.6), (0.058, -W * 0.3), (0.058, W * 0.3), (0.05, W * 0.6), (0.038, W * 0.75), (0.0, W * 0.75)], X_wheel, asm, 24, c, 45)
+    lathe(asm + '_hub', [(0.0, -W * 0.75), (0.038, -W * 0.75), (0.05, -W * 0.6), (0.058, -W * 0.3), (0.058, W * 0.3), (0.05, W * 0.6), (0.038, W * 0.75), (0.0, W * 0.75)], rimM, asm, 24, c, 45)
     # five broad, slightly tapered spokes
     r0, r1 = 0.052, rr - 0.032
     for k in range(nsp):
         a = k / nsp * math.pi * 2 + 0.3; L = r1 - r0; m = (r0 + r1) / 2
         p = (cx + math.cos(a) * m, cy + math.sin(a) * m, 0)
-        box('%s_sp%d' % (asm, k), (L + 0.02, 0.034, W * 0.5), p, X_wheel, asm, rot=(0, 0, a), bevel=0.008)
+        if split:
+            for o2 in (-0.11, 0.11):
+                a2 = a + o2 * (1 - 0.5); p2 = (cx + math.cos(a + o2 * 0.55) * m, cy + math.sin(a + o2 * 0.55) * m, 0)
+                box('%s_sp%d_%d' % (asm, k, int(o2 * 100)), (L + 0.02, 0.019, W * 0.42), p2, rimM, asm, rot=(0, 0, a + o2 * 0.55), bevel=0.006)
+        else:
+            box('%s_sp%d' % (asm, k), (L + 0.02, 0.034, W * 0.5), p, X_wheel, asm, rot=(0, 0, a), bevel=0.008)
     # brake discs on aluminium carriers
     for z in discs:
         d0, d1 = (0.105, 0.16) if len(discs) > 1 else (0.075, 0.115)
         lathe(asm + '_disc%.2f' % z, [(d0, z - 0.0035), (d1, z - 0.0035), (d1, z + 0.0035), (d0, z + 0.0035), (d0, z - 0.0035)], M_disc, asm, 48, c, 30)
-        lathe(asm + '_carrier%.2f' % z, [(0.05, z - 0.004), (d0 + 0.006, z - 0.004), (d0 + 0.006, z + 0.004), (0.05, z + 0.004), (0.05, z - 0.004)], M_gold, asm, 24, c, 30)
+        lathe(asm + '_carrier%.2f' % z, [(0.05, z - 0.004), (d0 + 0.006, z - 0.004), (d0 + 0.006, z + 0.004), (0.05, z + 0.004), (0.05, z - 0.004)], M_dark if rimM is G_rim else M_gold, asm, 24, c, 30)
         for k in range(6):
             a = k / 6 * math.pi * 2
             cyl('%s_bolt%.2f_%d' % (asm, z, k), 0.007, 0.012, (cx + math.cos(a) * (d0 + 0.0), cy + math.sin(a) * (d0 + 0.0), z), X_steel, asm, seg=8, bevel=0)
-wheel('wheelF', RF, WF, HX, RF, [-0.083, 0.083], 5)
-wheel('wheelR', RR, WR, -HX, RR, [0.09], 5)
+wheel('wheelF', RF, WF, HX, RF, [-0.083, 0.083], 5, G_rim if SUPER else None, SUPER)
+wheel('wheelR', RR, WR, -HX, RR, [0.09], 5, G_rim if SUPER else None, SUPER)
 
 # ------------------------------------------------------------------ bake AO into vertex colours, then base colour * AO
 allobj = [o for L in ASM.values() for o in L]
