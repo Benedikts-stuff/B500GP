@@ -237,7 +237,8 @@
       let aDem = 0;
       if (this.shiftT <= 0 || this.shiftDir < 0) {
         const tq = this.limiter ? 0 : AX.torqueAt(spec, nEff);
-        this.aFull = this.thrustK * this.powerScale * tq / gears[this.gear];
+        // gear-dependent torque map (spec.gearTq): big bikes trim 1st/2nd so the rear tyre can actually put the power down
+        this.aFull = this.thrustK * this.powerScale * tq * (spec.gearTq ? spec.gearTq[this.gear] || 1 : 1) / gears[this.gear];
         aDem = this.aFull * this.throttle;
       }
       // engine braking acts through the chain on the rear tyre; a slipper clutch (assists) takes the edge off

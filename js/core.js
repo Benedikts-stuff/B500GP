@@ -64,8 +64,9 @@
       mass: 276, power: 158, redline: 14200, idle: 1400,
       gears: [29, 39, 48, 56.5, 65, 75],
       torqueShape: [[0, 0.5], [0.2, 0.62], [0.4, 0.8], [0.55, 0.93], [0.7, 1.0], [0.82, 0.99], [0.92, 0.94], [1.0, 0.84]],
-      wheelbase: 1.45, cgB: 0.68, cgH: 0.60, mu: 1.58, maxLean: 57, leanRate: 8.4, brake: 13.0, dragTop: 77,
+      wheelbase: 1.45, cgB: 0.68, cgH: 0.60, mu: 1.64, maxLean: 57, leanRate: 8.4, brake: 13.0, dragTop: 77,
       stats: { speed: 0.98, accel: 0.98, agility: 0.74, brake: 0.86 },
+      gearTq: [0.72, 0.82, 0.93],   // torque map trims 1st-3rd: the 200-section rear can put it down
       engine: { cyl: 4, fire: [0, 0.125, 0.5, 0.625], rough: 0.09, pipe: 0.0034, bright: 1.0, body: 1.15 },
       style: { fairing: 'full', tail: 'tall', exhaust: 'side', bars: 'clipon', winglets: true, scale: 1.0 }
     },
