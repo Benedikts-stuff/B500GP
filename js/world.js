@@ -184,7 +184,7 @@
       this.scene = new THREE.Scene(); this.aniso = Math.min(16, renderer.capabilities.getMaxAnisotropy());
       this.startLights = []; this.flags = []; this.disposables = [];
       this.kits = !!(AX.Assets && AX.Assets.has('nature/Pine_1')); this.kenney = !!(AX.Assets && AX.Assets.has('kenney/grandStandCovered'));
-      if (track.open) { this._sky(); this._buildPass(); }
+      if (track.open) { if (AX.LOOK && this._buildStyled) this._buildStyled(); else { this._sky(); this._buildPass(); } }
       else { this._sky(); this._ground(); this._surfaces(); this._barriers(); this._startArea(); this._stands(); this._props(); if (this.kits) this._nature(); this._trees(); this._backdrop(); }
       for (const k in this._ms) this._ms[k].build();
     }

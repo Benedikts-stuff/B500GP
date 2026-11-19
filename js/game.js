@@ -139,8 +139,8 @@
     clearBikes(); if (G.world) G.world.dispose();
     AX.LOOK = S.look === 'on' && trackId === 'pass';
     G.track = new AX.Track(trackId); G.world = new AX.World(renderer, G.track, { quality: S.quality }); G.quality = S.quality; G.look = S.look;
-    if (AX.LOOK && AX.Look) { G.lookInfo = AX.Look.applyWorld(G.world, renderer, post); console.log('look', JSON.stringify(G.lookInfo)); }
-    else { renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.toneMappingExposure = 1.0; }
+    if (AX.PassStyle) AX.PassStyle.applyRenderer(renderer, post, !!G.world.styled);
+    if (G.world.styled) console.log('style', JSON.stringify(G.world.styleInfo));
     G.skid = new AX.SkidMarks(G.world.scene, 9000); G.smoke = new AX.Particles(G.world.scene, 1600, false); G.sparks = new AX.Particles(G.world.scene, 500, true);
     buildMinimap(); G.camInit = false; resize();
   }
@@ -149,7 +149,7 @@
     G.bikes = []; G.vis = []; G.ai = []; G.rs = []; G.player = null;
   }
   function addBike(spec, rider, opts) {
-    const b = new AX.Bike(spec, G.track, opts); const v = AX.Models.buildBike(spec, rider, { env: G.world.env }); G.world.scene.add(v.root); if (G.world.look) AX.Look.tameBike(v.root);
+    const b = new AX.Bike(spec, G.track, opts); const v = AX.Models.buildBike(spec, rider, { env: G.world.env }); G.world.scene.add(v.root); if (G.world.styled) AX.PassStyle.tameBike(v.root);
     b.rider = rider; G.bikes.push(b); G.vis.push(v); return b;
   }
   function setupSession() {
@@ -680,7 +680,7 @@
       const sc = renderer.domElement.height / (2 * Math.tan(camera.fov * Math.PI / 360));
       G.smoke.update(dt, sc); G.sparks.update(dt, sc);
     }
-    G.skid.flush(); updateCamera(dt); G.world.update(G.camLook, G.time); if (G.world.look) AX.Look.update(G.world, camera.position);
+    G.skid.flush(); updateCamera(dt); G.world.update(G.camLook, G.time); if (G.world.styled) AX.PassStyle.update(G.world, camera.position);
     if (G.state !== 'menu') updateHUD(dt);
     updateAudio(dt);
     G.world.scene.updateMatrixWorld(); AX.RiderBatch.flush(G.world.scene);
