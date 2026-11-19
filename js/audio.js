@@ -15,10 +15,13 @@
         this.fire = [0, 0.25, 0.5, 0.75]; this.amp = [1, 1, 1, 1]; this.rough = 0.05; this.redline = 14000; this.bright = 1; this.body = 1;
         this.dl = new Float32Array(2048); this.di = 0; this.D1 = 150; this.D2 = 93; this.lp1 = 0; this.lp2 = 0; this.lpA = 0; this.lpB = 0; this.hp = 0; this.dc = 0;
         this.seed = 1234567 + Math.floor(Math.random() * 1e6); this.cut = 0; this.pop = 0; this.popE = 0; this.cycle = 0; this.sinceOff = 9; this.popT = 0;
+        this.sig = [1, 1, 1, 1]; this.s1 = 0; this.s2 = 0; this.rb = 0; this.rl = 0; this.bark = 0; this.thrPrev = 0; this.sh = 0;
       }
       rnd() { this.seed = (this.seed * 1664525 + 1013904223) >>> 0; return this.seed / 4294967296; }
       config(c) {
-        this.fire = c.fire.slice(); this.amp = c.fire.map(() => 1); this.rough = c.rough; this.redline = c.redline; this.bright = c.bright; this.body = c.body;
+        this.fire = c.fire.slice(); this.amp = c.fire.map(() => 1);
+        // each cylinder's pipe is a little different: a fixed level signature gives the low, uneven growl below the firing note
+        this.sig = c.fire.map((_, k) => 1 + 0.22 * Math.sin(k * 2.39 + 0.7) * (c.fire.length > 2 ? 1 : 0.6)); this.rough = c.rough; this.redline = c.redline; this.bright = c.bright; this.body = c.body;
         this.D1 = Math.max(8, Math.min(2000, Math.round(c.pipe * this.sr))); this.D2 = Math.max(5, Math.round(this.D1 * 0.618));
       }
       sample() {
@@ -33,7 +36,7 @@
             let a = 1 + (this.rnd() - 0.5) * 2 * this.rough;
             if (overrun && this.rnd() < 0.3) a *= 0.3;                    // lean misfires off the throttle
             if (this.cut > 0.5 && ((this.cycle + k) & 1)) a = 0;            // limiter / quick-shifter ignition cut
-            amp[k] = a;
+            amp[k] = a * this.sig[k];
           }
           if (overrun && this.sinceOff < 1.1 && this.rnd() < 0.05 + rn * 0.09) this.popE = 0.35 + this.rnd() * 0.45;   // burble
         }
@@ -41,7 +44,7 @@
         let ex = 0, inn = 0; const w = 0.3;
         for (let k = 0; k < n; k++) {
           let p = this.ph - fire[k]; if (p < 0) p += 1;
-          if (p < w) { const x = p / w; ex += amp[k] * Math.sin(6.2832 * x) * Math.exp(-4.2 * x); }
+          if (p < w) { const x = p / w; ex += amp[k] * (Math.sin(6.2832 * x) * Math.exp(-4.2 * x) + Math.exp(-38 * x) * (0.35 + 0.55 * this.thr) * this.bright); }   // pulse + its sharp leading edge (the rasp)
           let q = p - 0.5; if (q < 0) q += 1; if (q < 0.25) inn += Math.sin(12.566 * q);
         }
         const nz = this.rnd() * 2 - 1, load = 0.5 + 0.5 * thr;
@@ -53,15 +56,24 @@
         this.lp1 += (d1 - this.lp1) * 0.42; this.lp2 += (d2 - this.lp2) * 0.6;
         let y = x - 0.54 * this.lp1 - 0.28 * this.lp2;
         dl[this.di] = y; this.di = (this.di + 1) & m;
-        y = Math.tanh(y * (1.6 + 1.1 * thr) * this.body);
+        // the body: the raw pulse train low-passed near the firing note (bass), a low airbox resonance, and a bark when the throttle snaps open
+        const fireHz = this.rpm / 120 * n, fs = Math.max(45, Math.min(230, fireHz * 0.85)), as = 1 - Math.exp(-6.2832 * fs / sr);
+        this.s1 += (x - this.s1) * as; this.s2 += (this.s1 - this.s2) * as;
+        const fr = 85 + 40 * rn, fq = 2 * Math.sin(3.14159 * fr / sr);
+        this.rl += fq * this.rb; const hpR = x - this.rl - 0.33 * this.rb; this.rb += fq * hpR;
+        const dThr = this.thr - this.thrPrev; this.thrPrev = this.thr; if (dThr > 0) this.bark = Math.min(1, this.bark + dThr * 220); this.bark *= 0.99985;
+        const bass = (0.85 + 0.9 * thr + 0.6 * this.bark) * this.body;
+        y += this.s2 * 1.5 * bass + this.rb * 0.4 * bass;
+        y = Math.tanh(y * (1.75 + 1.3 * thr + 0.5 * this.bark) * this.body);
         y += nz * inn * thr * thr * (0.2 + rn * 0.8) * 0.12;                 // induction roar
         const fc = 1100 + (7000 * Math.pow(thr, 0.8) + rn * 3400) * this.bright;
         const a = 1 - Math.exp(-6.2832 * fc / sr);
         this.lpA += (y - this.lpA) * a; this.lpB += (this.lpA - this.lpB) * a;
         let out = this.lpB;
+        this.sh += (out - this.sh) * 0.016; out += this.sh * 0.45 * this.body;
         this.hp += (nz - this.hp) * 0.35; out += (nz - this.hp) * 0.018 * rn * (0.4 + thr * 0.6);   // valve train / chain
         this.dc += (out - this.dc) * 0.0006; out -= this.dc;
-        return out * (0.72 + 0.28 * thr) * (0.7 + 0.3 * rn) * 0.85;
+        return out * (0.72 + 0.28 * thr) * (0.7 + 0.3 * rn) * 0.74 / (0.55 + 0.45 * this.body * this.body);
       }
     }
     class EngineSynth {
