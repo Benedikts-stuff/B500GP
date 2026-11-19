@@ -252,14 +252,22 @@ box('swingbrace', (0.08, 0.06, 0.26), (-0.24, 0.47, 0), M_dark, 'body', bevel=0.
 """
 
 NAKED_BODY = """
+# the tank: a smooth bison hump, high and broad at the front, flowing down into the seat
+loft('tank', [dict(x=0.45, y=0.86, w=0.06, ht=0.04, hb=0.05), dict(x=0.40, y=0.88, w=0.14, ht=0.09, hb=0.10, e=2.8),
+              dict(x=0.28, y=0.885, w=0.185, ht=0.115, hb=0.14, e=3.2), dict(x=0.10, y=0.87, w=0.19, ht=0.11, hb=0.16, e=3.4),
+              dict(x=-0.05, y=0.84, w=0.16, ht=0.08, hb=0.14, e=3.0), dict(x=-0.14, y=0.81, w=0.11, ht=0.035, hb=0.08, e=2.6),
+              dict(x=-0.17, y=0.80, w=0.05, ht=0.015, hb=0.04)], P_body, 'body', ring=24, subsurf=1)
+cyl('fuelcap', 0.04, 0.012, (0.20, 0.997, 0), X_alu, 'body', axis='y', seg=24)
+loft('seat', [dict(x=-0.12, y=0.79, w=0.06, ht=0.015, hb=0.02), dict(x=-0.17, y=0.795, w=0.13, ht=0.035, hb=0.03, e=3),
+              dict(x=-0.36, y=0.81, w=0.135, ht=0.035, hb=0.03, e=3), dict(x=-0.45, y=0.835, w=0.10, ht=0.03, hb=0.03)], M_seat, 'body', subsurf=1)
 # slim tail
 loft('tail', [dict(x=-0.10, y=0.74, w=0.12, ht=0.03, hb=0.05), dict(x=-0.30, y=0.76, w=0.13, ht=0.035, hb=0.06, e=3),
-              dict(x=-0.48, y=0.84, w=0.10, ht=0.05, hb=0.05, e=3.0), dict(x=-0.66, y=0.90, w=0.06, ht=0.035, hb=0.035, e=2.6), dict(x=-0.72, y=0.915, w=0.02, ht=0.012, hb=0.012)], P_body, 'body')
+              dict(x=-0.48, y=0.84, w=0.10, ht=0.05, hb=0.05, e=3.0), dict(x=-0.66, y=0.90, w=0.06, ht=0.035, hb=0.035, e=2.6), dict(x=-0.72, y=0.915, w=0.02, ht=0.012, hb=0.012)], P_body, 'body', ring=20, subsurf=1)
 box('taillight', (0.02, 0.025, 0.07), (-0.715, 0.912, 0), G_tail, 'body', bevel=0.006)
 # radiator shrouds flanking the tank
 for s in (-1, 1):
-    loft('shroud%d' % s, [dict(x=0.48, y=0.73, w=0.012, ht=0.035, hb=0.035), dict(x=0.40, y=0.70, w=0.022, ht=0.11, hb=0.10, e=3),
-                          dict(x=0.24, y=0.71, w=0.022, ht=0.09, hb=0.08, e=3), dict(x=0.15, y=0.75, w=0.012, ht=0.03, hb=0.03)], P_body, 'body', ring=12,
+    loft('shroud%d' % s, [dict(x=0.47, y=0.74, w=0.01, ht=0.03, hb=0.03), dict(x=0.41, y=0.715, w=0.017, ht=0.085, hb=0.075, e=3),
+                          dict(x=0.27, y=0.72, w=0.017, ht=0.07, hb=0.06, e=3), dict(x=0.19, y=0.75, w=0.01, ht=0.025, hb=0.025)], P_body, 'body', ring=14, subsurf=1,
          xform=Matrix.Translation(V(0, 0, s * 0.165)))
 box('radiator', (0.04, 0.26, 0.30), (0.38, 0.56, 0), M_dark, 'body', rot=(0, 0, -0.25), bevel=0.01)
 # trellis frame (red tubes)
@@ -270,15 +278,21 @@ for s in (-1, 1):
         tube('trellis%d_%.2f_%.2f' % (s, p[0], q[0]), [p, q], 0.017, M_trel, 'body', seg=8)
     tube('sub%d' % s, [(-0.15, 0.76, s * 0.08), (-0.45, 0.82, s * 0.065), (-0.62, 0.86, s * 0.05)], 0.013, M_trel, 'body', seg=8)
 # V-twin: crankcase, two finned cylinders, alternator and clutch covers
-box('crank', (0.36, 0.22, 0.26), (0.04, 0.36, 0), M_engine, 'body', bevel=0.04)
+loft('crank', [dict(x=0.23, y=0.37, w=0.10, ht=0.09, hb=0.09, e=2.6), dict(x=0.17, y=0.36, w=0.13, ht=0.115, hb=0.11, e=3.2), dict(x=-0.08, y=0.36, w=0.13, ht=0.115, hb=0.105, e=3.2),
+               dict(x=-0.15, y=0.38, w=0.11, ht=0.08, hb=0.07, e=2.8)], M_engine, 'body', ring=20, subsurf=1)
 for (cx, cy, ang) in ((0.18, 0.56, -0.75), (-0.06, 0.6, 0.15)):
     box('cyl%.2f' % cx, (0.12, 0.2, 0.13), (cx, cy, 0), M_engine, 'body', rot=(0, 0, ang), bevel=0.02)
     for k in range(5):
         dy = -0.06 + k * 0.03
         box('fin%.2f_%d' % (cx, k), (0.16, 0.008, 0.17), (cx - math.sin(-ang) * dy, cy + math.cos(-ang) * dy, 0), M_engine, 'body', rot=(0, 0, ang), bevel=0.003)
     box('head%.2f' % cx, (0.14, 0.06, 0.15), (cx - math.sin(-ang) * 0.12, cy + math.cos(-ang) * 0.12, 0), X_alu, 'body', rot=(0, 0, ang), bevel=0.015)
-cyl('altcover', 0.075, 0.03, (0.06, 0.36, -0.14), X_alu, 'body', seg=24)
-cyl('clutchcover', 0.085, 0.03, (0.0, 0.37, 0.14), X_alu, 'body', seg=24)
+cyl('altcover', 0.075, 0.03, (0.06, 0.36, -0.14), M_dark, 'body', seg=28)
+cyl('altring', 0.06, 0.034, (0.06, 0.36, -0.141), X_alu, 'body', seg=28)
+cyl('clutchcover', 0.08, 0.03, (0.0, 0.37, 0.14), M_dark, 'body', seg=28)
+cyl('clutchring', 0.064, 0.034, (0.0, 0.37, 0.141), X_alu, 'body', seg=28)
+for k in range(6):
+    a = k / 6 * math.pi * 2
+    cyl('ccbolt%d' % k, 0.006, 0.036, (math.cos(a) * 0.05, 0.37 + math.sin(a) * 0.05, 0.142), M_dark, 'body', seg=8, bevel=0)
 # exhaust: headers into a stacked twin silencer on the right
 tube('header1', [(0.24, 0.48, 0.05), (0.32, 0.36, 0.08), (0.2, 0.24, 0.1), (-0.05, 0.25, 0.15), (-0.2, 0.38, 0.18)], 0.026, X_steel, 'body', seg=10)
 tube('header2', [(-0.12, 0.52, 0.08), (-0.18, 0.44, 0.16), (-0.22, 0.42, 0.18)], 0.026, X_steel, 'body', seg=10)
@@ -289,7 +303,7 @@ for k, (dy, rr) in enumerate(((0.0, 0.05), (0.075, 0.045))):
 """
 
 # ------------------------------------------------------------------ BODY
-if not SUPER:
+if not SUPER and not NAKED:
     # tank
     loft('tank', [
         dict(x=0.44, y=0.83, w=0.06, ht=0.04, hb=0.05), dict(x=0.40, y=0.85, w=0.13, ht=0.09 + (0.02 if NAKED else 0), hb=0.10, e=2.6),
@@ -381,7 +395,7 @@ d = Vector((fx - sx, fy - sy)).normalized()
 for s in (-1, 1):
     z = s * 0.105
     top = (sx - 0.03, sy + 0.03, z); mid = (sx + d.x * 0.34, sy + d.y * 0.34, z); bot = (fx, fy + 0.02, z)
-    tube('forkU%d' % s, [top, mid], 0.032, M_gold, 'front', seg=16)
+    tube('forkU%d' % s, [top, mid], 0.032, X_frame if NAKED else M_gold, 'front', seg=16)
     tube('forkL%d' % s, [mid, bot], 0.026, X_steel, 'front', seg=16)
     cyl('axleclamp%d' % s, 0.03, 0.04, (fx, fy, s * 0.105), X_steel, 'front', seg=14)
     box('caliper%d' % s, (0.09, 0.05, 0.035), (fx - 0.10, fy + 0.10, s * 0.083), M_red, 'front', rot=(0, 0, 1.1), bevel=0.012)
@@ -401,12 +415,15 @@ if SUPER:
     cyl('resercap', 0.022, 0.01, (BARX + 0.02, BARY + 0.077, 0.18), M_dark, 'front', axis='y', seg=16)
 if not NAKED: box('damper', (0.16, 0.022, 0.022), (sx - 0.05, sy + 0.06, 0.06), M_gold, 'front', rot=(0, 0.3, 0), bevel=0.008)
 loft('fender', [dict(x=fx + 0.20, y=fy + 0.24, w=0.07, ht=0.008, hb=0.008), dict(x=fx + 0.05, y=fy + 0.34, w=0.085, ht=0.012, hb=0.012),
-                dict(x=fx - 0.10, y=fy + 0.33, w=0.085, ht=0.012, hb=0.012), dict(x=fx - 0.22, y=fy + 0.22, w=0.07, ht=0.008, hb=0.008)], M_carbon if SUPER else P_body, 'front', ring=12, subsurf=1)
+                dict(x=fx - 0.10, y=fy + 0.33, w=0.085, ht=0.012, hb=0.012), dict(x=fx - 0.22, y=fy + 0.22, w=0.07, ht=0.008, hb=0.008)], M_carbon if (SUPER or NAKED) else P_body, 'front', ring=12, subsurf=1)
 
 if NAKED:
     # round headlight in a dark bucket, small fly screen above it, both turning with the bars
-    loft('hlbucket', [dict(x=0.53, y=0.88, w=0.05, ht=0.05), dict(x=0.58, y=0.88, w=0.095, ht=0.095, e=2.0), dict(x=0.65, y=0.88, w=0.1, ht=0.1, e=2.0)], M_dark, 'front', ring=24, subsurf=0)
-    loft('hllens', [dict(x=0.649, y=0.88, w=0.088, ht=0.088, e=2.0), dict(x=0.675, y=0.88, w=0.06, ht=0.06, e=2.0), dict(x=0.682, y=0.88, w=0.02, ht=0.02, e=2.0)], G_light, 'front', ring=24, capA=False)
+    loft('hlbucket', [dict(x=0.53, y=0.88, w=0.05, ht=0.05), dict(x=0.58, y=0.88, w=0.095, ht=0.095, e=2.0), dict(x=0.65, y=0.88, w=0.1, ht=0.1, e=2.0)], M_dark, 'front', ring=28, subsurf=1)
+    loft('hlglass', [dict(x=0.649, y=0.88, w=0.09, ht=0.09, e=2.0), dict(x=0.668, y=0.88, w=0.072, ht=0.072, e=2.0), dict(x=0.676, y=0.88, w=0.03, ht=0.03, e=2.0)], G_tft, 'front', ring=28, capA=False, subsurf=1)
+    tube('hlring', [(0.664, 0.88 + 0.071 * math.sin(k / 36 * 6.2832), 0.071 * math.cos(k / 36 * 6.2832)) for k in range(37)], 0.0065, G_light, 'front', seg=8, closed_ends=False)
+    loft('hlproj', [dict(x=0.668, y=0.88, w=0.03, ht=0.03, e=2.0), dict(x=0.682, y=0.88, w=0.024, ht=0.024, e=2.0), dict(x=0.686, y=0.88, w=0.012, ht=0.012, e=2.0)], G_light, 'front', ring=20, capA=False)
+    tube('hldrl', [(0.672, 0.845, -0.05), (0.676, 0.84, 0.0), (0.672, 0.845, 0.05)], 0.004, G_light, 'front', seg=8)
     loft('flyscreen', [dict(x=0.62, y=0.985, w=0.02, ht=0.006, hb=0.004), dict(x=0.6, y=1.0, w=0.1, ht=0.05, hb=0.006, e=2.6), dict(x=0.53, y=0.99, w=0.11, ht=0.03, hb=0.006, e=2.6)], P_body, 'front', ring=16)
     for s in (-1, 1): box('hlbracket%d' % s, (0.12, 0.02, 0.012), (0.56, 0.86, s * 0.1), M_dark, 'front', bevel=0.004)
 
@@ -444,7 +461,7 @@ def wheel(asm, R, W, cx, cy, discs, nsp=5, rimM=None, split=False):
     for z in discs:
         d0, d1 = (0.105, 0.16) if len(discs) > 1 else (0.075, 0.115)
         lathe(asm + '_disc%.2f' % z, [(d0, z - 0.0035), (d1, z - 0.0035), (d1, z + 0.0035), (d0, z + 0.0035), (d0, z - 0.0035)], M_disc, asm, 48, c, 30)
-        lathe(asm + '_carrier%.2f' % z, [(0.05, z - 0.004), (d0 + 0.006, z - 0.004), (d0 + 0.006, z + 0.004), (0.05, z + 0.004), (0.05, z - 0.004)], M_dark if rimM is not X_wheel else M_gold, asm, 24, c, 30)
+        lathe(asm + '_carrier%.2f' % z, [(0.05, z - 0.004), (d0 + 0.006, z - 0.004), (d0 + 0.006, z + 0.004), (0.05, z + 0.004), (0.05, z - 0.004)], M_dark if (rimM is not X_wheel or NAKED) else M_gold, asm, 24, c, 30)
         for k in range(6):
             a = k / 6 * math.pi * 2
             cyl('%s_bolt%.2f_%d' % (asm, z, k), 0.007, 0.012, (cx + math.cos(a) * (d0 + 0.0), cy + math.sin(a) * (d0 + 0.0), z), X_steel, asm, seg=8, bevel=0)
