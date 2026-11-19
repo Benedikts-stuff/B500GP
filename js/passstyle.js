@@ -108,27 +108,38 @@
     m.customProgramCacheKey = () => 'ps-road';
     return m;
   }
-  // dry-stone wall: courses of blocks drawn from the uv (metres along, metres up), joints blur out with distance
+  // dry-stone wall: irregular flat stones (Voronoi cells stretched along the wall), soft joints, a slight bevel on every stone;
+  // joints and bevels fade out with distance, so far walls never shimmer
   function stoneMat() {
     const m = new THREE.MeshStandardMaterial({ roughness: 0.96, metalness: 0, side: THREE.DoubleSide });
     m.onBeforeCompile = (sh) => {
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 aSt; varying vec2 vSt;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvSt = aSt;');
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec2 vSt;\nfloat hh(float n){ return fract(sin(n) * 43758.5453); }')
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+        varying vec2 vSt;
+        vec2 h22(vec2 p){ p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3))); return fract(sin(p) * 43758.5453); }
+        vec3 vorB(vec2 x){
+          vec2 n = floor(x), f = fract(x), mg = vec2(0.0), mr = vec2(0.0); float md = 8.0;
+          for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { vec2 g = vec2(float(i), float(j)), o = h22(n + g) * 0.7 + 0.15, r = g + o - f; float d = dot(r, r); if (d < md) { md = d; mr = r; mg = g; } }
+          md = 8.0;
+          for (int j = -2; j <= 2; j++) for (int i = -2; i <= 2; i++) { vec2 g = mg + vec2(float(i), float(j)), o = h22(n + g) * 0.7 + 0.15, r = g + o - f; if (dot(mr - r, mr - r) > 1e-5) md = min(md, dot(0.5 * (mr + r), normalize(r - mr))); }
+          return vec3(md, n + mg);
+        }`)
         .replace('#include <color_fragment>', `#include <color_fragment>
-          float ry = vSt.y / 0.27 + 0.35 * sin(vSt.x * 0.9 + floor(vSt.y / 0.27) * 1.7) * 0.25, row = floor(ry);
-          float bl = 0.38 + 0.34 * hh(row * 7.13 + 1.0);
-          float bx = (vSt.x + hh(row * 3.7) * 2.0) / bl, bid = floor(bx);
-          float fx = fract(bx), fy = fract(ry);
-          float ax = fwidth(bx) * 1.2, ay = fwidth(ry) * 1.2;
-          float jx = 1.0 - smoothstep(0.0, 0.07 + ax, min(fx, 1.0 - fx));
-          float jy = 1.0 - smoothstep(0.0, 0.1 + ay, min(fy, 1.0 - fy));
-          float fade = 1.0 - smoothstep(0.25, 0.6, max(ax, ay));
-          float hv = hh(bid * 1.37 + row * 17.1);
-          vec3 c = mix(${v3(P.stoneA)}, ${v3(P.stoneB)}, hv) * (0.92 + 0.12 * hh(bid * 5.1 + row));
-          c *= 1.0 - 0.2 * max(jx, jy) * fade;
+          vec2 sp = vSt * vec2(1.45, 3.6) + vec2(0.0, 0.18 * sin(vSt.x * 0.7));
+          vec3 v = vorB(sp);
+          float aa = length(fwidth(sp));
+          float fade = 1.0 - smoothstep(0.18, 0.5, aa);
+          float joint = 1.0 - smoothstep(0.018, 0.018 + aa * 1.3, v.x);
+          float bevel = 1.0 - smoothstep(0.0, 0.16, v.x);
+          float hs = fract(sin(dot(v.yz, vec2(12.9898, 78.233))) * 43758.5453), hs2 = fract(hs * 17.13);
+          vec3 c = mix(${v3(P.stoneA)}, ${v3(P.stoneB)}, hs) * (0.84 + 0.24 * hs2);
+          c = mix(c, c * vec3(1.06, 0.98, 0.88), step(0.78, hs2) * 0.7);
+          c = mix(c, c * vec3(0.92, 0.95, 1.02), step(hs2, 0.18) * 0.7);
+          c *= 1.0 - (0.1 * bevel + 0.32 * joint) * fade;
+          c *= 1.0 - 0.18 * (1.0 - smoothstep(0.0, 0.5, vSt.y));
           diffuseColor.rgb = c;`);
     };
-    m.customProgramCacheKey = () => 'ps-stone';
+    m.customProgramCacheKey = () => 'ps-stone2';
     return m;
   }
   function grassMat() {
@@ -359,16 +370,18 @@
     {
       const hz = P.hazeCool.clone().lerp(P.hazeWarm, 0.45), y0 = t.planeH(cx, cz);
       const ring = (R2, hMin, hMax, col, seed) => {
-        const n = 260, pos = [], idx = [];
+        const n = 720, pos = [], idx = [];
         for (let k = 0; k <= n; k++) {
-          const a = (k / n) * 6.283, rid = hMin + (hMax - hMin) * (0.5 + 0.5 * (nA(Math.cos(a) * 3.1 + seed, Math.sin(a) * 3.1) * 0.6 + nA(Math.cos(a) * 9.0 - seed, Math.sin(a) * 9.0) * 0.3 + nA(Math.cos(a) * 23.0, Math.sin(a) * 23.0 + seed) * 0.1));
+          const a = (k / n) * 6.283, ca = Math.cos(a), sa = Math.sin(a);
+          const pk = (f, o) => 1 - Math.abs(nA(ca * f + o + seed, sa * f - o));
+          const rid = hMin + (hMax - hMin) * clamp(Math.pow(pk(4.0, 0.3), 1.6) * 0.55 + Math.pow(pk(11.0, 2.1), 2.0) * 0.32 + pk(29.0, 5.7) * 0.13, 0, 1);
           pos.push(cx + Math.cos(a) * R2, y0 - 100, cz + Math.sin(a) * R2, cx + Math.cos(a) * R2 * 0.97, y0 + rid, cz + Math.sin(a) * R2 * 0.97);
           if (k < n) { const bb = k * 2; idx.push(bb, bb + 1, bb + 2, bb + 1, bb + 3, bb + 2); }
         }
         const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
         const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide, fog: false })); m.renderOrder = -5; m.name = 'psRing'; sc.add(m);
       };
-      ring(4700, 700, 1250, P.ring[2].clone().lerp(hz, 0.74), 9.1); ring(3600, 520, 900, P.ring[1].clone().lerp(hz, 0.62), 4.7); ring(2300, 380, 640, P.ring[0].clone().lerp(hz, 0.5), 1.3);
+      ring(4700, 350, 1350, P.ring[2].clone().lerp(hz, 0.74), 9.1); ring(3600, 300, 950, P.ring[1].clone().lerp(hz, 0.62), 4.7); ring(2300, 300, 700, P.ring[0].clone().lerp(hz, 0.5), 1.3);
     }
 
     /* ---- road: one ribbon from barrier to barrier, asphalt, lines and shoulders drawn in the shader */
@@ -476,12 +489,13 @@
       for (const sd of [0, 1]) {
         const sg = sd ? 1 : -1; let prev = false;
         for (let i = 0; i < N; i++) {
-          const on = t.barType[sd][i] !== 2 && i > 6 && i < N - 6 && Math.abs(i - sIdx) > 13;
+          let near = false; for (let o = -3; o <= 3 && !near; o++) { const j = i + o; if (j >= 0 && j < N && t.barType[sd][j] !== 2) near = true; }
+          const on = near && i > 6 && i < N - 6 && Math.abs(i - sIdx) > 10, inWall = t.barType[sd][i] === 2;
           if (on) {
             const base = pos.length / 3;
-            for (const [dl, h] of profile) { const L = t.bar[sd][i] - 0.1 - dl; pos.push(t.px[i] + t.nx[i] * sg * L, t.py[i] + h, t.pz[i] + t.nz[i] * sg * L); }
+            for (const [dl, h] of profile) { const L = t.bar[sd][i] - (inWall ? 0.14 : 0.1) - dl; pos.push(t.px[i] + t.nx[i] * sg * L, t.py[i] + h, t.pz[i] + t.nz[i] * sg * L); }
             if (prev) for (let k = 0; k < NPf - 1; k++) { const a = base - NPf + k, bb = base + k; if (sd) idx.push(a, a + 1, bb, a + 1, bb + 1, bb); else idx.push(a, bb, a + 1, a + 1, bb, bb + 1); }
-            if (i % 4 === 0) posts.push([t.px[i] + t.nx[i] * sg * t.bar[sd][i], t.py[i], t.pz[i] + t.nz[i] * sg * t.bar[sd][i], -yaw(i) + Math.PI / 2 + (sd ? Math.PI : 0)]);
+            if (i % 4 === 0 && !inWall) posts.push([t.px[i] + t.nx[i] * sg * t.bar[sd][i], t.py[i], t.pz[i] + t.nz[i] * sg * t.bar[sd][i], -yaw(i) + Math.PI / 2 + (sd ? Math.PI : 0)]);
           }
           prev = on;
         }
@@ -582,8 +596,53 @@
       return n;
     };
     // where something may stand: clear of the road and the barriers by its radius; never on the wall-top ground (that is its own mesh)
-    const clearAt = (x, z, rad) => { const g = surf(x, z); if (g.e < rad + 0.6) return null; if (g.w && g.e < 6.4 + rad * 0.5) return null; if (Math.abs(x - t.px[t.startIdx]) < 9 && Math.abs(z - t.pz[t.startIdx]) < 9) return null; if (Math.abs(x - t.px[t.finishIdx]) < 9 && Math.abs(z - t.pz[t.finishIdx]) < 9) return null; return g; };
+    const clearAt = (x, z, rad) => { if (fenceAt.has(Math.floor(x / 3) + ',' + Math.floor(z / 3))) return null; const g = surf(x, z); if (g.e < rad + 0.6) return null; if (g.w && g.e < 6.4 + rad * 0.5) return null; if (Math.abs(x - t.px[t.startIdx]) < 9 && Math.abs(z - t.pz[t.startIdx]) < 9) return null; if (Math.abs(x - t.px[t.finishIdx]) < 9 && Math.abs(z - t.pz[t.finishIdx]) < 9) return null; return g; };
     const nearStream = (x, z) => t.stream && t.streamDist(x, z) < t.stream.W + 2.5;
+    // wooden fences along a few open meadows: round, slightly leaning posts, two rails per span, weathered wood
+    const fenceAt = new Set(), fkey = (x, z) => Math.floor(x / 3) + ',' + Math.floor(z / 3);
+    {
+      const pos = [], col = [], wood = [C('#6c5541'), C('#7a604a'), C('#5e4a39'), C('#846a52')], tmpC = new THREE.Color();
+      const addCyl = (a, b, r0, r1, c) => {
+        const g = new THREE.CylinderGeometry(r1, r0, 1, 6, 1, false); const d = new THREE.Vector3().subVectors(b, a), L = d.length();
+        const q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.clone().normalize());
+        g.applyMatrix4(new THREE.Matrix4().compose(a.clone().add(b).multiplyScalar(0.5), q, new THREE.Vector3(1, L, 1)));
+        const ng = g.toNonIndexed(), pp = ng.attributes.position.array;
+        for (let k = 0; k < pp.length; k += 3) { pos.push(pp[k], pp[k + 1], pp[k + 2]); const sh = 0.92 + 0.12 * Math.sin(pp[k] * 3.1 + pp[k + 2] * 2.3); col.push(c.r * sh, c.g * sh, c.b * sh); }
+        g.dispose(); ng.dispose();
+      };
+      let runs = 0;
+      for (let tries = 0; tries < 400 && runs < 9; tries++) {
+        const i0 = 120 + Math.floor(rng() * (N - 360)), sd = rng() < 0.5 ? 0 : 1, sg = sd ? 1 : -1, off = t.bar[sd][i0] + 7 + rng() * 6;
+        const pts = [];
+        for (let i = i0; i < Math.min(N - 100, i0 + 140); i += 3) {
+          const x = t.px[i] + t.nx[i] * sg * off, z = t.pz[i] + t.nz[i] * sg * off, g = surf(x, z);
+          if (g.e < 5 || (g.w && g.e < 8) || nearStream(x, z) || forestJS(x, z) > 0.3) break;
+          const sl = Math.hypot(surf(x + 1, z).y - g.y, surf(x, z + 1).y - g.y); if (sl > 0.45) break;
+          if (pts.length && Math.hypot(x - pts[pts.length - 1][0], z - pts[pts.length - 1][2]) < 1.8) continue;
+          pts.push([x, g.y, z]);
+        }
+        if (pts.length < 10) continue;
+        if (pts.some(([x, , z]) => fenceAt.has(fkey(x, z)))) continue;
+        runs++; (this.fenceSpots || (this.fenceSpots = [])).push([i0, sd, pts.length, +off.toFixed(2)]);
+        const top = [];
+        pts.forEach(([x, y, z], k) => {
+          const c = tmpC.copy(wood[Math.floor(rng() * wood.length)]).clone(), h = 1.12 + rng() * 0.16, lx = (rng() - 0.5) * 0.08, lz = (rng() - 0.5) * 0.08;
+          const a = new THREE.Vector3(x, y - 0.35, z), b = new THREE.Vector3(x + lx, y + h, z + lz); addCyl(a, b, 0.07, 0.055, c); top.push(b);
+          for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) fenceAt.add(fkey(x + dx * 2.5, z + dz * 2.5));
+          if (k) for (const hh of [0.5, 0.92]) {
+            const p0 = top[k - 1], p1 = b, y0 = pts[k - 1][1], y1 = y;
+            const A = new THREE.Vector3(p0.x, y0 + hh + (rng() - 0.5) * 0.05, p0.z), B = new THREE.Vector3(p1.x, y1 + hh + (rng() - 0.5) * 0.05, p1.z);
+            const dir = new THREE.Vector3().subVectors(B, A).normalize(); A.addScaledVector(dir, -0.12); B.addScaledVector(dir, 0.12);
+            addCyl(A, B, 0.04, 0.04, tmpC.copy(wood[Math.floor(rng() * wood.length)]).multiplyScalar(0.95).clone());
+          }
+        });
+      }
+      if (pos.length) {
+        const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeVertexNormals();
+        sc.add(Object.assign(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95 })), { castShadow: true, receiveShadow: true, name: 'psFence' }));
+      }
+      this.fenceRuns = runs;
+    }
     // trees: forest by noise, meadows open along much of the road, a few golden larches and maples nearer the road
     const pineG = [0, 1, 2, 3, 4].map((k) => pineGeometry(rng, 12 + k * 1.9, 2.6 + (k % 3) * 0.3, 7, 9));
     const leafG = [0, 1, 2, 3].map((k) => leafTreeGeometry(rng, 7.5 + k * 1.3, k % 2 ? P.maple : P.gold));
