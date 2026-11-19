@@ -484,7 +484,7 @@
           }
           run = [];
         };
-        for (let i = 0; i < N; i++) { if (t.barType[sd][i] === 2 && Math.abs(i - sIdx) >= 14) run.push(i); else flush(); }
+        for (let i = 0; i < N; i++) { if (t.barType[sd][i] === 2 && Math.abs(i - sIdx) >= 11) run.push(i); else flush(); }
         flush();
       }
       const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.Float32BufferAttribute(face.p, 3)); fg.setAttribute('aSt', new THREE.Float32BufferAttribute(face.st, 2)); fg.setIndex(face.i); fg.computeVertexNormals();
@@ -605,11 +605,11 @@
         const i0 = 120 + Math.floor(rng() * (N - 360)), sd = rng() < 0.5 ? 0 : 1, sg = sd ? 1 : -1, off = t.bar[sd][i0] + 7 + rng() * 6;
         const pts = [];
         for (let i = i0; i < Math.min(N - 100, i0 + 140); i += 3) {
-          const x = t.px[i] + t.nx[i] * sg * off, z = t.pz[i] + t.nz[i] * sg * off, g = surf(x, z);
+          const x = t.px[i] + t.nx[i] * sg * off, z = t.pz[i] + t.nz[i] * sg * off, g = surf(x, z), gy = g.y;
           if (g.e < 5 || covered(x, z) || nearStream(x, z) || forestJS(x, z) > 0.3) break;
-          const sl = Math.hypot(surf(x + 1, z).y - g.y, surf(x, z + 1).y - g.y); if (sl > 0.45) break;
+          const sl = Math.hypot(surf(x + 1, z).y - gy, surf(x, z + 1).y - gy); if (sl > 0.45) break;
           if (pts.length && Math.hypot(x - pts[pts.length - 1][0], z - pts[pts.length - 1][2]) < 1.8) continue;
-          pts.push([x, g.y, z]);
+          pts.push([x, gy, z]);
         }
         if (pts.length < 10) continue;
         if (pts.some(([x, , z]) => fenceAt.has(fkey(x, z)))) continue;
@@ -617,7 +617,7 @@
         const top = [];
         pts.forEach(([x, y, z], k) => {
           const c = tmpC.copy(wood[Math.floor(rng() * wood.length)]).clone(), h = 1.12 + rng() * 0.16, lx = (rng() - 0.5) * 0.08, lz = (rng() - 0.5) * 0.08;
-          const a = new THREE.Vector3(x, y - 0.35, z), b = new THREE.Vector3(x + lx, y + h, z + lz); addCyl(a, b, 0.07, 0.055, c); top.push(b);
+          const a = new THREE.Vector3(x, y - 0.35, z), b = new THREE.Vector3(x + lx, y + h, z + lz); addCyl(a, b, 0.07, 0.055, c); top.push(b); (this.fencePosts || (this.fencePosts = [])).push([x, y, z]);
           for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) fenceAt.add(fkey(x + dx * 2.5, z + dz * 2.5));
           if (k) for (const hh of [0.5, 0.92]) {
             const p0 = top[k - 1], p1 = b, y0 = pts[k - 1][1], y1 = y;
