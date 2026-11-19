@@ -93,69 +93,6 @@
     'class ApexEngine extends AudioWorkletProcessor { constructor(){ super(); this.s = new EngineSynth(sampleRate, 4); this.port.onmessage = (e) => this.s.message(e.data); }\n' +
     ' process(i, o){ const out = o[0]; this.s.render(out[0], out[1] || out[0], out[0].length); return true; } }\nregisterProcessor("apex-engine", ApexEngine);';
 
-  /* Tyres: a screech that is actually a tone (rubber stick-slip rings at a pitch that wanders and stutters),
-     a low rubber growl chopped by the tread for wheelspin and sliding, and a short chirp when the tyre lets go. */
-  function makeTyreVoice(ctx, dest, nb) {
-    const sr = ctx.sampleRate;
-    // smooth random control signals (looped), values in -1..1
-    const wander = (rate, secs) => {
-      const n = Math.floor(sr * secs), b = ctx.createBuffer(1, n, sr), d = b.getChannelData(0), pts = Math.ceil(rate * secs) + 1, v = [];
-      for (let i = 0; i < pts; i++) v.push(Math.random() * 2 - 1); v[pts - 1] = v[0];
-      for (let i = 0; i < n; i++) { const x = i / n * (pts - 1), k = Math.floor(x), f = x - k, s = f * f * (3 - 2 * f); d[i] = v[k] + (v[k + 1] - v[k]) * s; }
-      const src = ctx.createBufferSource(); src.buffer = b; src.loop = true; src.start(); return src;
-    };
-    const noise = (rate) => { const s = ctx.createBufferSource(); s.buffer = nb; s.loop = true; s.playbackRate.value = rate; s.start(0, Math.random() * 1.5); return s; };
-    const filt = (type, f, q) => { const fl = ctx.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; return fl; };
-    const gain = (g) => { const n = ctx.createGain(); n.gain.value = g; return n; };
-    const out = gain(1); out.connect(dest);
-
-    // ---- screech: three detuned saws with a wandering, stuttering pitch, voiced by a formant band
-    const jit = wander(7, 5), stut = wander(38, 3), jitG = gain(0), stutG = gain(0);
-    jit.connect(jitG); stut.connect(stutG);
-    const oscs = [['sawtooth', 1, 0.5], ['sawtooth', 1.013, 0.38], ['triangle', 2.02, 0.22]].map(([ty, m, a]) => {
-      const o = ctx.createOscillator(); o.type = ty; o.frequency.value = 700 * m; jitG.connect(o.detune); stutG.connect(o.detune);
-      const g = gain(a); o.connect(g); o.start(); return { o, m, g };
-    });
-    const formant = filt('bandpass', 1500, 1.1), tame = filt('lowpass', 5200, 0.6), vcaS = gain(0);
-    oscs.forEach((v) => v.g.connect(formant)); formant.connect(tame); tame.connect(vcaS); vcaS.connect(out);
-    const flut = wander(46, 3), flutG = gain(0); flut.connect(flutG); flutG.connect(vcaS.gain);   // stick-slip amplitude stutter
-    const hiss = noise(1), hissF = filt('bandpass', 2600, 2.2), hissG = gain(0); hiss.connect(hissF); hissF.connect(hissG); hissG.connect(out);
-
-    // ---- growl: low rubber noise chopped by the tread, plus a rasp band
-    const gr = noise(0.97), grF = filt('lowpass', 380, 0.9), grV = gain(0); gr.connect(grF); grF.connect(grV); grV.connect(out);
-    const tread = ctx.createOscillator(); tread.type = 'triangle'; tread.frequency.value = 20; const treadG = gain(0); tread.connect(treadG); treadG.connect(grV.gain); tread.start();
-    const rasp = noise(1.03), raspF = filt('bandpass', 950, 1.3), raspV = gain(0); rasp.connect(raspF); raspF.connect(raspV); raspV.connect(out);
-    const raspW = wander(30, 3), raspWG = gain(0); raspW.connect(raspWG); raspWG.connect(raspV.gain);
-
-    let sqS = 0, cool = 0;
-    return {
-      /* sq: squeal 0..1 · sk: skid 0..1 · sp: speed / vmax · dt: frame time · t: audio time to schedule at */
-      update(sq, sk, sp, dt, t) {
-        const set = (p, v, k) => p.setTargetAtTime(v, t, k || 0.04);
-        const f0 = 640 + 420 * sq + 140 * Math.min(1, sp);
-        oscs.forEach((v) => set(v.o.frequency, f0 * v.m, 0.06));
-        set(formant.frequency, f0 * 2.1, 0.06);
-        set(jitG.gain, 35 + 50 * sq, 0.1); set(stutG.gain, 18 + 30 * sq, 0.1);   // cents
-        const lv = sq * sq * 0.11;
-        set(vcaS.gain, lv, 0.035); set(flutG.gain, lv * 0.55, 0.035);
-        set(hissG.gain, sq * sq * 0.05, 0.035);
-        const g = Math.pow(Math.min(1, sk), 1.3);
-        set(grV.gain, g * 0.42, 0.04); set(treadG.gain, g * 0.3, 0.04); set(tread.frequency, Math.max(11, Math.min(48, sp * 70 + 9)), 0.05);
-        set(raspV.gain, g * 0.09, 0.04); set(raspWG.gain, g * 0.06, 0.04);
-        // chirp when the tyre suddenly lets go
-        cool -= dt;
-        if (sq - sqS > 0.32 && cool <= 0) { cool = 0.6; this.chirp(f0, sq, t); }
-        sqS += (sq - sqS) * Math.min(1, dt * 9);
-      },
-      chirp(f0, k, t) {
-        const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(f0 * 1.45, t); o.frequency.exponentialRampToValueAtTime(f0 * 0.98, t + 0.14);
-        const bf = filt('bandpass', f0 * 2.2, 1.4), g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.09 * k, t + 0.006); g.gain.setTargetAtTime(0, t + 0.03, 0.06);
-        o.connect(bf); bf.connect(g); g.connect(out); o.start(t); o.stop(t + 0.5);
-      }
-    };
-  }
-  AX.makeTyreVoice = makeTyreVoice;
-
   class Sound {
     constructor() { this.ctx = null; this.ready = false; this.muted = false; this.volume = 0.8; this.voiceSpec = [null, null, null, null]; this.pending = []; this.popCool = 0; this.duck = 1; }
 
@@ -175,7 +112,7 @@
       // looping noise source shared by all noise layers
       const nb = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), nd = nb.getChannelData(0); for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
       const layer = (type, f, q, dest) => { const s = ctx.createBufferSource(); s.buffer = nb; s.loop = true; s.playbackRate.value = 0.9 + Math.random() * 0.2; const fl = ctx.createBiquadFilter(); fl.type = type; fl.frequency.value = f; fl.Q.value = q; const g = ctx.createGain(); g.gain.value = 0; s.connect(fl); fl.connect(g); g.connect(dest || this.fxBus); s.start(); return { f: fl, g }; };
-      this.wind = layer('bandpass', 700, 0.6); this.tyre = makeTyreVoice(ctx, this.fxBus, nb);
+      this.wind = layer('bandpass', 700, 0.6); this.squeal = layer('bandpass', 1900, 7); this.squeal2 = layer('bandpass', 2850, 9); this.scrub = layer('lowpass', 520, 0.7);
       this.dirt = layer('bandpass', 900, 0.8); this.scrape = layer('bandpass', 2600, 1.6); this.crowd = layer('bandpass', 800, 0.5);
       // tyre roar on asphalt, a soft mountain wind bed, and an echo send for rock walls / retaining walls
       this.roll = layer('lowpass', 260, 0.9); this.amb = layer('lowpass', 420, 0.5); this.amb2 = layer('bandpass', 1400, 0.4);
@@ -221,7 +158,8 @@
       const sp = clamp((s.speed || 0) / (s.vmax || 70), 0, 1.2);
       set(this.wind.g.gain, sp * sp * 0.2); set(this.wind.f.frequency, 500 + sp * 1300);
       const sq = clamp(s.squeal || 0, 0, 1);
-      this.tyre.update(sq, clamp(s.skid || 0, 0, 1), sp, dt, t);
+      set(this.squeal.g.gain, sq * sq * 0.085, 0.04); set(this.squeal2.g.gain, sq * sq * 0.04, 0.04); set(this.squeal.f.frequency, 1700 + sq * 500 + sp * 300); set(this.squeal2.f.frequency, 2600 + sq * 700);
+      set(this.scrub.g.gain, clamp(s.skid || 0, 0, 1) * 0.3, 0.04);
       const off = s.surf === AX.SURF.GRAVEL ? 1 : s.surf === AX.SURF.GRASS ? 0.55 : 0;
       set(this.dirt.g.gain, off * clamp(sp * 3, 0, 1) * 0.42); set(this.dirt.f.frequency, s.surf === AX.SURF.GRAVEL ? 1500 : 480);
       set(this.scrape.g.gain, clamp(s.scrape || 0, 0, 1) * 0.3, 0.03);
