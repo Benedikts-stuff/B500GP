@@ -81,7 +81,7 @@
           float steep = smoothstep(0.5, 0.82, 1.0 - vWN.y);
           float rk = nA(vW.xz * 0.09);
           g = mix(g, mix(${v3(P.rock)}, ${v3(P.rockLight)}, 0.5 + 0.5 * rk), steep);
-          g = mix(g, ${v3(P.earth)}, smoothstep(1.0, 0.1, vRoad) * 0.5);
+          g = mix(g, ${v3(P.earth)}, smoothstep(0.5, 0.0, vRoad) * 0.45);
           diffuseColor.rgb = g;`);
     };
     m.customProgramCacheKey = () => 'ps-terrain';
@@ -152,7 +152,7 @@
           vT = aT;
           vec3 ip = instanceMatrix[3].xyz; vGW = ip;
           float cd = distance(ip, cameraPosition);
-          transformed.y *= 1.0 - smoothstep(42.0, 85.0, cd);
+          transformed.y *= 1.0 - smoothstep(130.0, 220.0, cd);
           transformed.xz *= 1.0 + cd / 22.0;
           float w = sin(uT * 1.6 + ip.x * 0.19 + ip.z * 0.13) * 0.6 + sin(uT * 2.9 + ip.x * 0.6) * 0.25;
           transformed.x += w * aT * aT * 0.11; transformed.z += w * aT * aT * 0.06;`);
@@ -404,7 +404,7 @@
           const on = t.barType[sd][i] !== 2 && !(Math.abs(i - sIdx) < 13);
           if (on) {
             const L = t.bar[sd][i] + 0.3, nx = t.nx[i] * sg, nz = t.nz[i] * sg, y = t.py[i];
-            sp.push(t.px[i] + nx * L, y + 0.0, t.pz[i] + nz * L, t.px[i] + nx * (L + 0.7), y - 1.2, t.pz[i] + nz * (L + 0.7)); sr.push(0.2, 0.6);
+            sp.push(t.px[i] + nx * L, y + 0.0, t.pz[i] + nz * L, t.px[i] + nx * (L + 0.7), y - 1.2, t.pz[i] + nz * (L + 0.7)); sr.push(1.5, 1.5);
             if (prev) { const a = (rows - 1) * 2; if (sd) si.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); else si.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }
             rows++;
           }
@@ -416,7 +416,8 @@
     }
 
     /* ---- dry-stone retaining walls on the hill side, with the ground carried over their top */
-    const stripGrass = [];
+    const stripGrass = [], stripCov = new Set(), ckey = (x, z) => Math.floor(x) + ',' + Math.floor(z);
+    const covered = (x, z) => stripCov.has(ckey(x, z));
     {
       const face = { p: [], st: [], i: [] }, cap = { p: [], i: [] }, strip = { p: [], r: [], i: [] };
       const capM = new THREE.MeshStandardMaterial({ color: P.cap, roughness: 0.95, side: THREE.DoubleSide });
@@ -456,14 +457,29 @@
             const cnt = Math.round(area * 9 * (k === 0 ? 0.5 : 1));
             for (let c = 0; c < cnt; c++) {
               const u = rng(), v = rng(), lp = (o) => (sp[A * 3 + o] * (1 - u) + sp[B * 3 + o] * u) * (1 - v) + (sp[Cc * 3 + o] * (1 - u) + sp[D * 3 + o] * u) * v;
-              stripGrass.push([lp(0), lp(1) - 0.04, lp(2)]);
+              const x = lp(0), y = lp(1), z = lp(2); if (surf(x, z).y > y + 0.06) continue;   // the hill is above the strip here: the hill's own grass covers it
+              stripGrass.push([x, y - 0.04, z]);
             }
+            for (let u = 0.05; u < 1; u += 0.15) for (let v = 0.05; v < 1; v += 0.15) { const lp = (o) => (sp[A * 3 + o] * (1 - u) + sp[B * 3 + o] * u) * (1 - v) + (sp[Cc * 3 + o] * (1 - u) + sp[D * 3 + o] * u) * v; stripCov.add(ckey(lp(0), lp(2))); }
           }
           // end walls: the cut slope shows as a little rock face where a wall run starts and ends
           for (const [r, dir] of [[0, -1], [run.length - 1, 1]]) {
             const i = run[r], base = strip.p.length / 3, y = t.py[i];
             const ex = Math.cos(t.yaw[i]) * dir, ez = Math.sin(t.yaw[i]) * dir;
-            for (let k = 0; k < NC; k++) { const o = (s0 + r * NC + k) * 3, hgt = strip.p[o + 1] - y; strip.p.push(strip.p[o], strip.p[o + 1], strip.p[o + 2], strip.p[o] + ex * hgt * 1.2, y - 0.6, strip.p[o + 2] + ez * hgt * 1.2); strip.r.push(0.6, 0.6); }
+            const eb = [];
+            for (let k = 0; k < NC; k++) {
+              const o = (s0 + r * NC + k) * 3, sy = strip.p[o + 1], hgt = Math.max(0, sy - y), bx = strip.p[o] + ex * (hgt * 2.2 + 0.3), bz = strip.p[o + 2] + ez * (hgt * 2.2 + 0.3);
+              const by = Math.min(sy - 0.05, surf(bx, bz).y - 0.25);
+              strip.p.push(strip.p[o], sy, strip.p[o + 2], bx, by, bz); strip.r.push(6, 6); eb.push([strip.p[o], sy, strip.p[o + 2], bx, by, bz]);
+            }
+            for (let k = 0; k < NC - 1; k++) {   // grass on the bank, wherever it stands above the hill
+              const [ax, ay, az, bx, by, bz] = eb[k], [cx2, cy2, cz2, dx, dy, dz] = eb[k + 1];
+              const area = Math.hypot(bx - ax, bz - az) * Math.hypot(cx2 - ax, cz2 - az), cnt = Math.round(area * 9);
+              for (let c = 0; c < cnt; c++) {
+                const u = rng(), v = rng(), x = lerp(lerp(ax, bx, v), lerp(cx2, dx, v), u), yy = lerp(lerp(ay, by, v), lerp(cy2, dy, v), u), z = lerp(lerp(az, bz, v), lerp(cz2, dz, v), u);
+                if (yy > surf(x, z).y + 0.02) { stripGrass.push([x, yy - 0.04, z]); stripCov.add(ckey(x, z)); }
+              }
+            }
             for (let k = 0; k < NC - 1; k++) { const a = base + k * 2; if ((dir > 0) !== (sd === 1)) strip.i.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); else strip.i.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
           }
           run = [];
@@ -550,32 +566,6 @@
         const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(Pp, 3)); g.setIndex(idx); g.computeVertexNormals();
         sc.add(Object.assign(new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: C('#6f675e'), roughness: 1, side: THREE.DoubleSide })), { receiveShadow: true }));
       }
-      {
-        const X = S.x, Zz = S.z, B = S.b, n = X.length, Pp = [], UV = [], F = [], idx = []; let acc = 0;
-        for (let k = 0; k < n; k++) {
-          const k0 = Math.max(0, k - 1), k1 = Math.min(n - 1, k + 1), dx = X[k1] - X[k0], dz = Zz[k1] - Zz[k0], l = Math.hypot(dx, dz) || 1, px2 = -dz / l, pz2 = dx / l;
-          const slope = (B[k0] - B[k1]) / l, wW = S.W * (0.8 + 0.25 * Math.sin(k * 0.7));
-          if (k) acc += Math.hypot(X[k] - X[k - 1], Zz[k] - Zz[k - 1]);
-          for (const sgn of [-1, 1]) { const x = X[k] + sgn * px2 * wW, z = Zz[k] + sgn * pz2 * wW, gy = surf(x, z).y; Pp.push(x, Math.min(B[k] + 0.32, gy + 0.25), z); }
-          UV.push(0, acc / 5, 1, acc / 5); const f = clamp((slope - 0.06) * 6, 0, 1); F.push(f, f);
-          if (k) { const a = (k - 1) * 2, bb = k * 2; idx.push(a, bb, a + 1, a + 1, bb, bb + 1); }
-        }
-        const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(Pp, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(UV, 2)); g.setAttribute('aFoam', new THREE.Float32BufferAttribute(F, 1)); g.setIndex(idx); g.computeVertexNormals();
-        const wm = new THREE.MeshStandardMaterial({ color: P.water, roughness: 0.35, metalness: 0, side: THREE.DoubleSide });
-        wm.onBeforeCompile = (sh) => {
-          sh.uniforms.uT = AX.windT;
-          sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aFoam; varying float vFoam; varying vec2 vUv2;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvFoam = aFoam; vUv2 = uv;');
-          sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform float uT; varying float vFoam; varying vec2 vUv2;\n' + GLSL_NOISE)
-            .replace('#include <color_fragment>', `#include <color_fragment>
-              vec2 fu = vec2(vUv2.x * 4.0, vUv2.y * 2.0 - uT * (1.2 + vFoam * 2.5));
-              float streak = smoothstep(0.55, 0.95, nA(fu * 1.3) * 0.5 + 0.5);
-              float edge = smoothstep(0.2, 0.0, min(vUv2.x, 1.0 - vUv2.x));
-              float foam = clamp(streak * (0.15 + vFoam * 0.7) + edge * 0.35 + vFoam * 0.35, 0.0, 1.0);
-              diffuseColor.rgb = mix(diffuseColor.rgb * (0.9 + 0.15 * nA(fu * 0.5)), vec3(0.93, 0.95, 0.94), foam);`);
-        };
-        wm.customProgramCacheKey = () => 'ps-water';
-        sc.add(Object.assign(new THREE.Mesh(g, wm), { receiveShadow: true }));
-      }
       this.streamPts = S;
     }
 
@@ -596,7 +586,7 @@
       return n;
     };
     // where something may stand: clear of the road and the barriers by its radius; never on the wall-top ground (that is its own mesh)
-    const clearAt = (x, z, rad) => { if (fenceAt.has(Math.floor(x / 3) + ',' + Math.floor(z / 3))) return null; const g = surf(x, z); if (g.e < rad + 0.6) return null; if (g.w && g.e < 6.4 + rad * 0.5) return null; if (Math.abs(x - t.px[t.startIdx]) < 9 && Math.abs(z - t.pz[t.startIdx]) < 9) return null; if (Math.abs(x - t.px[t.finishIdx]) < 9 && Math.abs(z - t.pz[t.finishIdx]) < 9) return null; return g; };
+    const clearAt = (x, z, rad) => { if (fenceAt.has(Math.floor(x / 3) + ',' + Math.floor(z / 3))) return null; const g = surf(x, z); if (g.e < rad + 0.6) return null; if (covered(x, z) || covered(x + rad, z) || covered(x - rad, z) || covered(x, z + rad) || covered(x, z - rad)) return null; if (Math.abs(x - t.px[t.startIdx]) < 9 && Math.abs(z - t.pz[t.startIdx]) < 9) return null; if (Math.abs(x - t.px[t.finishIdx]) < 9 && Math.abs(z - t.pz[t.finishIdx]) < 9) return null; return g; };
     const nearStream = (x, z) => t.stream && t.streamDist(x, z) < t.stream.W + 2.5;
     // wooden fences along a few open meadows: round, slightly leaning posts, two rails per span, weathered wood
     const fenceAt = new Set(), fkey = (x, z) => Math.floor(x / 3) + ',' + Math.floor(z / 3);
@@ -616,7 +606,7 @@
         const pts = [];
         for (let i = i0; i < Math.min(N - 100, i0 + 140); i += 3) {
           const x = t.px[i] + t.nx[i] * sg * off, z = t.pz[i] + t.nz[i] * sg * off, g = surf(x, z);
-          if (g.e < 5 || (g.w && g.e < 8) || nearStream(x, z) || forestJS(x, z) > 0.3) break;
+          if (g.e < 5 || covered(x, z) || nearStream(x, z) || forestJS(x, z) > 0.3) break;
           const sl = Math.hypot(surf(x + 1, z).y - g.y, surf(x, z + 1).y - g.y); if (sl > 0.45) break;
           if (pts.length && Math.hypot(x - pts[pts.length - 1][0], z - pts[pts.length - 1][2]) < 1.8) continue;
           pts.push([x, g.y, z]);
@@ -693,7 +683,7 @@
     let total = 0;
     for (let x0 = gx0; x0 < gx1; x0 += CELL) for (let z0 = gz0; z0 < gz1; z0 += CELL) {
       const mid = surf(x0 + CELL / 2, z0 + CELL / 2), sg = cellOf.get(Math.round((x0 - gx0) / CELL) + ',' + Math.round((z0 - gz0) / CELL));
-      if (mid.e > 70 + CELL && !sg) continue;
+      if (mid.e > 130 + CELL && !sg) continue;
       const mats = [], fl = [], fc = [], gn = []; let y0 = 1e9, y1 = -1e9;
       const cnt = Math.round(CELL * CELL * 9);
       const put = (x, y, z, hgt, nx, ny, nz) => {
@@ -708,12 +698,12 @@
       const tall = (x, z) => (0.45 + 0.35 * (0.5 + 0.5 * patchJS(x, z)) + 0.2 * rng()) * (1 - 0.35 * smoothstep(0.5, 1, dryJS(x, z)));
       for (let k = 0; k < cnt; k++) {
         const x = x0 + rng() * CELL, z = z0 + rng() * CELL, g = surf(x, z), e = g.e;
-        if (e < 0.35 || (g.w && e < 6.4)) continue;
+        if (e < 0.32 || covered(x, z)) continue;
         // denser along the road, thinning into the forest; nothing deep in the woods or on bare rock
-        const keep = e < 18 ? 1 : e < 40 ? 0.55 : e < 70 ? 0.28 : 0; if (rng() > keep * (1 - 0.6 * smoothstep(0.3, 0.6, forestJS(x, z)) * smoothstep(10, 25, e))) continue;
+        const keep = e < 20 ? 1 : e < 45 ? 0.55 : e < 80 ? 0.3 : e < 130 ? 0.16 : 0; if (rng() > keep * (1 - 0.6 * smoothstep(0.3, 0.6, forestJS(x, z)) * smoothstep(10, 25, e))) continue;
         if (nearStream(x, z) && g.y < natAt(x, z) - 0.2) continue;
-        const y = g.y, gx = surf(x + 0.8, z).y - y, gz = surf(x, z + 0.8).y - y; if (Math.hypot(gx, gz) / 0.8 > 0.95) continue;
-        const l = Math.hypot(gx / 0.8, 1, gz / 0.8); put(x, y - 0.02, z, tall(x, z) * smoothstep(0.35, 1.4, e), -gx / 0.8 / l, 1 / l, -gz / 0.8 / l);
+        const y = g.y, gx = surf(x + 0.8, z).y - y, gz = surf(x, z + 0.8).y - y; if (Math.hypot(gx, gz) / 0.8 > 1.5) continue;
+        const l = Math.hypot(gx / 0.8, 1, gz / 0.8); put(x, y - 0.02, z, tall(x, z) * (0.45 + 0.55 * smoothstep(0.32, 1.2, e)), -gx / 0.8 / l, 1 / l, -gz / 0.8 / l);
       }
       if (sg) for (const [x, y, z] of sg) put(x, y, z, tall(x, z) * 0.9, 0, 1, 0);
       if (!mats.length) continue;
@@ -746,9 +736,9 @@
     const L = world.styleChunks; if (!L) return;
     for (let k = 0; k < L.length; k++) {
       const c = L[k], d = Math.max(0, Math.hypot(c.x - cam.x, c.z - cam.z) - 17);
-      const f = d > 110 ? 0 : clamp((26 / Math.max(26, d)) ** 2, 0.06, 1);
+      const f = d > 235 ? 0 : clamp((45 / Math.max(45, d)) ** 1.6, 0.1, 1);
       c.im.visible = f > 0; c.im.count = Math.max(1, Math.round(c.cap * f));
-      if (c.fim) { c.fim.visible = d < 80; c.fim.count = Math.max(1, Math.round(c.fcap * Math.min(1, f * 1.4))); }
+      if (c.fim) { c.fim.visible = d < 110; c.fim.count = Math.max(1, Math.round(c.fcap * Math.min(1, f * 1.4))); }
     }
   }
   function tameBike(root) {
