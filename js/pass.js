@@ -1054,6 +1054,7 @@
 
     /* ---- snow poles (orange/black) along the valley side, chevrons in the hairpins */
     const poleGeo = (() => { const gb = new GeoBuilder(); for (let k = 0; k < 6; k++) gb.add(new THREE.CylinderGeometry(0.035, 0.035, 0.32, 6), M(0, 0.16 + k * 0.32, 0), k % 2 ? 0x17181b : 0xf2701e); const g = gb.build(); g.computeBoundingSphere(); return g; })();
+    const signPost = new THREE.MeshStandardMaterial({ color: lin(0x9aa0a6), roughness: 0.5, metalness: 0.6 });
     if (!AX.LOOK) {
     const poles = new W.Scatter(poleGeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6 }), 1e6);
     for (let i = 12; i < N - 12; i += 24) for (const s of [0, 1]) {
@@ -1062,7 +1063,6 @@
     }
     poles.build(sc, true, false);
     const chev = new THREE.MeshStandardMaterial({ map: chevronTex(), roughness: 0.5, side: THREE.DoubleSide });
-    const signPost = new THREE.MeshStandardMaterial({ color: lin(0x9aa0a6), roughness: 0.5, metalness: 0.6 });
     t.corners.forEach((c) => {
       if (c.radius > 30) return; const outS = c.dir > 0 ? 0 : 1, sg = outS ? 1 : -1;
       for (const o of [-10, 0, 10]) {
