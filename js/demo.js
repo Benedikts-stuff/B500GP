@@ -132,7 +132,7 @@
     ch.fog_pars_fragment += '\n#ifdef USE_FOG\nvarying vec3 vFogW;\n#endif';
     ch.fog_fragment = `#ifdef USE_FOG
       vec3 fd = normalize(vFogW - cameraPosition);
-      float sd = dot(fd, ${'vec3(' + SUN.toArray().map((v) => v.toFixed(4)).join(',') + ')'}) * 0.5 + 0.5;
+      float sd = clamp(dot(fd, ${'vec3(' + SUN.toArray().map((v) => v.toFixed(4)).join(',') + ')'}) * 0.5 + 0.5, 0.0, 1.0);
       vec3 fc = mix(${v3(P.hazeCool)}, ${v3(P.hazeWarm)}, pow(sd, 1.7));
       float f = 1.0 - exp(-max(fogDepth - fogNear, 0.0) / fogFar);
       f *= 1.0 - 0.35 * smoothstep(20.0, 160.0, vFogW.y);
@@ -146,7 +146,7 @@
     side: THREE.BackSide, depthWrite: false, fog: false,
     vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: `varying vec3 vP; void main(){ vec3 d = normalize(vP); vec3 S = ${'vec3(' + SUN.toArray().map((v) => v.toFixed(4)).join(',') + ')'};
-      float sd = dot(d, S) * 0.5 + 0.5, h = clamp(d.y, 0.0, 1.0);
+      float sd = clamp(dot(d, S) * 0.5 + 0.5, 0.0, 1.0), h = clamp(d.y, 0.0, 1.0);
       vec3 hor = mix(${v3(P.hazeCool)}, ${v3(P.hazeWarm)}, pow(sd, 1.7));
       vec3 top = mix(${v3(P.skyTop)}, ${v3(P.skyTopSun)}, pow(sd, 3.0));
       vec3 c = mix(hor, top, pow(h, 0.55));

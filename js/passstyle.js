@@ -52,7 +52,7 @@
     ch.fog_fragment = `#ifdef USE_FOG
       if (abs(fogNear - 44.5) < 0.01) {
         vec3 hzD = normalize(vFogWP - cameraPosition);
-        float hzS = dot(hzD, ${SUNV}) * 0.5 + 0.5;
+        float hzS = clamp(dot(hzD, ${SUNV}) * 0.5 + 0.5, 0.0, 1.0);
         vec3 hzC = mix(${v3(P.hazeCool)}, ${v3(P.hazeWarm)}, pow(hzS, 1.7));
         float hzF = 1.0 - exp(-max(fogDepth - fogNear, 0.0) / fogFar);
         hzF *= 1.0 - 0.3 * smoothstep(120.0, 420.0, vFogWP.y);
@@ -249,7 +249,7 @@
       side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false,
       vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
       fragmentShader: `varying vec3 vP; void main(){ vec3 d = normalize(vP); vec3 S = ${SUNV};
-        float sd = dot(d, S) * 0.5 + 0.5, h = clamp(d.y, 0.0, 1.0);
+        float sd = clamp(dot(d, S) * 0.5 + 0.5, 0.0, 1.0), h = clamp(d.y, 0.0, 1.0);
         vec3 hor = mix(${v3(P.hazeCool)}, ${v3(P.hazeWarm)}, pow(sd, 1.7));
         vec3 top = mix(${v3(P.skyTop)}, ${v3(P.skyTopSun)}, pow(sd, 3.0));
         vec3 c = mix(hor, top, pow(h, 0.55));
