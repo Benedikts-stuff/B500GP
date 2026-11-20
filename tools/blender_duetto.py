@@ -49,11 +49,12 @@ def mat(name, hexc):
     MATS[name] = m; return m
 
 ASM = {'body': [], 'swing': [], 'front': [], 'fork': [], 'wheelF': [], 'wheelR': []}
-def obj_from_bm(bm, name, m, asm, smooth_angle=38, subsurf=0):
+def obj_from_bm(bm, name, m, asm, smooth_angle=38, subsurf=0, solid=0.0):
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
     o = bpy.data.objects.new('bk_' + name, me); scene.collection.objects.link(o); me.materials.append(m)
-    if subsurf:
-        mod = o.modifiers.new('s', 'SUBSURF'); mod.levels = subsurf; mod.render_levels = subsurf
+    if subsurf or solid:
+        if solid: md = o.modifiers.new('t', 'SOLIDIFY'); md.thickness = solid; md.offset = 0.0
+        if subsurf: mod = o.modifiers.new('s', 'SUBSURF'); mod.levels = subsurf; mod.render_levels = subsurf
         dg = bpy.context.evaluated_depsgraph_get(); me2 = bpy.data.meshes.new_from_object(o.evaluated_get(dg)); o.modifiers.clear(); o.data = me2
     me = o.data
     bm = bmesh.new(); bm.from_mesh(me)
@@ -207,6 +208,14 @@ def cutplate(name, outer, holes, th, m, asm, origin=(0, 0, 0), ex=(1, 0, 0), ey=
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     return obj_from_bm(bm, name, m, asm, 35)
 
+def panel(name, rows, th, m, asm, subsurf=2):
+    """moulded panel: a grid of game-space points (rows of equal length) given thickness and rounded edges"""
+    bm = bmesh.new(); G = [[bm.verts.new(V(*q)) for q in row] for row in rows]
+    for i in range(len(G) - 1):
+        for k in range(len(G[i]) - 1): bm.faces.new([G[i][k], G[i][k + 1], G[i + 1][k + 1], G[i + 1][k]])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return obj_from_bm(bm, name, m, asm, 40, subsurf, th)
+
 def lathe(name, prof, m, asm, seg=40, center=(0, 0, 0), smooth=50):
     """profile [(radius, z_lateral)] revolved around the game z axis (wheel axle)"""
     bm = bmesh.new(); rings = []
@@ -235,7 +244,7 @@ def coil(name, a, b, R, wire, turns, m, asm, n=14):
 # ------------------------------------------------------------------ materials
 P_body = mat('P_body', 'ffffff')
 M_dark = mat('M_dark', '1c1e22'); M_tyre = mat('M_tyre', '1a1a1c'); M_red = mat('M_red', 'c8281e'); M_disc = mat('M_disc', 'a9adb2'); M_cal = mat('M_caliper', 'b28a2c')
-M_spring = mat('M_spring', 'd8d9dc')
+M_spring = mat('M_spring', 'd8d9dc'); M_seat = mat('M_seat', '18191c'); M_groove = mat('M_groove', '070708'); M_resv = mat('M_resv', 'c9c6b4'); G_tail = mat('G_tail', 'ff2a1a')
 X_header = mat('X_header', '8a6c48'); X_ti = mat('X_ti', '9a958c'); X_chain = mat('X_chain', '55585e'); M_engine = mat('M_engine', '2e3136')
 X_alu = mat('X_alu', 'b9bdc2'); X_steel = mat('X_steel', 'd6d8db'); X_frame = mat('X_frame', '41454c'); X_rim = mat('X_rimdark', '34373d'); X_cast = mat('X_cast', '7d8188')
 
@@ -246,11 +255,11 @@ if 'chassis' in STAGES:
     rod('hs_cup0', sp(0.519), sp(0.533), 0.0365, X_steel, 'body', seg=20); rod('hs_cup1', sp(0.679), sp(0.693), 0.0365, X_steel, 'body', seg=20)
 
     # ---- trellis frame. Two rails per side run back from the head and fan out round the engine; short diagonals triangulate them.
-    T = [(0.381, 0.8965, 0.032), (0.22, 0.855, 0.115), (0.00, 0.80, 0.150), (-0.21, 0.742, 0.142)]      # top rail
+    T = [(0.381, 0.8965, 0.032), (0.22, 0.855, 0.11), (0.00, 0.80, 0.132), (-0.21, 0.742, 0.115)]       # top rail: narrow enough for tank and seat to sit on it
     B = [(0.430, 0.787, 0.032), (0.275, 0.665, 0.108), (0.065, 0.575, 0.150), (-0.125, 0.537, 0.148)]   # bottom rail: drops away from the top rail, so the truss is deep in the middle
     L2 = (-0.215, 0.585, 0.142)                                                                          # rear lug on the pivot plate
-    R1, R2 = (-0.44, 0.775, 0.125), (-0.645, 0.815, 0.085)                                               # seat rail
-    ST = [L2, (-0.36, 0.69, 0.132), (-0.52, 0.7906, 0.109)]                                              # stay from the plate up to the seat rail
+    R1, R2 = (-0.44, 0.775, 0.112), (-0.645, 0.815, 0.082)                                               # seat rail
+    ST = [L2, (-0.36, 0.69, 0.128), (-0.52, 0.7906, 0.1)]                                              # stay from the plate up to the seat rail
     def side(p, s): return (p[0], p[1], p[2] * s)
     for s in (-1, 1):
         tube('fr_top%d' % s, [side(p, s) for p in T], 0.014, M_red, 'body', seg=12)
@@ -259,7 +268,7 @@ if 'chassis' in STAGES:
             rod('fr_d%d_%d' % (k, s), side(a, s), side(b, s), 0.0115, M_red, 'body', seg=10)
         tube('sub_rail%d' % s, [side(p, s) for p in (T[3], R1, R2)], 0.0115, M_red, 'body', seg=10)
         tube('sub_stay%d' % s, [side(p, s) for p in ST], 0.0105, M_red, 'body', seg=10)
-        rod('sub_brace%d' % s, side(ST[1], s), side((-0.33, 0.758, 0.134), s), 0.009, M_red, 'body', seg=8)
+        rod('sub_brace%d' % s, side(ST[1], s), side((-0.33, 0.759, 0.1135), s), 0.009, M_red, 'body', seg=8)
         # cast plate carrying the swingarm pivot, bolted to the ends of the rails
         plate('pivplate%d' % s, hull(circ(B[3][0], B[3][1] - 0.008, 0.027) + circ(L2[0], L2[1], 0.027) + circ(PIV[0], PIV[1], 0.047) + circ(-0.14, 0.345, 0.023)),
               0.016, X_frame, 'body', off=s * 0.142, bevel=0.004)
@@ -321,13 +330,30 @@ if 'chassis' in STAGES:
         for k, sv in enumerate((0.498, 0.708)): cyl('pinch%d_%d' % (s, k), 0.006, 0.02, (fp(sv)[0] + N[0] * 0.042, fp(sv)[1] + N[1] * 0.042, s * FZ), X_steel, 'front', axis='z', seg=8, bevel=0)
 
     # ---- wheels
-    def wheel(asm, R, W, H, c2, discs, hubw, sprocket=None):
+    def wheel(asm, R, W, H, c2, discs, hubw, sprocket=None, ngroove=13, gdir=1):
         cx, cy = c2; c = (cx, cy, 0); Rc = R - H / 2; rr = R - H                 # tyre section centre, bead radius
         prof = [(rr + 0.003, -W * 0.80), (rr + 0.016, -W * 0.88)]
         for k in range(17):
             t = math.radians(-102 + 204 * k / 16); prof.append((Rc + (H / 2) * math.cos(t), W * 0.985 * math.sin(t)))
         prof += [(rr + 0.016, W * 0.88), (rr + 0.003, W * 0.80)]
         lathe(asm + '_tyre', prof, M_tyre, asm, 72, c, 80)
+        # tread of a road-legal supersport tyre: long grooves sweeping from near the centre out to the shoulder, a short one between each pair
+        ea, eb2 = H / 2, W * 0.985; bm = bmesh.new(); ctr = V(cx, cy, 0)
+        def tp(t, th, lift=0.0007):
+            ct, st = math.cos(t), math.sin(t); nr, nz = ct / ea, st / eb2; nl = math.hypot(nr, nz); rad = Rc + ea * ct + nr / nl * lift
+            return V(cx + rad * math.cos(th), cy + rad * math.sin(th), eb2 * st + nz / nl * lift)
+        for sg in (-1, 1):
+            for k in range(ngroove):
+                for (t0, t1, sw, w0, w1, ph) in ((0.17, 1.24, 0.32, 0.009, 0.004, 0.0), (0.66, 1.18, 0.15, 0.007, 0.0036, 0.56)):
+                    prev = None
+                    for i in range(9):
+                        f = i / 8; t = sg * (t0 + (t1 - t0) * f); th = (k + ph + (0.5 if sg > 0 else 0)) / ngroove * 6.2832 + gdir * sw * f ** 1.25; dth = (w0 + (w1 - w0) * f) / 2 / R
+                        cur = (bm.verts.new(tp(t, th - dth)), bm.verts.new(tp(t, th + dth)))
+                        if prev:
+                            fc = bm.faces.new([prev[0], prev[1], cur[1], cur[0]]); fc.normal_update(); o3 = fc.calc_center_median() - ctr; o3.y *= 0.3
+                            if fc.normal.dot(o3) < 0: fc.normal_flip()
+                        prev = cur
+        obj_from_bm(bm, asm + '_tread', M_groove, asm, 80)
         rim = [(rr + 0.014, -W * 0.94), (rr + 0.014, -W * 0.83), (rr - 0.002, -W * 0.80), (rr - 0.002, W * 0.80), (rr + 0.014, W * 0.83), (rr + 0.014, W * 0.94),
                (rr - 0.012, W * 0.91), (rr - 0.024, W * 0.72), (rr - 0.024, -W * 0.72), (rr - 0.012, -W * 0.91), (rr + 0.014, -W * 0.94)]
         lathe(asm + '_rim', rim, X_rim, asm, 72, c, 35)
@@ -359,7 +385,7 @@ if 'chassis' in STAGES:
             teeth = [pol(c2, 0.111 if k % 2 else 0.1045, k / 84 * 6.2832)[:2] for k in range(84)]
             cutplate(asm + '_sprocket', teeth, [circ(cx, cy, 0.062, 28)] + [circ(*pol(c2, 0.089, (k + 0.5) / 6 * 6.2832)[:2], 0.0105, 10) for k in range(6)], 0.006, X_steel, asm, off=z)
             for k in range(6): cyl('%s_spb%d' % (asm, k), 0.006, 0.012, pol(c2, 0.082, k / 6 * 6.2832, z), M_dark, asm, seg=8, bevel=0)
-    wheel('wheelF', RF, WF, 0.095, F, [-0.072, 0.072], 0.069)
+    wheel('wheelF', RF, WF, 0.095, F, [-0.072, 0.072], 0.069, ngroove=12, gdir=-1)
     wheel('wheelR', RR, WR, 0.105, A, [0.088], 0.085, sprocket=-0.118)
 
 
@@ -430,7 +456,7 @@ if 'engine' in STAGES:
     rod('can_band', ecan(0.38), ecan(0.43), [0.0525, 0.0533], M_dark, 'body', seg=24)
     hb = ecan(0.405)
     plate('can_hanger', hull(circ(hb[0], hb[1] + 0.03, 0.016) + circ(-0.45, 0.745, 0.011)), 0.005, M_dark, 'body', off=0.152, bevel=0.0015)
-    cyl('can_hbolt', 0.008, 0.03, (-0.45, 0.745, 0.136), X_steel, 'body', seg=8, bevel=0)
+    cyl('can_hbolt', 0.008, 0.042, (-0.45, 0.745, 0.133), X_steel, 'body', seg=8, bevel=0)
 
     # ---- intake: both heads breathe from the airbox between the frame rails
     loft('airbox', [dict(x=0.315, y=0.745, w=0.05, ht=0.04, hb=0.05, e=3), dict(x=0.26, y=0.745, w=0.085, ht=0.06, hb=0.07, e=4), dict(x=0.06, y=0.745, w=0.09, ht=0.06, hb=0.065, e=4),
@@ -440,20 +466,78 @@ if 'engine' in STAGES:
 
 # ================================================================== STAGE 3: bodywork
 if 'body' in STAGES:
-    # tank: sits on the top rails, tall and broad at the front, pulled in between the knees
-    def rail(x):                                           # height of the top rail at x
+    def rail(x, k2=1):                                     # height (k2=1) / half width (k2=2) of the top rail at x
         for k in range(len(T) - 1):
-            if T[k + 1][0] <= x <= T[k][0]: f = (x - T[k][0]) / (T[k + 1][0] - T[k][0]); return T[k][1] + (T[k + 1][1] - T[k][1]) * f
-        return T[0][1] if x > T[0][0] else T[-1][1]
-    TK = [(0.352, 1.000, 0.115, 0.105, 0.008, 3.2), (0.325, 1.032, 0.160, 0.150, 0.008, 3.4), (0.26, 1.052, 0.192, 0.178, 0.010, 3.4), (0.16, 1.062, 0.198, 0.180, 0.014, 3.2),
-          (0.05, 1.048, 0.185, 0.160, 0.016, 3.0), (-0.06, 1.008, 0.150, 0.118, 0.026, 2.7), (-0.16, 0.948, 0.115, 0.092, 0.024, 2.5), (-0.245, 0.885, 0.082, 0.072, 0.03, 2.4)]
+            if T[k + 1][0] <= x <= T[k][0]: f = (x - T[k][0]) / (T[k + 1][0] - T[k][0]); return T[k][k2] + (T[k + 1][k2] - T[k][k2]) * f
+        return T[0][k2] if x > T[0][0] else T[-1][k2]
+    # tank: sits on the top rails, tall and broad at the front, pulled in between the knees
+    TK = [(0.335, 0.995, 0.115, 0.105, 0.008, 3.2), (0.31, 1.03, 0.160, 0.150, 0.008, 3.4), (0.25, 1.054, 0.192, 0.176, 0.010, 3.4), (0.15, 1.066, 0.198, 0.178, 0.014, 3.2),
+          (0.04, 1.05, 0.185, 0.160, 0.016, 3.0), (-0.06, 1.008, 0.156, 0.140, 0.022, 2.7), (-0.16, 0.948, 0.126, 0.118, 0.022, 2.5), (-0.245, 0.885, 0.09, 0.082, 0.03, 2.4), (-0.27, 0.86, 0.03, 0.028, 0.045, 2.2)]
     secs = []                                              # x, top, half width, half width low, gap above the rail, shoulder squareness
     for (x, top, w, wb, gap, e) in TK:
         bot = rail(x) + gap; yc = bot + (top - bot) * 0.44
         secs.append(dict(x=x, y=yc, w=w, wb=wb, ht=top - yc, hb=yc - bot, e=e, eb=3.6))
     loft('tank', secs, P_body, 'body', ring=20, subsurf=2)
-    cyl('fuelcap', 0.036, 0.012, (0.17, 1.054, 0), X_alu, 'body', axis='y', seg=24, bevel=0.003)
-    cyl('fuelcap_lid', 0.024, 0.004, (0.17, 1.062, 0), M_dark, 'body', axis='y', seg=20, bevel=0.0015)
+    cyl('fuelcap', 0.036, 0.012, (0.16, 1.058, 0), X_alu, 'body', axis='y', seg=24, bevel=0.003)
+    cyl('fuelcap_lid', 0.024, 0.004, (0.16, 1.066, 0), M_dark, 'body', axis='y', seg=20, bevel=0.0015)
+    # tank side panels: hang from under the tank's front edge down over the airbox, bolted to stand-offs on the frame rails
+    for s in (-1, 1):
+        rows = [[(0.338, 0.915, 0.112), (0.26, 0.893, 0.166), (0.15, 0.868, 0.168), (0.045, 0.842, 0.152)],
+                [(0.348, 0.835, 0.122), (0.272, 0.805, 0.162), (0.165, 0.782, 0.163), (0.07, 0.785, 0.148)],
+                [(0.342, 0.75, 0.116), (0.278, 0.716, 0.146), (0.185, 0.712, 0.15), (0.10, 0.742, 0.142)]]
+        panel('shroud%d' % s, [[side(q, s) for q in row] for row in rows], 0.009, P_body, 'body')
+        for (bx, by, z0, z1) in ((0.235, 0.848, 0.104, 0.166), (0.262, 0.728, 0.108, 0.152)):
+            cyl('shroud_post%d_%.2f' % (s, by), 0.006, z1 - z0, (bx, by, s * (z0 + z1) / 2), M_red, 'body', seg=8, bevel=0)
+            cyl('shroud_bolt%d_%.2f' % (s, by), 0.0085, 0.005, (bx, by, s * (z1 + 0.004)), X_steel, 'body', seg=6, bevel=0)
+    # seat: the rider's pad on the seat rails, running up onto the tank at the front
+    loft('seat', [dict(x=-0.175, y=0.815, w=0.085, ht=0.03, hb=0.028, e=2.6), dict(x=-0.25, y=0.798, w=0.128, ht=0.03, hb=0.03, e=2.8), dict(x=-0.34, y=0.79, w=0.158, ht=0.03, hb=0.03, e=3.0),
+                  dict(x=-0.43, y=0.80, w=0.152, ht=0.036, hb=0.03, e=3.0), dict(x=-0.485, y=0.822, w=0.132, ht=0.042, hb=0.034, e=2.8)], M_seat, 'body', ring=18, subsurf=2)
+    # tail: painted single-seat cowl over the end of the subframe, a small pad on top, dark tray underneath
+    loft('tail', [dict(x=-0.40, y=0.772, w=0.136, ht=0.02, hb=0.034, e=3.0), dict(x=-0.47, y=0.80, w=0.142, ht=0.052, hb=0.044, e=3.0), dict(x=-0.55, y=0.826, w=0.132, ht=0.064, hb=0.044, e=3.0),
+                  dict(x=-0.64, y=0.848, w=0.11, ht=0.05, hb=0.038, e=3.0), dict(x=-0.715, y=0.862, w=0.088, ht=0.032, hb=0.03, e=3.2), dict(x=-0.738, y=0.864, w=0.076, ht=0.024, hb=0.024, e=3.4)],
+         P_body, 'body', ring=18, subsurf=2)
+    loft('tailpad', [dict(x=-0.50, y=0.868, w=0.082, ht=0.012, hb=0.012, e=3.0), dict(x=-0.575, y=0.888, w=0.088, ht=0.013, hb=0.014, e=3.0), dict(x=-0.655, y=0.893, w=0.07, ht=0.011, hb=0.012, e=3.0)],
+         M_seat, 'body', ring=14, subsurf=1)
+    loft('undertray', [dict(x=-0.44, y=0.758, w=0.105, ht=0.012, hb=0.02, e=3.0), dict(x=-0.60, y=0.80, w=0.092, ht=0.012, hb=0.024, e=3.0), dict(x=-0.72, y=0.836, w=0.066, ht=0.01, hb=0.016, e=3.0)],
+         M_dark, 'body', ring=12, subsurf=1)
+    # tail light: an LED bar set into the end of the tail
+    box('taillight_bezel', (0.012, 0.03, 0.128), (-0.741, 0.863, 0), M_dark, 'body', bevel=0.005)
+    box('taillight', (0.012, 0.016, 0.112), (-0.7445, 0.863, 0), G_tail, 'body', bevel=0.004)
+
+# ================================================================== STAGE 4: controls
+if 'controls' in STAGES:
+    BC = sp(0.776)                                         # centre of the handlebar, above the top clamp
+    HB = [(0.0, 0.0, 0.0), (0.0, 0.0, 0.09), (-0.006, 0.02, 0.16), (-0.04, 0.045, 0.26), (-0.075, 0.047, 0.385)]      # one half of the bar, relative to its centre
+    def bar(z, dx=0.0, dy=0.0):                            # point on the bar at lateral position z (either side)
+        a = abs(z); sg = 1 if z >= 0 else -1
+        for k in range(len(HB) - 1):
+            if HB[k][2] <= a <= HB[k + 1][2] + 1e-9:
+                f = (a - HB[k][2]) / (HB[k + 1][2] - HB[k][2]); return (BC[0] + HB[k][0] + (HB[k + 1][0] - HB[k][0]) * f + dx, BC[1] + HB[k][1] + (HB[k + 1][1] - HB[k][1]) * f + dy, z)
+        d = (HB[-1][0] - HB[-2][0]) / (HB[-1][2] - HB[-2][2]); return (BC[0] + HB[-1][0] + d * (a - HB[-1][2]) + dx, BC[1] + HB[-1][1] + dy, z)
+    half = [(BC[0] + q[0], BC[1] + q[1], q[2]) for q in HB]
+    tube('handlebar', [(q[0], q[1], -q[2]) for q in reversed(half[1:])] + half, [0.011, 0.011, 0.0125, 0.0143, 0.0143, 0.0143, 0.0125, 0.011, 0.011], M_dark, 'front', seg=12, smooth=5)
+    for s in (-1, 1):
+        # riser clamp on the top fork clamp
+        rod('riser%d' % s, sp(0.716, s * 0.052), sp(0.768, s * 0.052), [0.0165, 0.0145, 0.0155], X_frame, 'front', seg=14)
+        cyl('barclamp%d' % s, 0.0235, 0.034, (BC[0], BC[1], s * 0.052), X_frame, 'front', seg=20, bevel=0.004)
+        for dz in (-0.011, 0.011): rod('barbolt%d_%d' % (s, dz > 0), (BC[0] + U[0] * 0.02 + N[0] * 0.012, BC[1] + U[1] * 0.02 + N[1] * 0.012, s * 0.052 + dz), (BC[0] + U[0] * 0.027 + N[0] * 0.012, BC[1] + U[1] * 0.027 + N[1] * 0.012, s * 0.052 + dz), 0.0045, X_steel, 'front', seg=6)
+        # grip, flange, bar-end weight
+        tube('grip%d' % s, [bar(s * 0.268), bar(s * 0.385)], 0.0168, M_tyre, 'front', seg=14)
+        tube('gripflange%d' % s, [bar(s * 0.262), bar(s * 0.268)], 0.0205, M_tyre, 'front', seg=14)
+        tube('barend%d' % s, [bar(s * 0.385), bar(s * 0.405)], [0.0155, 0.0135], X_alu, 'front', seg=12)
+        # switch housing, lever perch with its master cylinder, fluid reservoir, lever
+        g0 = bar(s * 0.238); px, py = g0[0], g0[1]
+        tube('switch%d' % s, [bar(s * 0.212), bar(s * 0.256)], 0.021, M_dark, 'front', seg=10)
+        rod('master%d' % s, (px + 0.012, py - 0.004, s * 0.206), (px + 0.082, py - 0.016, s * 0.2), [0.0125, 0.0115, 0.0105], X_frame, 'front', seg=12)
+        tube('perch%d' % s, [bar(s * 0.196), bar(s * 0.21)], 0.0185, X_frame, 'front', seg=12)
+        piv = (px + 0.062, py - 0.014, s * 0.207)
+        cyl('leverpivot%d' % s, 0.0075, 0.02, piv, X_steel, 'front', axis='y', seg=10, bevel=0.001)
+        sweep('lever%d' % s, [(piv[0] - 0.012, piv[1] - 0.001, s * 0.198), (piv[0] + 0.006, piv[1] - 0.002, s * 0.225), (piv[0] + 0.002, piv[1] - 0.004, s * 0.30), (piv[0] - 0.022, piv[1] - 0.004, s * 0.375), (piv[0] - 0.034, piv[1] - 0.004, s * 0.398)],
+              [0.006, 0.0055, 0.0045, 0.004, 0.0045], [0.0085, 0.0075, 0.006, 0.0052, 0.0065], X_alu, 'front', e=3.0, ring=8, smooth=4)
+        rr = 0.0195 if s > 0 else 0.016; rc = (px + 0.052, py + 0.03, s * 0.185)                 # brake reservoir right, the smaller clutch one left
+        cyl('resv%d' % s, rr, 0.03, rc, M_resv, 'front', axis='y', seg=18, bevel=0.003)
+        cyl('resvcap%d' % s, rr + 0.002, 0.009, (rc[0], rc[1] + 0.019, rc[2]), M_dark, 'front', axis='y', seg=18, bevel=0.002)
+        rod('resvarm%d' % s, (px + 0.045, py - 0.006, s * 0.202), (rc[0], rc[1] - 0.014, rc[2]), 0.0042, X_steel, 'front', seg=6)
 
 res = {k: sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in L) for k, L in ASM.items()}
 
@@ -471,13 +555,15 @@ if SHOTS:
     C = V(0, 0.52, 0)
     DIRS = {'side': ((0, 0.0, 1), 0), 'sideL': ((0, 0.0, -1), 0), 'front': ((1, 0.03, 0), 0), 'rear': ((-1, 0.05, 0), 0), 'top': ((0.001, 1, 0), 0),
             'q1': ((0.8, 0.32, 1), 1), 'q2': ((0.8, 0.32, -1), 1), 'low': ((0.5, -0.12, 1), 1), 'q3': ((-0.85, 0.36, 1), 1), 'q4': ((-0.85, 0.36, -1), 1)}
+    CLOSE = {'cock': ((-0.42, 1.42, 0.0), (0.45, 0.93, 0.0), 30), 'bars': ((1.25, 1.45, 0.75), (0.33, 1.0, 0.0), 70), 'tail': ((-1.75, 1.2, 0.8), (-0.5, 0.78, 0.0), 70), 'tyre': ((1.55, 0.55, 0.55), (0.71, 0.33, 0.0), 80)}
     for v in SHOTS:
-        d, persp = DIRS[v]; dv = V(*d).normalized(); ortho = not persp
+        d, persp = DIRS.get(v, ((1, 0.3, 1), 1)); dv = V(*d).normalized(); ortho = not persp
         cam.data.type = 'ORTHO' if ortho else 'PERSP'; cam.data.ortho_scale = 2.35; cam.data.lens = 200
         cam.location = C + dv * (20 if ortho else 14.5)
         cam.rotation_euler = (C - cam.location).to_track_quat('-Z', 'Y').to_euler()
         if v == 'top': cam.location = C + Vector((0, 0, 20)); cam.rotation_euler = (0, 0, 0)
         if v in ('front', 'rear'): cam.data.ortho_scale = 1.5
+        if v in CLOSE: eye, tgt, lens = CLOSE[v]; cam.data.type = 'PERSP'; cam.data.lens = lens; cam.location = V(*eye); cam.rotation_euler = (V(*tgt) - cam.location).to_track_quat('-Z', 'Y').to_euler()
         scene.render.filepath = OUT + 'renders/' + PREFIX + '_' + v + '.png'; bpy.ops.render.render(write_still=True)
     bpy.data.objects.remove(cam)
 
