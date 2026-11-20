@@ -258,6 +258,15 @@
       for (let i = 1; i < N; i++) py[i] = py[i - 1] + gs[i] * ds;
       this.py = py; this.gr = gs;
     }
+    /* height of the road surface under a world point, exactly as the road ribbon shows it: interpolated between the two cross-sections
+       either side of the point. On the inside of a hairpin those sections close up, so the road climbs much faster there than along the centre line. */
+    roadY(x, z, hint) {
+      if (!this.py) return 0; const N = this.n; let i = this.nearest(x, z, hint);
+      if (this.along(i, x, z) < 0) i = this.open ? Math.max(i - 1, 0) : this.wr(i - 1);
+      const j = this.open ? Math.min(i + 1, N - 1) : this.wr(i + 1);
+      const d0 = Math.max(0, this.along(i, x, z)), d1 = Math.max(0, -this.along(j, x, z)), f = d0 + d1 > 1e-6 ? d0 / (d0 + d1) : 0;
+      return this.py[i] + (this.py[j] - this.py[i]) * f;
+    }
     heightAt(i, along) { if (!this.py) return 0; i = this.wr(i); const j = Math.min(i + 1, this.n - 1), k = Math.max(i - 1, 0), t = clamp((along || 0) / this.ds, -1, 1); return t >= 0 ? this.py[i] + (this.py[j] - this.py[i]) * t : this.py[i] + (this.py[i] - this.py[k]) * t; }
 
     /* ---------- terrain around the road: best-fit plane + inverse-distance blend of the road heights + noise */

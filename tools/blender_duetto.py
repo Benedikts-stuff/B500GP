@@ -17,7 +17,7 @@ STAGES = globals().get('STAGES', ['chassis']); SHOTS = globals().get('SHOTS', []
 # ------------------------------------------------------------------ geometry of the real thing (metres)
 WB = 1.42; HX = WB / 2                       # wheelbase
 RF, RR = 0.315, 0.325                        # tyre radii (120/70-17, 180/55-17, a touch generous)
-WF, WR = 0.062, 0.095                        # tyre half widths
+WF, WR = 0.062, 0.105                        # tyre half widths
 RAKE = math.radians(24.0); OFFSET = 0.034    # steering head angle, fork offset -> ~103 mm trail
 F = (HX, RF); A = (-HX, RR)                  # axles
 U = (-math.sin(RAKE), math.cos(RAKE))        # up along the fork

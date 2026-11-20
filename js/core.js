@@ -98,7 +98,7 @@
 
   /* Field of riders. All names, teams and sponsors are invented. */
   AX.RIDERS = [
-    { name: 'DU',          num: 1,  c1: '#e8372c', c2: '#ffffff', c3: '#141518', helmet: '#f4f4f1', suit: '#e8372c' },
+    { name: 'DU',          num: 1,  c1: '#e8372c', c2: '#f3f3f0', c3: '#141518', helmet: '#f4f4f1', suit: '#17181b' },      // black leathers, white panels
     { name: 'M. Halvorsen', num: 27, c1: '#1f6fe0', c2: '#ffd23c', c3: '#0e1a33', helmet: '#ffd23c', suit: '#1f6fe0' },
     { name: 'R. Okafor',    num: 44, c1: '#19b36b', c2: '#0c0d0e', c3: '#f2f2ee', helmet: '#19b36b', suit: '#17191c' },
     { name: 'L. Ferrand',   num: 9,  c1: '#f4a21a', c2: '#17191c', c3: '#ffffff', helmet: '#17191c', suit: '#f4a21a' },

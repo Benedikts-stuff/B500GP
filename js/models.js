@@ -400,7 +400,7 @@
 
     const bike = {
       root: rootG, leanG, pitchG, bodyG, susG, steerG, wheelF, wheelR, rider: riderRig, paint, brakeMat, spec, scale: sc,
-      Rr, Rf, hx, wfHolder, shadow, rT: 0.105, dive: 0, diveV: 0, steerVis: 0, shake: 0, crashedVis: false, riderHolder: null,
+      Rr, Rf, hx, wfHolder, shadow, rT: 0.105, tyre: naked && BMOD ? { ar: 0.0525, br: 0.1034, af: 0.0475, bf: 0.061 } : null, dive: 0, diveV: 0, steerVis: 0, shake: 0, crashedVis: false, riderHolder: null,
       /* contact patches in world space (for skid marks / smoke) */
       rearContact(out) { return out.set(-hx, 0.02, 0).applyMatrix4(leanG.matrixWorld); },
       frontContact(out) { return out.set(hx, 0.02, 0).applyMatrix4(leanG.matrixWorld); },
@@ -510,15 +510,19 @@
     const LIMB = { '0.074:0.062': 'uparm', '0.062:0.05': 'foarm', '0.104:0.08': 'thigh', '0.078:0.06': 'shin' };
     const limb = (r0, r1, col) => {
       const lm = RM && LIMB[r0 + ':' + r1], key = lm ? 'rider:' + lm : 'cyl:' + r0 + ':' + r1;
-      const m = new THREE.Mesh(RB.geo(key, () => lm ? mergeAsset('rider/' + lm, null, (n) => !/dark/.test(n)) : cylGeo(r0, r1)), mats.suit); m.userData.rb = { key, col }; g.add(m);
+      const m = new THREE.Mesh(RB.geo(key, () => lm ? mergeAsset('rider/' + lm, null, (n) => !/dark|accent/.test(n)) : cylGeo(r0, r1)), mats.suit); m.userData.rb = { key, col }; g.add(m);
+      // panels in the suit's second colour (shoulders, knees, cuffs): their own instances too
+      if (lm && AX.Assets.get('rider/' + lm).parts.some((q) => /accent/.test(q.material.name || ''))) { const ak = 'rider:' + lm + ':accent', c = new THREE.Mesh(RB.geo(ak, () => mergeAsset('rider/' + lm, null, (n) => /accent/.test(n))), mats.suit); c.userData.rb = { key: ak, col: accent }; c.userData.povHide = true; m.add(c); }
       // boots and gloves: their own instances (always dark), riding along as children of the limb
       if (lm && (lm === 'shin' || lm === 'foarm')) { const dk = 'rider:' + lm + ':dark', c = new THREE.Mesh(RB.geo(dk, () => mergeAsset('rider/' + lm, null, (n) => /dark/.test(n))), mats.suit); c.userData.rb = { key: dk, col: lm === 'shin' ? 0x1b1c20 : 0x222327 }; m.add(c); }
       return m; };
+    // gloves and boots: modelled, sitting in bike axes on the hand / ankle point
+    const part = (name, col, fb) => { if (!(RM && AX.Assets.has('rider/' + name))) return fb(); const key = 'rider:' + name, m = new THREE.Mesh(RB.geo(key, () => mergeAsset('rider/' + name, null)), mats.suit); m.userData.rb = { key, col }; g.add(m); return m; };
     const ball = (r, col, sx, sy, sz) => { const m = new THREE.Mesh(RB.geo('sph', sphGeo), mats.suit); m.userData.rb = { key: 'sph', col, scale: new THREE.Matrix4().makeScale(r * (sx || 1), r * (sy || 1), r * (sz || 1)) }; g.add(m); return m; };
     const parts = { arms: [], legs: [] };
     for (let s = 0; s < 2; s++) {
-      parts.arms.push({ up: limb(0.074, 0.062, suit), lo: limb(0.062, 0.05, suit), sh: ball(RM ? 0.08 : 0.084, RM ? suit : accent), el: ball(0.064, suit), hand: ball(0.06, dark, 1.3, 0.85, 1) });
-      parts.legs.push({ up: limb(0.104, 0.08, suit), lo: limb(0.078, 0.06, suit), hip: ball(0.105, suit), kn: ball(RM ? 0.08 : 0.084, RM ? suit : accent), foot: ball(0.064, dark, 2.0, 0.85, 1) });
+      parts.arms.push({ up: limb(0.074, 0.062, suit), lo: limb(0.062, 0.05, suit), sh: ball(RM ? 0.072 : 0.084, accent), el: ball(0.064, suit), hand: part('glove', 0x1b1c20, () => ball(0.06, dark, 1.3, 0.85, 1)) });
+      parts.legs.push({ up: limb(0.104, 0.08, suit), lo: limb(0.078, 0.06, suit), hip: ball(0.105, suit), kn: ball(RM ? 0.078 : 0.084, accent), foot: part('boot', 0x1b1c20, () => ball(0.064, dark, 2.0, 0.85, 1)) });
     }
     // in the helmet cam only the gloves stay visible
     const hideIn = (o) => { o.userData.povHide = true; o.children.forEach(hideIn); };
@@ -619,8 +623,14 @@
   const _mw = new THREE.Matrix4(), _fw = new THREE.Vector3();
   function syncBike(vis, p, dt, time) {
     const spec = vis.spec, maxLean = spec.maxLean * Math.PI / 180;
-    vis.root.position.set(p.x, (p.y || 0) + (p.surf === AX.SURF.KERB ? 0.075 : p.surf === AX.SURF.GRAVEL ? 0.012 : 0.02), p.z);   // sit on the surface, not in it
-    vis.root.rotation.set(0, -p.yaw, Math.atan(p.slope || 0), 'YZX');   // yaw, then the road's slope
+    // each wheel stands on the road where it actually is: height and pitch come from the surface under the two contact patches
+    let gy = p.y || 0, gs = Math.atan(p.slope || 0); const trk = p.track;
+    if (trk && trk.py && trk.roadY && !p.crashed) {
+      const hw = vis.hx * vis.scale, cx = Math.cos(p.yaw) * hw, cz = Math.sin(p.yaw) * hw, yF = trk.roadY(p.x + cx, p.z + cz, p.idx), yR = trk.roadY(p.x - cx, p.z - cz, p.idx);
+      gy = (yF + yR) / 2; gs = Math.atan2(yF - yR, 2 * hw);
+    }
+    vis.root.position.set(p.x, gy + (p.surf === AX.SURF.KERB ? 0.075 : p.surf === AX.SURF.GRAVEL ? 0.012 : 0.02), p.z);   // sit on the surface, not in it
+    vis.root.rotation.set(0, -p.yaw, gs, 'YZX');   // yaw, then the road's slope
     // kerb rattle / off-road shake
     const rough = p.surf === AX.SURF.KERB ? 0.022 : (p.surf === AX.SURF.GRASS || p.surf === AX.SURF.GRAVEL) ? 0.03 : 0;
     const sh = rough * clamp(p.speed / 20, 0, 1) * (p.crashed ? 0 : 1);
@@ -629,7 +639,12 @@
     const hangIn = p.crashed ? 0 : Math.max(0, p.hangIn || 0);
     const phi = p.lean * (1 - 0.13 * hangIn) + jit * 0.6;     // hanging off lets the bike itself stay more upright
     vis.leanG.rotation.x = phi;
-    vis.leanG.position.set(0, vis.rT * (1 - Math.cos(phi)), -vis.rT * Math.sin(phi));   // roll on the tyre's round profile
+    let dFront = 0;
+    if (vis.tyre) {   // modelled tyres: roll on the real (elliptical) section of the rear tyre, and let the narrower front one down onto the road too
+      const T = vis.tyre, c = Math.cos(phi), s = Math.sin(phi), q = Math.sqrt(T.ar * T.ar * c * c + T.br * T.br * s * s), qf = Math.sqrt(T.af * T.af * c * c + T.bf * T.bf * s * s);
+      vis.leanG.position.set(0, q - T.ar * c, -((T.br * T.br - T.ar * T.ar) * s * c / q + T.ar * s));
+      dFront = ((q - T.ar * c) - (qf - T.af * c)) / Math.max(c, 0.45);
+    } else vis.leanG.position.set(0, vis.rT * (1 - Math.cos(phi)), -vis.rT * Math.sin(phi));   // roll on the tyre's round profile
     vis.rider.bikeLean = phi;
     vis.shadow.position.z = Math.sin(phi) * 0.3; vis.shadow.scale.y = 1 + Math.abs(Math.sin(phi)) * 0.6; vis.shadow.visible = !p.crashed;
     // pitch about the wheel that stays on the ground
@@ -643,7 +658,7 @@
     vis.susG.rotation.z = -vis.dive + jit * 0.5; vis.susG.position.y = -Math.abs(vis.dive) * 0.25 + Math.abs(jit) * 0.4;
     // wheels
     // the front wheel is unsprung: keep its axle where the body says it is, whatever the suspension does
-    vis.root.updateMatrixWorld(true); _fw.set(hx, vis.Rf, 0).applyMatrix4(vis.bodyG.matrixWorld); vis.wfHolder.parent.worldToLocal(_fw); vis.wfHolder.position.copy(_fw);
+    vis.root.updateMatrixWorld(true); _fw.set(hx, vis.Rf - dFront, 0).applyMatrix4(vis.bodyG.matrixWorld); vis.wfHolder.parent.worldToLocal(_fw); vis.wfHolder.position.copy(_fw);
     const roll = p.speed * dt / (vis.Rr * vis.scale);
     vis.wheelR.rotation.z -= roll * (1 + p.spin * 0.45); vis.wheelF.rotation.z -= p.pitch > 0.06 ? roll * 0.6 : roll;
     // steering: counter-steers into a slide, turns in at walking pace
