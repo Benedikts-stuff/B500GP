@@ -92,9 +92,23 @@ def box(name, size, loc, m, asm, rot=(0, 0, 0), bevel=0.01, seg=2):
     bmesh.ops.transform(bm, matrix=Matrix.Translation(V(*loc)) @ R, verts=bm.verts)
     return obj_from_bm(bm, name, m, asm, 40)
 
-def tube(name, pts, r, m, asm, seg=12, closed_ends=True):
-    """round tube along a polyline of game-space points (r: one radius or one per point)"""
+def catmull(P, n):
+    if n <= 1 or len(P) < 3: return P, [float(i) for i in range(len(P))]
+    out, par = [], []
+    for i in range(len(P) - 1):
+        p0, p1, p2, p3 = P[max(i - 1, 0)], P[i], P[i + 1], P[min(i + 2, len(P) - 1)]
+        for k in range(n):
+            t = k / n
+            out.append(0.5 * ((2 * p1) + (p2 - p0) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (3 * p1 - p0 - 3 * p2 + p3) * t ** 3)); par.append(i + t)
+    out.append(P[-1]); par.append(len(P) - 1.0); return out, par
+def at(v, u):
+    if not isinstance(v, (list, tuple)): return v
+    i = max(0, min(int(u), len(v) - 2)); f = u - i; return v[i] * (1 - f) + v[i + 1] * f
+
+def tube(name, pts, r, m, asm, seg=12, closed_ends=True, smooth=1):
+    """round tube along a polyline of game-space points (r: one radius or one per point); smooth > 1 bends it through the points"""
     bm = bmesh.new(); P = [V(*p) for p in pts]; rings = []; a = None
+    if smooth > 1: P, par = catmull(P, smooth); r = [at(r, u) for u in par]
     for i, p in enumerate(P):
         t = (P[min(i + 1, len(P) - 1)] - P[max(i - 1, 0)]).normalized()
         if a is None:
@@ -115,19 +129,6 @@ def rod(name, a, b, r, m, asm, seg=16):
         n = len(r) - 1; pts = [tuple(a[k] + (b[k] - a[k]) * i / n for k in range(3)) for i in range(n + 1)]
         return tube(name, pts, list(r), m, asm, seg)
     return tube(name, [a, b], r, m, asm, seg)
-
-def catmull(P, n):
-    if n <= 1 or len(P) < 3: return P, [float(i) for i in range(len(P))]
-    out, par = [], []
-    for i in range(len(P) - 1):
-        p0, p1, p2, p3 = P[max(i - 1, 0)], P[i], P[i + 1], P[min(i + 2, len(P) - 1)]
-        for k in range(n):
-            t = k / n
-            out.append(0.5 * ((2 * p1) + (p2 - p0) * t + (2 * p0 - 5 * p1 + 4 * p2 - p3) * t * t + (3 * p1 - p0 - 3 * p2 + p3) * t ** 3)); par.append(i + t)
-    out.append(P[-1]); par.append(len(P) - 1.0); return out, par
-def at(v, u):
-    if not isinstance(v, (list, tuple)): return v
-    i = max(0, min(int(u), len(v) - 2)); f = u - i; return v[i] * (1 - f) + v[i + 1] * f
 
 def sweep(name, pts, w, h, m, asm, e=5.0, ring=16, smooth=1, caps=True, sa=40):
     """box / oval section swept along a path: w = half width (sideways), h = half height (upwards), e = corner sharpness (2 round .. 8 square).
@@ -176,6 +177,36 @@ def plate(name, outline, th, m, asm, origin=(0, 0, 0), ex=(1, 0, 0), ey=(0, 1, 0
     if bevel: bmesh.ops.bevel(bm, geom=list(set(list(ft.edges) + list(fb.edges))), offset=bevel, segments=seg, affect='EDGES', profile=0.5)
     return obj_from_bm(bm, name, m, asm, 35)
 
+def inpoly(p, poly):
+    x, y = p; c = False; n = len(poly)
+    for i in range(n):
+        x1, y1 = poly[i]; x2, y2 = poly[(i + 1) % n]
+        if (y1 > y) != (y2 > y) and x < (x2 - x1) * (y - y1) / (y2 - y1) + x1: c = not c
+    return c
+def cutplate(name, outer, holes, th, m, asm, origin=(0, 0, 0), ex=(1, 0, 0), ey=(0, 1, 0), off=0.0):
+    """flat part with real cut-outs: outline and hole outlines in the plane (ex, ey), th thick"""
+    from mathutils.geometry import delaunay_2d_cdt
+    vin, ein = [], []
+    for lp in [outer] + list(holes):
+        b = len(vin); vin += [Vector((q[0], q[1])) for q in lp]; ein += [(b + i, b + (i + 1) % len(lp)) for i in range(len(lp))]
+    vc, ed, fc, ov, oe, of = delaunay_2d_cdt(vin, ein, [], 0, 1e-7); imap = {}
+    for oi, src in enumerate(ov):
+        for si in src: imap[si] = oi
+    O, EX, EY = V(*origin), V(*ex), V(*ey); NZ = EX.cross(EY).normalized(); bm = bmesh.new()
+    top = [bm.verts.new(O + EX * v.x + EY * v.y + NZ * (off + th / 2)) for v in vc]; bot = [bm.verts.new(O + EX * v.x + EY * v.y + NZ * (off - th / 2)) for v in vc]
+    for f in fc:
+        c = (sum(vc[i].x for i in f) / len(f), sum(vc[i].y for i in f) / len(f))
+        if not inpoly(c, outer) or any(inpoly(c, h) for h in holes): continue
+        try: bm.faces.new([top[i] for i in f]); bm.faces.new([bot[i] for i in reversed(f)])
+        except ValueError: pass
+    for a, b in ein:
+        a2, b2 = imap.get(a), imap.get(b)
+        if a2 is None or b2 is None or a2 == b2: continue
+        try: bm.faces.new([top[a2], bot[a2], bot[b2], top[b2]])
+        except ValueError: pass
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return obj_from_bm(bm, name, m, asm, 35)
+
 def lathe(name, prof, m, asm, seg=40, center=(0, 0, 0), smooth=50):
     """profile [(radius, z_lateral)] revolved around the game z axis (wheel axle)"""
     bm = bmesh.new(); rings = []
@@ -205,7 +236,8 @@ def coil(name, a, b, R, wire, turns, m, asm, n=14):
 P_body = mat('P_body', 'ffffff')
 M_dark = mat('M_dark', '1c1e22'); M_tyre = mat('M_tyre', '1a1a1c'); M_red = mat('M_red', 'c8281e'); M_disc = mat('M_disc', 'a9adb2'); M_cal = mat('M_caliper', 'b28a2c')
 M_spring = mat('M_spring', 'd8d9dc')
-X_alu = mat('X_alu', 'b9bdc2'); X_steel = mat('X_steel', 'd6d8db'); X_frame = mat('X_frame', '41454c'); X_rim = mat('X_rimdark', '34373d'); X_cast = mat('X_cast', '6d7178')
+X_header = mat('X_header', '8a6c48'); X_ti = mat('X_ti', '9a958c'); X_chain = mat('X_chain', '55585e'); M_engine = mat('M_engine', '2e3136')
+X_alu = mat('X_alu', 'b9bdc2'); X_steel = mat('X_steel', 'd6d8db'); X_frame = mat('X_frame', '41454c'); X_rim = mat('X_rimdark', '34373d'); X_cast = mat('X_cast', '7d8188')
 
 # ================================================================== STAGE 1: rolling chassis
 if 'chassis' in STAGES:
@@ -244,7 +276,8 @@ if 'chassis' in STAGES:
               [0.019, 0.018, 0.016, 0.016], [0.043, 0.04, 0.033, 0.027], X_alu, 'swing', e=5.5, ring=16, smooth=5)
         box('adjuster%d' % s, (0.07, 0.04, 0.008), (A[0] - 0.012, A[1], s * 0.175), X_cast, 'swing', bevel=0.003)
         cyl('axlenut%d' % s, 0.019, 0.014, (A[0], A[1], s * 0.184), X_steel, 'swing', seg=6, bevel=0.002)
-    cyl('pivtube', 0.03, 0.25, (PIV[0], PIV[1], 0), X_alu, 'swing', seg=20)
+    for s in (-1, 1): cyl('pivboss%d' % s, 0.032, 0.04, (PIV[0], PIV[1], s * 0.105), X_alu, 'swing', seg=20, bevel=0.003)
+    cyl('pivaxle', 0.011, 0.31, (PIV[0], PIV[1], 0), X_steel, 'body', seg=12, bevel=0)
     sweep('armbridge', [(-0.305, 0.412, -0.125), (-0.305, 0.412, 0.125)], 0.024, 0.036, X_alu, 'swing', e=5.5, ring=16)
     cyl('axleR', 0.011, 0.36, (A[0], A[1], 0), X_steel, 'swing', seg=12, bevel=0)
     # rear caliper under the right arm, on its carrier
@@ -309,19 +342,118 @@ if 'chassis' in STAGES:
                 sweep('%s_sp%d_%d' % (asm, k, sg), [pol(c2, 0.044, a + sg * 0.05), pol(c2, 0.115, a + sg * 0.10), pol(c2, r1 + 0.012, a + sg * 0.24)],
                       [min(hubw * 0.5, 0.03), 0.021, W * 0.32], [0.018, 0.013, 0.0115], X_rim, asm, e=3.2, ring=10, smooth=4)
         for z in discs:
-            d0, d1 = (0.108, 0.16) if len(discs) > 1 else (0.078, 0.122)
-            lathe(asm + '_disc%.2f' % z, [(d0, z - 0.003), (d1, z - 0.003), (d1, z + 0.003), (d0, z + 0.003), (d0, z - 0.003)], M_disc, asm, 56, c, 30)
-            lathe(asm + '_carrier%.2f' % z, [(0.046, z - 0.0035), (d0 + 0.007, z - 0.0035), (d0 + 0.007, z + 0.0035), (0.046, z + 0.0035), (0.046, z - 0.0035)], M_dark, asm, 28, c, 30)
-            for k in range(8 if len(discs) > 1 else 5):
-                a = k / (8 if len(discs) > 1 else 5) * math.pi * 2
-                cyl('%s_bob%.2f_%d' % (asm, z, k), 0.0065, 0.011, pol(c2, d0 + 0.001, a, z), X_steel, asm, seg=8, bevel=0)
+            # drilled brake disc: steel friction ring, floating on an aluminium carrier with cut-out windows (front) / one-piece (rear)
+            front = len(discs) > 1; d0, d1 = (0.121, 0.16) if front else (0.09, 0.1225); rows = (d0 + 0.0075, (d0 + d1) / 2, d1 - 0.0075) if front else (d0 + 0.008, d1 - 0.008); nh = 18 if front else 14
+            drill = [circ(*pol(c2, rw, (k + j / len(rows)) / nh * 6.2832)[:2], 0.0033, 6) for j, rw in enumerate(rows) for k in range(nh)]
+            cutplate(asm + '_disc%.2f' % z, circ(cx, cy, d1, 64), [circ(cx, cy, d0, 48)] + drill, 0.005, M_disc, asm, off=z)
+            nb = 10 if front else 5; lobe = lambda a: (d0 - 0.022) + 0.027 * (0.5 + 0.5 * math.cos(nb * a)) ** 1.6
+            star = [pol(c2, lobe(k / 90 * 6.2832) if front else d0 + 0.004, k / 90 * 6.2832)[:2] for k in range(90)]
+            wins = [sector(c2, 0.058, d0 - 0.036 if front else d0 - 0.014, (k + 0.5) / 5 * 6.2832 - 0.36, (k + 0.5) / 5 * 6.2832 + 0.36, 4) for k in range(5)]
+            bolts = [circ(*pol(c2, 0.045, k / 5 * 6.2832)[:2], 0.004, 6) for k in range(5)]
+            cutplate(asm + '_carrier%.2f' % z, star, [circ(cx, cy, 0.031, 24)] + wins + bolts, 0.007, X_frame if front else M_disc, asm, off=z)
+            if front:
+                for k in range(nb): cyl('%s_bob%.2f_%d' % (asm, z, k), 0.0072, 0.0095, pol(c2, d0 + 0.0005, k / nb * 6.2832, z), X_steel, asm, seg=8, bevel=0)
         if sprocket:
             z = sprocket
             lathe(asm + '_cush', [(0.046, z + 0.008), (0.078, z + 0.008), (0.078, z + 0.04), (0.05, z + 0.045)], X_rim, asm, 28, c, 30)
-            lathe(asm + '_sprocket', [(0.07, z - 0.003), (0.104, z - 0.003), (0.109, z - 0.0012), (0.109, z + 0.0012), (0.104, z + 0.003), (0.07, z + 0.003), (0.07, z - 0.003)], X_steel, asm, 44, c, 30)
+            teeth = [pol(c2, 0.111 if k % 2 else 0.1045, k / 84 * 6.2832)[:2] for k in range(84)]
+            cutplate(asm + '_sprocket', teeth, [circ(cx, cy, 0.062, 28)] + [circ(*pol(c2, 0.089, (k + 0.5) / 6 * 6.2832)[:2], 0.0105, 10) for k in range(6)], 0.006, X_steel, asm, off=z)
             for k in range(6): cyl('%s_spb%d' % (asm, k), 0.006, 0.012, pol(c2, 0.082, k / 6 * 6.2832, z), M_dark, asm, seg=8, bevel=0)
-    wheel('wheelF', RF, WF, 0.095, F, [-0.072, 0.072], 0.058)
+    wheel('wheelF', RF, WF, 0.095, F, [-0.072, 0.072], 0.069)
     wheel('wheelR', RR, WR, 0.105, A, [0.088], 0.085, sprocket=-0.118)
+
+
+# ================================================================== STAGE 2: engine, exhaust, final drive
+if 'engine' in STAGES:
+    # air-cooled 90-degree twin, tipped forward 15 degrees: one cylinder reaches for the front wheel, the other stands up under the tank
+    EC = (0.0, 0.395); TILT = math.radians(15); D1 = (math.cos(TILT), math.sin(TILT)); D2 = (-math.sin(TILT), math.cos(TILT))
+    def ept(d, r, q=0.0, z=0.0): return (EC[0] + d[0] * r - d[1] * q, EC[1] + d[1] * r + d[0] * q, z)    # r along the cylinder, q square to it
+    def sq(hx, hz, e, n=28):
+        return [(hx * math.copysign(abs(math.cos(a)) ** (2 / e), math.cos(a)), hz * math.copysign(abs(math.sin(a)) ** (2 / e), math.sin(a))) for a in [(k + 0.5) / n * 6.2832 for k in range(n)]]
+    # crankcase: narrow enough to sit between the swingarm bosses - the pivot axle runs straight through its rear
+    plate('crankcase', hull(circ(EC[0], EC[1], 0.122) + circ(-0.1, 0.42, 0.094) + circ(0.065, 0.33, 0.076) + circ(-0.09, 0.325, 0.066) + circ(0.05, 0.50, 0.032)), 0.17, X_cast, 'body', bevel=0.014, seg=3)
+    for tag, d in (('cylF', D1), ('cylR', D2)):
+        nx = (-d[1], d[0], 0)
+        rod(tag + '_barrel', ept(d, 0.09), ept(d, 0.24), 0.05, M_dark, 'body', seg=20)
+        for k in range(8): plate('%s_fin%d' % (tag, k), sq(0.072, 0.078, 4.0), 0.0042, X_cast, 'body', origin=ept(d, 0.126 + k * 0.0145), ex=nx, ey=(0, 0, 1), bevel=0)
+        plate(tag + '_head', sq(0.068, 0.074, 5.0), 0.075, X_cast, 'body', origin=ept(d, 0.277), ex=nx, ey=(0, 0, 1), bevel=0.008)
+        for k in range(3): plate('%s_hfin%d' % (tag, k), sq(0.075, 0.081, 4.5), 0.0042, X_cast, 'body', origin=ept(d, 0.256 + k * 0.021), ex=nx, ey=(0, 0, 1), bevel=0)
+        plate(tag + '_cover', sq(0.05, 0.06, 3.0), 0.03, X_alu, 'body', origin=ept(d, 0.328), ex=nx, ey=(0, 0, 1), bevel=0.011, seg=3)
+    # right side: belt covers from the layshaft in the V up to each cam, and the clutch
+    LAY = (0.03, 0.485)
+    for tag, d in (('beltF', D1), ('beltR', D2)):
+        cam = ept(d, 0.285)
+        plate(tag, hull(circ(LAY[0], LAY[1], 0.036) + circ(cam[0], cam[1], 0.033)), 0.028, M_dark, 'body', off=0.102, bevel=0.007)
+        cyl(tag + '_cap', 0.019, 0.006, (cam[0], cam[1], 0.12), X_alu, 'body', seg=16, bevel=0.002)
+    cyl('belt_capL', 0.017, 0.006, (LAY[0], LAY[1], 0.12), X_alu, 'body', seg=16, bevel=0.002)
+    CL = (-0.045, 0.405)
+    cyl('clutch', 0.07, 0.026, (CL[0], CL[1], 0.098), M_dark, 'body', seg=32, bevel=0.003)
+    cutplate('clutchcover', circ(CL[0], CL[1], 0.071, 36), [sector(CL, 0.03, 0.054, k / 6 * 6.2832 - 0.3, k / 6 * 6.2832 + 0.3, 4) for k in range(6)], 0.006, X_alu, 'body', off=0.114)
+    cyl('clutchhub', 0.021, 0.008, (CL[0], CL[1], 0.118), X_steel, 'body', seg=16, bevel=0.002)
+    for k in range(6): cyl('clutchbolt%d' % k, 0.0045, 0.004, pol(CL, 0.063, (k + 0.5) / 6 * 6.2832, 0.118), X_steel, 'body', seg=6, bevel=0)
+    # left side: alternator cover on the crank, sprocket cover behind it
+    cyl('altcover', 0.085, 0.034, (EC[0], EC[1], -0.102), X_alu, 'body', seg=36, bevel=0.009)
+    cyl('altcap', 0.03, 0.006, (EC[0], EC[1], -0.121), M_dark, 'body', seg=20, bevel=0.002)
+    for k in range(6): cyl('altbolt%d' % k, 0.0045, 0.004, pol(EC, 0.072, k / 6 * 6.2832, -0.12), X_steel, 'body', seg=6, bevel=0)
+    SPR = (-0.075, 0.44)
+    plate('sprocketcover', hull(circ(SPR[0], SPR[1], 0.05) + circ(-0.025, 0.47, 0.034)), 0.018, M_dark, 'body', off=-0.137, bevel=0.005)
+    cyl('oilfilter', 0.03, 0.065, (0.165, 0.315, -0.035), M_dark, 'body', axis='x', seg=18, bevel=0.006)
+    # the engine is a stressed member: bolted into the frame in the V (lugs hanging off the lower rails) and at the pivot plates
+    MNT = (0.05, 0.505)
+    for s in (-1, 1):
+        plate('mnt_lug%d' % s, hull(circ(B[2][0], B[2][1], 0.016) + circ(MNT[0], MNT[1], 0.017)), 0.008, M_red, 'body', off=s * 0.146, bevel=0.002)
+        cyl('mnt_spacer%d' % s, 0.012, 0.057, (MNT[0], MNT[1], s * 0.1135), X_steel, 'body', seg=12, bevel=0)
+        cyl('mnt_head%d' % s, 0.0095, 0.006, (MNT[0], MNT[1], s * 0.153), X_steel, 'body', seg=6, bevel=0)
+        cyl('mnt_spacerR%d' % s, 0.012, 0.049, (-0.14, 0.345, s * 0.1095), X_steel, 'body', seg=12, bevel=0)
+    # final drive: front sprocket on the gearbox, chain round to the rear sprocket
+    lathe('sprocketF', [(0.012, -0.123), (0.04, -0.121), (0.04, -0.115), (0.012, -0.113)], X_steel, 'body', 20, (SPR[0], SPR[1], 0), 30)
+    r1, r2 = 0.044, 0.113; dx, dy = SPR[0] - A[0], SPR[1] - A[1]; Dc = math.hypot(dx, dy); phi = math.atan2(dy, dx); al = math.acos((r2 - r1) / Dc); loop = []
+    for k in range(21): loop.append(pol(A, r2, phi + al + (2 * math.pi - 2 * al) * k / 20, -0.118))
+    for k in range(13): loop.append(pol(SPR, r1, phi - al + 2 * al * k / 12, -0.118))
+    loop.append(loop[0])
+    sweep('chain', loop, 0.0085, 0.0062, X_chain, 'swing', e=4.0, ring=8, caps=False)
+
+    # ---- exhaust: two bronze headers into a collector under the engine, then a short upswept race megaphone on the right
+    HR, RR2 = 0.0225, 0.021
+    pf = ept(D1, 0.275, -0.07)
+    tube('headerF', [pf, (pf[0] + 0.012, pf[1] - 0.055, 0.0), (0.275, 0.275, 0.03), (0.205, 0.234, 0.06), (0.08, 0.222, 0.08), (-0.08, 0.222, 0.085), (-0.175, 0.226, 0.086)], HR, X_header, 'body', seg=14, smooth=5)
+    pr = ept(D2, 0.275, 0.07)
+    tube('headerR', [pr, (-0.178, 0.632, 0.03), (-0.208, 0.595, 0.066), (-0.222, 0.52, 0.068), (-0.222, 0.37, 0.066), (-0.224, 0.30, 0.07), (-0.245, 0.252, 0.086), (-0.278, 0.234, 0.094)], RR2, X_header, 'body', seg=14, smooth=5)
+    for tag, q, d in (('F', pf, (D1[1], -D1[0])), ('R', pr, (-D2[1], D2[0]))):      # port flanges
+        rod('flange' + tag, (q[0] - d[0] * 0.004, q[1] - d[1] * 0.004, 0), (q[0] + d[0] * 0.008, q[1] + d[1] * 0.008, 0), 0.033, X_steel, 'body', seg=14)
+    tube('collector', [(-0.165, 0.228, 0.086), (-0.20, 0.229, 0.088), (-0.275, 0.234, 0.094), (-0.33, 0.25, 0.117), (-0.385, 0.29, 0.148), (-0.44, 0.335, 0.18)], [0.026, 0.03, 0.03, 0.027, 0.026, 0.026], X_header, 'body', seg=16, smooth=4)
+    E0, E1 = (-0.44, 0.335, 0.18), (-0.79, 0.53, 0.232)
+    def ecan(t): return tuple(E0[k] + (E1[k] - E0[k]) * t for k in range(3))
+    tube('can', [ecan(0.0), ecan(0.11), ecan(0.14), ecan(0.90), ecan(0.925)], [0.027, 0.045, 0.047, 0.058, 0.0585], X_ti, 'body', seg=24)
+    tube('can_cap', [ecan(0.925), ecan(0.99), ecan(1.0)], [0.0592, 0.0585, 0.055], M_dark, 'body', seg=24)
+    rod('can_out', ecan(0.99), ecan(1.012), 0.041, X_steel, 'body', seg=20); rod('can_bore', ecan(1.0), ecan(1.014), 0.035, M_dark, 'body', seg=20)
+    rod('can_band', ecan(0.38), ecan(0.43), [0.0525, 0.0533], M_dark, 'body', seg=24)
+    hb = ecan(0.405)
+    plate('can_hanger', hull(circ(hb[0], hb[1] + 0.03, 0.016) + circ(-0.45, 0.745, 0.011)), 0.005, M_dark, 'body', off=0.152, bevel=0.0015)
+    cyl('can_hbolt', 0.008, 0.03, (-0.45, 0.745, 0.136), X_steel, 'body', seg=8, bevel=0)
+
+    # ---- intake: both heads breathe from the airbox between the frame rails
+    loft('airbox', [dict(x=0.315, y=0.745, w=0.05, ht=0.04, hb=0.05, e=3), dict(x=0.26, y=0.745, w=0.085, ht=0.06, hb=0.07, e=4), dict(x=0.06, y=0.745, w=0.09, ht=0.06, hb=0.065, e=4),
+                    dict(x=0.012, y=0.745, w=0.07, ht=0.045, hb=0.05, e=3)], M_dark, 'body', ring=16, subsurf=1)
+    qi = ept(D1, 0.275, 0.068); rod('intakeF', qi, (0.20, 0.685, 0.0), [0.03, 0.027, 0.03], M_dark, 'body', seg=14); rod('intakeF_tb', (qi[0] * 0.55 + 0.20 * 0.45, qi[1] * 0.55 + 0.685 * 0.45 - 0.012, 0), (qi[0] * 0.55 + 0.20 * 0.45, qi[1] * 0.55 + 0.685 * 0.45 + 0.012, 0), 0.034, X_alu, 'body', seg=14)
+    qi = ept(D2, 0.275, -0.068); rod('intakeR', qi, (0.045, 0.705, 0.0), [0.03, 0.027, 0.03], M_dark, 'body', seg=14)
+
+# ================================================================== STAGE 3: bodywork
+if 'body' in STAGES:
+    # tank: sits on the top rails, tall and broad at the front, pulled in between the knees
+    def rail(x):                                           # height of the top rail at x
+        for k in range(len(T) - 1):
+            if T[k + 1][0] <= x <= T[k][0]: f = (x - T[k][0]) / (T[k + 1][0] - T[k][0]); return T[k][1] + (T[k + 1][1] - T[k][1]) * f
+        return T[0][1] if x > T[0][0] else T[-1][1]
+    TK = [(0.352, 1.000, 0.115, 0.105, 0.008, 3.2), (0.325, 1.032, 0.160, 0.150, 0.008, 3.4), (0.26, 1.052, 0.192, 0.178, 0.010, 3.4), (0.16, 1.062, 0.198, 0.180, 0.014, 3.2),
+          (0.05, 1.048, 0.185, 0.160, 0.016, 3.0), (-0.06, 1.008, 0.150, 0.118, 0.026, 2.7), (-0.16, 0.948, 0.115, 0.092, 0.024, 2.5), (-0.245, 0.885, 0.082, 0.072, 0.03, 2.4)]
+    secs = []                                              # x, top, half width, half width low, gap above the rail, shoulder squareness
+    for (x, top, w, wb, gap, e) in TK:
+        bot = rail(x) + gap; yc = bot + (top - bot) * 0.44
+        secs.append(dict(x=x, y=yc, w=w, wb=wb, ht=top - yc, hb=yc - bot, e=e, eb=3.6))
+    loft('tank', secs, P_body, 'body', ring=20, subsurf=2)
+    cyl('fuelcap', 0.036, 0.012, (0.17, 1.054, 0), X_alu, 'body', axis='y', seg=24, bevel=0.003)
+    cyl('fuelcap_lid', 0.024, 0.004, (0.17, 1.062, 0), M_dark, 'body', axis='y', seg=20, bevel=0.0015)
 
 res = {k: sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in L) for k, L in ASM.items()}
 
@@ -338,7 +470,7 @@ if SHOTS:
     scene.render.resolution_x, scene.render.resolution_y = globals().get('RES', (1800, 1100)); scene.render.image_settings.file_format = 'PNG'
     C = V(0, 0.52, 0)
     DIRS = {'side': ((0, 0.0, 1), 0), 'sideL': ((0, 0.0, -1), 0), 'front': ((1, 0.03, 0), 0), 'rear': ((-1, 0.05, 0), 0), 'top': ((0.001, 1, 0), 0),
-            'q1': ((0.8, 0.32, 1), 1), 'q2': ((0.8, 0.32, -1), 1), 'q3': ((-0.85, 0.36, 1), 1), 'q4': ((-0.85, 0.36, -1), 1)}
+            'q1': ((0.8, 0.32, 1), 1), 'q2': ((0.8, 0.32, -1), 1), 'low': ((0.5, -0.12, 1), 1), 'q3': ((-0.85, 0.36, 1), 1), 'q4': ((-0.85, 0.36, -1), 1)}
     for v in SHOTS:
         d, persp = DIRS[v]; dv = V(*d).normalized(); ortho = not persp
         cam.data.type = 'ORTHO' if ortho else 'PERSP'; cam.data.ortho_scale = 2.35; cam.data.lens = 200
