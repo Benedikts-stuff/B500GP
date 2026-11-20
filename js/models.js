@@ -224,7 +224,8 @@
     const rootG = new THREE.Group(), leanG = new THREE.Group(), pitchG = new THREE.Group(), bodyG = new THREE.Group(), susG = new THREE.Group();
     rootG.add(leanG); leanG.add(pitchG); pitchG.add(bodyG); bodyG.add(susG);
     const P = new GeoBuilder(), Mt = new GeoBuilder(), Me = new GeoBuilder(), Gl = new GeoBuilder();
-    const steerHead = V3(hx - 0.27, 0.93, 0), forkDir = V3(hx, Rf, 0).sub(steerHead).normalize();
+    // the Duetto is modelled round a real steering head: 24 degrees, 34 mm offset
+    const steerHead = naked ? V3(hx - 0.312, 0.932, 0) : V3(hx - 0.27, 0.93, 0), forkDir = naked ? V3(Math.sin(24 * Math.PI / 180), -Math.cos(24 * Math.PI / 180), 0) : V3(hx, Rf, 0).sub(steerHead).normalize();
 
     // ---- frame, engine, swingarm
     const frameCol = naked ? rider.c1 : 0x2c2f35;
@@ -335,7 +336,7 @@
       F1.add(roundedBox(0.1, 0.06, 0.04, 0.014, 2), M(hx - 0.13, Rf + 0.06, z * 1.0, 0, 0, 1.1).premultiply(inv), 0xb8911a); // calipers
     }
     F1.add(roundedBox(0.07, 0.03, 0.27, 0.012, 2), M(steerHead.x - 0.02, steerHead.y + 0.03, 0).premultiply(inv), 0x1b1c20);
-    const barY = st.bars === 'wide' ? 1.04 : 0.905, barX = st.bars === 'wide' ? hx - 0.36 : hx - 0.27, barZ = st.bars === 'wide' ? 0.36 : 0.265;
+    const barY = st.bars === 'wide' ? 1.036 : 0.905, barX = st.bars === 'wide' ? hx - 0.405 : hx - 0.27, barZ = st.bars === 'wide' ? 0.325 : 0.265;
     if (st.bars === 'wide') {
       F1.add(tubeBetween(V3(barX + 0.06, 0.97, -0.1), V3(barX + 0.06, 0.97, 0.1), 0.014, 0.014, 6), inv, 0x1a1b1e);
       for (const z of [-1, 1]) { F1.add(tubeBetween(V3(barX + 0.06, 0.97, z * 0.1), V3(barX + 0.02, barY, z * 0.2), 0.014, 0.014, 6), inv, 0x1a1b1e); F1.add(tubeBetween(V3(barX + 0.02, barY, z * 0.2), V3(barX, barY, z * (barZ + 0.05)), 0.016, 0.016, 6), inv, 0x1a1b1e); }
@@ -375,12 +376,18 @@
       for (const [w, nm] of [[wheelF, 'bike/' + BV + '_wheelF'], [wheelR, 'bike/' + BV + '_wheelR']]) { w.geometry = new THREE.BufferGeometry(); merged(nm).forEach((m) => w.add(m)); }
       if (CORSA) { brakeLight.position.set(-0.882 * sx, 0.985, 0); brakeLight.scale.set(1, 0.9, 1.05); }
       else if (SUP) { brakeLight.position.set(-0.857 * sx, 0.962, 0); brakeLight.rotation.z = -0.35; brakeLight.scale.set(1, 0.45, 0.95); }
-      else { brakeLight.position.set((naked ? -0.727 : -0.812) * sx, naked ? 0.912 : 0.995, 0); brakeLight.scale.set(1, 0.8, 0.85); }
+      else if (naked) { brakeLight.position.set(-0.7445 * sx, 0.863, 0); brakeLight.scale.set(1, 0.55, 1.24); }      // LED bar in the end of the tail
+      else { brakeLight.position.set(-0.812 * sx, 0.995, 0); brakeLight.scale.set(1, 0.8, 0.85); }
     }
 
     // number roundels on the tail sides
     const numTex = numberTexture(rider.num, rider.c3 === '#ffffff' ? '#ffffff' : '#f4f4f0', '#111111');
     const numMat = new THREE.MeshBasicMaterial({ map: numTex, transparent: true, toneMapped: true });
+    if (naked && BMOD) {   // the Duetto carries its number on the plate in front of the fork (steers with it)
+      const sn = Math.sin(24 * Math.PI / 180), cs = Math.cos(24 * Math.PI / 180), m = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.2), numMat);
+      const mb = new THREE.Matrix4().makeBasis(V3(0, 0, -1), V3(-sn, cs, 0), V3(cs, sn, 0)).setPosition(hx - 0.244 + cs * 0.0805, Rf + 0.548 + sn * 0.0805, 0);
+      m.applyMatrix4(mb.premultiply(inv)); steerG.add(m);
+    } else
     for (const z of [-1, 1]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.15), numMat); if (SUP) m.position.set(-0.56 * wb / BWB, CORSA ? 0.875 : 0.89, z * (CORSA ? 0.124 : 0.117)); else m.position.set(BMOD ? -0.5 * wb / BWB : -0.5, BMOD ? (naked ? 0.85 : 0.875) : 0.86 + tH * 0.5, z * (BMOD ? (naked ? 0.108 : 0.137) : 0.128)); m.rotation.y = z > 0 ? 0 : Math.PI; m.rotation.x = z * -0.25; susG.add(m); }
 
     // ---- rider
@@ -397,7 +404,7 @@
       /* contact patches in world space (for skid marks / smoke) */
       rearContact(out) { return out.set(-hx, 0.02, 0).applyMatrix4(leanG.matrixWorld); },
       frontContact(out) { return out.set(hx, 0.02, 0).applyMatrix4(leanG.matrixWorld); },
-      exhaustPos(out) { return (CORSA ? out.set(-0.87 * wb / 1.42, 0.876, 0) : SUP ? out.set(-0.73 * wb / 1.42, 0.55, 0.205) : st.exhaust === 'under' ? out.set(-0.78, 0.82, 0) : out.set(-0.5, 0.6, 0.16)).applyMatrix4(susG.matrixWorld); }
+      exhaustPos(out) { return (CORSA ? out.set(-0.87 * wb / 1.42, 0.876, 0) : SUP ? out.set(-0.73 * wb / 1.42, 0.55, 0.205) : st.exhaust === 'under' ? out.set(-0.78, 0.82, 0) : naked && BMOD ? out.set(-0.795, 0.532, 0.232) : out.set(-0.5, 0.6, 0.16)).applyMatrix4(susG.matrixWorld); }
     };
     if (batched) riderRig.group.traverse((o) => { if (o.isMesh && o.userData.rb) RB.add(o, bike); });
     else riderRig.group.traverse((o) => {   // stand-alone rider (ghost): give each limb its own coloured geometry back

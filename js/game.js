@@ -321,7 +321,7 @@
     const m = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.085), new THREE.MeshBasicMaterial({ map: tx, toneMapped: false }));
     const frame = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.105, 0.03), new THREE.MeshBasicMaterial({ color: 0x0b0c0e }));
     const g = new THREE.Group(); g.add(frame); m.position.z = 0.016; g.add(m);
-    g.position.set(naked ? 0.52 : 0.45, naked ? 1.06 : 1.035, 0); g.scale.setScalar(0.8); g.rotation.set(0, -Math.PI / 2, 0); g.rotateX(-0.55);
+    g.position.set(naked ? 0.462 : 0.45, naked ? 1.005 : 1.035, 0); /* Duetto: tucked behind the top of the number plate */ g.scale.setScalar(0.8); g.rotation.set(0, -Math.PI / 2, 0); g.rotateX(-0.55);
     v.susG.add(g); v.dash = g; v.dashCtx = c.getContext('2d'); v.dashTex = tx; v.dashT = 0;
   }
   function drawDash(v, p, dt) {

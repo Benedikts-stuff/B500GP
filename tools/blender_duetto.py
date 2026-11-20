@@ -281,7 +281,7 @@ P_body = mat('P_body', 'ffffff')
 M_dark = mat('M_dark', '1c1e22'); M_tyre = mat('M_tyre', '1a1a1c'); M_red = mat('M_red', 'c8281e'); M_disc = mat('M_disc', 'a9adb2'); M_cal = mat('M_caliper', 'b28a2c')
 M_spring = mat('M_spring', 'd8d9dc'); M_seat = mat('M_seat', '18191c'); M_groove = mat('M_groove', '070708'); M_resv = mat('M_resv', 'c9c6b4'); G_tail = mat('G_tail', 'ff2a1a')
 X_header = mat('X_header', '8a6c48'); X_ti = mat('X_ti', '9a958c'); X_chain = mat('X_chain', '55585e'); M_engine = mat('M_engine', '2e3136')
-FRAME = mat('G_frame', '141518'); G_stripe = mat('G_stripe', '0c0d0f'); M_bore = mat('M_bore', '050506'); M_lead = mat('M_lead', 'b3261c')
+X_brushed = mat('X_brushed', '9ea3aa'); FRAME = mat('G_frame', '141518'); G_stripe = mat('G_stripe', '0c0d0f'); M_bore = mat('M_bore', '050506'); M_lead = mat('M_lead', 'b3261c')
 X_alu = mat('X_alu', 'b9bdc2'); X_steel = mat('X_steel', 'd6d8db'); X_frame = mat('X_frame', '41454c'); X_rim = mat('X_rimdark', '34373d'); X_cast = mat('X_cast', '7d8188')
 
 # ================================================================== STAGE 1: rolling chassis
@@ -538,7 +538,7 @@ if 'body' in STAGES:
     for (x, top, w, wb, gap, e) in TK:
         bot = rail(x) + gap; yc = bot + (top - bot) * 0.44
         secs.append(dict(x=x, y=yc, w=w, wb=wb, ht=top - yc, hb=yc - bot, e=e, eb=3.6))
-    stripe(loft('tank', secs, P_body, 'body', ring=20, subsurf=2), 'tank_stripes', G_stripe, 'body')
+    stripe(loft('tank', secs, X_brushed, 'body', ring=20, subsurf=2), 'tank_stripes', G_stripe, 'body')
     cyl('fuelcap', 0.036, 0.012, (0.16, 1.058, 0), X_alu, 'body', axis='y', seg=24, bevel=0.003)
     cyl('fuelcap_lid', 0.024, 0.004, (0.16, 1.066, 0), M_dark, 'body', axis='y', seg=20, bevel=0.0015)
     # tank side panels: hang from under the tank's front edge down over the airbox, bolted to stand-offs on the frame rails
@@ -546,7 +546,7 @@ if 'body' in STAGES:
         rows = [[(0.338, 0.915, 0.112), (0.26, 0.893, 0.166), (0.15, 0.868, 0.168), (0.045, 0.842, 0.152)],
                 [(0.348, 0.835, 0.122), (0.272, 0.805, 0.162), (0.165, 0.782, 0.163), (0.07, 0.785, 0.148)],
                 [(0.342, 0.75, 0.116), (0.278, 0.716, 0.146), (0.185, 0.712, 0.15), (0.10, 0.742, 0.142)]]
-        panel('shroud%d' % s, [[side(q, s) for q in row] for row in rows], 0.009, P_body, 'body')
+        panel('shroud%d' % s, [[side(q, s) for q in row] for row in rows], 0.009, X_brushed, 'body')
         for (bx, by, z0, z1) in ((0.235, 0.848, 0.104, 0.166), (0.262, 0.728, 0.108, 0.152)):
             cyl('shroud_post%d_%.2f' % (s, by), 0.006, z1 - z0, (bx, by, s * (z0 + z1) / 2), FRAME, 'body', seg=8, bevel=0)
             cyl('shroud_bolt%d_%.2f' % (s, by), 0.0085, 0.005, (bx, by, s * (z1 + 0.004)), X_steel, 'body', seg=6, bevel=0)
@@ -556,12 +556,12 @@ if 'body' in STAGES:
     # tail: painted single-seat cowl over the end of the subframe, dark tray underneath; two racing stripes run over tank and cowl
     stripe(loft('tail', [dict(x=-0.40, y=0.772, w=0.136, ht=0.02, hb=0.034, e=3.0), dict(x=-0.47, y=0.80, w=0.142, ht=0.052, hb=0.044, e=3.0), dict(x=-0.55, y=0.826, w=0.132, ht=0.064, hb=0.044, e=3.0),
                          dict(x=-0.64, y=0.848, w=0.11, ht=0.05, hb=0.038, e=3.0), dict(x=-0.715, y=0.862, w=0.088, ht=0.032, hb=0.03, e=3.2), dict(x=-0.738, y=0.864, w=0.076, ht=0.024, hb=0.024, e=3.4)],
-                P_body, 'body', ring=18, subsurf=2), 'tail_stripes', G_stripe, 'body')
+                X_brushed, 'body', ring=18, subsurf=2), 'tail_stripes', G_stripe, 'body')
     loft('undertray', [dict(x=-0.44, y=0.758, w=0.105, ht=0.012, hb=0.02, e=3.0), dict(x=-0.60, y=0.80, w=0.092, ht=0.012, hb=0.024, e=3.0), dict(x=-0.72, y=0.836, w=0.066, ht=0.01, hb=0.016, e=3.0)],
          M_dark, 'body', ring=12, subsurf=1)
     # tail light: an LED bar set into the end of the tail
     box('taillight_bezel', (0.012, 0.03, 0.128), (-0.741, 0.863, 0), M_dark, 'body', bevel=0.005)
-    box('taillight', (0.012, 0.016, 0.112), (-0.7445, 0.863, 0), G_tail, 'body', bevel=0.004)
+    box('taillight', (0.012, 0.016, 0.112), (-0.7445, 0.863, 0), G_tail, 'body', bevel=0.004)['noexport'] = 1      # the game puts its own glowing brake light here
 
 # ================================================================== STAGE 4: controls
 if 'controls' in STAGES:
@@ -600,7 +600,7 @@ if 'controls' in STAGES:
     # hydraulics and cables: brake line to a splitter on the lower clamp and down the back of each leg to its caliper; clutch line and throttle cable into the frame
     mr, ml = bar(0.238), bar(-0.238); SPL = (sp(0.498)[0] + N[0] * 0.064, sp(0.498)[1] + N[1] * 0.064, 0.0)
     box('brakesplit', (0.02, 0.02, 0.04), SPL, X_alu, 'front', rot=(0, 0, RAKE), bevel=0.004)
-    hose('brakeline', [(mr[0] + 0.082, mr[1] - 0.016, 0.2), (0.47, 0.955, 0.168), (0.545, 0.865, 0.085), (SPL[0] + 0.006, SPL[1] + 0.014, 0.012)], 0.0048, X_chain, 'front', fit=X_alu)
+    hose('brakeline', [(mr[0] + 0.082, mr[1] - 0.016, 0.2), (0.47, 0.955, 0.168), (0.515, 0.868, 0.088), (SPL[0] + 0.004, SPL[1] + 0.014, 0.012)], 0.0048, X_chain, 'front', fit=X_alu)
     for s in (-1, 1):
         q1, q2 = fp(0.44), fp(0.2)
         hose('brakeleg%d' % s, [(SPL[0], SPL[1] - 0.006, s * 0.014), (q1[0] + N[0] * 0.02, q1[1] + N[1] * 0.02, s * 0.058), (fp(0.36)[0] - N[0] * 0.036, fp(0.36)[1] - N[1] * 0.036, s * 0.084),
@@ -608,6 +608,26 @@ if 'controls' in STAGES:
     J = (sp(0.60)[0] - N[0] * 0.05, sp(0.60)[1] - N[1] * 0.05)                 # just behind the steering head: lines pass from the bars into the frame here
     hose('clutchline_a', [(ml[0] + 0.082, ml[1] - 0.016, -0.2), (0.46, 0.95, -0.15), (0.43, 0.875, -0.07), (J[0], J[1], -0.036)], 0.0045, X_chain, 'front', fit=X_alu)
     hose('throttle_a', [(mr[0] + 0.025, mr[1] - 0.02, 0.222), (0.455, 0.965, 0.13), (0.43, 0.885, 0.07), (J[0], J[1], 0.036)], 0.0036, M_dark, 'front')
+    # race number plate where the headlight would be: carried on four stays clamped to the fork tubes, painted in the rider's colour
+    NP = (fp(0.60)[0] + N[0] * 0.076, fp(0.60)[1] + N[1] * 0.076, 0.0)
+    plate('numplate', [(u, v) for (u, v) in [(q[1], q[0]) for q in [(0.105 * math.copysign(abs(math.cos(a)) ** (2 / 3.6), math.cos(a)), 0.125 * math.copysign(abs(math.sin(a)) ** (2 / 3.6), math.sin(a))) for a in [(k + 0.5) / 36 * 6.2832 for k in range(36)]]]],
+          0.006, P_body, 'front', origin=NP, ex=(0, 0, 1), ey=(U[0], U[1], 0), bevel=0.002)
+    for s in (-1, 1):
+        for sv in (0.555, 0.655):
+            rod('np_clamp%d_%.2f' % (s, sv), fp(sv - 0.009, s * FZ), fp(sv + 0.009, s * FZ), 0.0335, X_frame, 'front', seg=16)
+            q = fp(sv, s * FZ); rod('np_stay%d_%.2f' % (s, sv), (q[0] + N[0] * 0.03, q[1] + N[1] * 0.03, q[2]), (q[0] + N[0] * 0.074, q[1] + N[1] * 0.074, q[2]), 0.006, M_dark, 'front', seg=8)
+    # rearsets: a plate bolted to the frame carries the footpeg; brake pedal on the right, gear lever with its rod on the left
+    PEG = (-0.25, 0.45)
+    for s in (-1, 1):
+        plate('rs_plate%d' % s, hull(circ(-0.215, 0.585, 0.016) + circ(-0.14, 0.345, 0.014) + circ(PEG[0], PEG[1], 0.022) + circ(-0.285, 0.49, 0.016)), 0.007, X_frame, 'body', off=s * 0.155, bevel=0.002)
+        rod('rs_peg%d' % s, (PEG[0], PEG[1], s * 0.158), (PEG[0], PEG[1], s * 0.238), [0.0125, 0.0115, 0.0115, 0.0125], X_alu, 'body', seg=10)
+        cyl('rs_pegbolt%d' % s, 0.011, 0.006, (PEG[0], PEG[1], s * 0.152), X_steel, 'body', seg=6, bevel=0)
+        plate('rs_heel%d' % s, hull(circ(PEG[0] - 0.02, PEG[1] + 0.03, 0.02) + circ(-0.31, 0.535, 0.028) + circ(-0.30, 0.47, 0.018)), 0.004, M_dark, 'body', off=s * 0.161, bevel=0.0012)
+        tip = (-0.125, 0.432, s * 0.2)
+        sweep('rs_lever%d' % s, [(PEG[0] + 0.005, PEG[1] - 0.012, s * 0.166), (-0.19, 0.428, s * 0.168), (tip[0], tip[1], s * 0.172)], [0.004, 0.004, 0.004], [0.009, 0.0075, 0.007], X_alu, 'body', e=3.0, ring=8)
+        rod('rs_toe%d' % s, (tip[0], tip[1], s * 0.17), (tip[0], tip[1], s * 0.215), 0.0075, X_alu if s > 0 else M_tyre, 'body', seg=8)
+    rod('rs_shiftrod', (-0.21, 0.41, -0.168), (-0.085, 0.385, -0.15), 0.004, X_steel, 'body', seg=6)
+    rod('rs_master', (-0.262, 0.50, 0.166), (-0.275, 0.575, 0.166), [0.011, 0.0105, 0.009], X_frame, 'body', seg=10)
     if 'engine' in STAGES:
         hose('clutchline_b', [(J[0], J[1], -0.036), (0.33, 0.795, -0.078), (0.24, 0.685, -0.128), (0.08, 0.585, -0.162), (-0.01, 0.525, -0.17), (-0.025, 0.50, -0.166)], 0.0045, X_chain, 'body')
         hose('throttle_b', [(J[0], J[1], 0.036), (0.33, 0.80, 0.05), (0.26, 0.70, 0.04), (0.215, 0.655, 0.03)], 0.0036, M_dark, 'body')
@@ -643,6 +663,8 @@ if SHOTS:
 # ------------------------------------------------------------------ bake AO into vertex colours and export the game assemblies
 if EXPORT:
     GAME = {'body': ['body', 'swing'], 'front': ['front', 'fork'], 'wheelF': ['wheelF'], 'wheelR': ['wheelR']}     # until the game animates the suspension
+    for k in ASM: ASM[k] = [o for o in ASM[k] if not o.get('noexport')]
+    for o in [o for o in scene.objects if o.get('noexport')]: o.hide_render = True
     allobj = [o for L in ASM.values() for o in L]
     for o in allobj:
         me = o.data
@@ -654,7 +676,7 @@ if EXPORT:
     scene.render.engine = 'CYCLES'
     try: scene.cycles.device = 'GPU'
     except Exception: pass
-    scene.cycles.samples = 96
+    scene.cycles.samples = 64
     if not scene.world: scene.world = bpy.data.worlds.new('bkW')
     scene.world.light_settings.distance = 0.22
     scene.render.bake.target = 'VERTEX_COLORS'
@@ -665,8 +687,13 @@ if EXPORT:
     bpy.ops.object.bake(type='AO', target='VERTEX_COLORS', use_clear=True)
     for o in allobj:
         m = o.data.materials[0]; paint = m.name.startswith('P_'); base = (1, 1, 1) if paint else m['apex_col']
-        for p in o.data.color_attributes['Col'].data:
-            a = 0.35 + 0.65 * p.color[0]; p.color = (base[0] * a, base[1] * a, base[2] * a, 1)
+        brushed = m.name == 'X_brushed'; me = o.data; ca = me.color_attributes['Col']
+        for lp in me.loops:
+            p = ca.data[lp.index]; a = 0.35 + 0.65 * p.color[0]
+            if brushed:                                    # hand-brushed aluminium: faint streaks running the length of the part
+                co = me.vertices[lp.vertex_index].co; nr = me.vertices[lp.vertex_index].normal; u = co.y * 190 if abs(nr.z) > abs(nr.y) else co.z * 190 + 37
+                a *= 0.88 + 0.12 * (0.5 + 0.25 * math.sin(u) + 0.15 * math.sin(u * 2.7 + 1.3) + 0.1 * math.sin(u * 6.1 + 0.4))
+            p.color = (base[0] * a, base[1] * a, base[2] * a, 1)
     bpy.data.objects.remove(gnd)
     for asm, parts in GAME.items():
         L = [o for k in parts for o in ASM[k]]
