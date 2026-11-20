@@ -174,6 +174,13 @@
     return SHARED;
   }
   const numTexCache = {};
+  let _heatTex = null;
+  function heatTexture() {   // soft round glow: hottest in the middle
+    if (_heatTex) return _heatTex;
+    const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 2, 32, 32, 32);
+    gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.5, '#9a9a9a'); gr.addColorStop(1, '#161616'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
+    _heatTex = new THREE.CanvasTexture(c); return _heatTex;
+  }
   function numberTexture(num, bg, fg) {
     const key = num + bg + fg; if (numTexCache[key]) return numTexCache[key];
     const c = document.createElement('canvas'); c.width = 128; c.height = 128; const g = c.getContext('2d');
@@ -395,12 +402,23 @@
     susG.add(riderRig.group);
 
     rootG.traverse((o) => { if (o.isMesh && o !== shadow) { o.castShadow = true; o.receiveShadow = false; } });
+    // signs of heat on the Duetto: a dull glow deep in the exhaust, brake discs that begin to glow after a few hard stops (looks only)
+    let heat = null;
+    if (naked && BMOD) {
+      const gm = (map) => new THREE.MeshBasicMaterial({ color: 0x000000, map: map || null, transparent: true, opacity: map ? 1 : 0, blending: map ? THREE.AdditiveBlending : THREE.NormalBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide, fog: false });   // exhaust: light added in the dark bore; discs: the metal itself turns colour
+      const put = (geo, mat, parent, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.renderOrder = 3; parent.add(m); return m; };
+      const mF = gm(), mR = gm(), mE = gm(heatTexture()), ringF = new THREE.RingGeometry(0.123, 0.159, 40), ringR = new THREE.RingGeometry(0.092, 0.121, 32);
+      for (const zc of [-0.072, 0.072]) for (const dz of [-0.0036, 0.0036]) put(ringF, mF, wheelF, 0, 0, zc + dz);
+      for (const dz of [-0.0036, 0.0036]) put(ringR, mR, wheelR, 0, 0, 0.088 + dz);
+      const ex = put(new THREE.CircleGeometry(0.041, 20), mE, susG, -0.72 * wb / BWB, 0.4905, 0.2216); ex.quaternion.setFromUnitVectors(V3(0, 0, 1), V3(-0.866, 0.483, 0.129).normalize());
+      heat = { mF, mR, mE, tf: 0, tr: 0, te: 0, flash: 0 };
+    }
     const batched = opts.batch !== false;
     const sc = (st.scale || 1) * AX.BIKE_SCALE; rootG.scale.setScalar(sc);
 
     const bike = {
       root: rootG, leanG, pitchG, bodyG, susG, steerG, wheelF, wheelR, rider: riderRig, paint, brakeMat, spec, scale: sc,
-      Rr, Rf, hx, wfHolder, shadow, rT: 0.105, tyre: naked && BMOD ? { ar: 0.0525, br: 0.1034, af: 0.0475, bf: 0.061 } : null, dive: 0, diveV: 0, steerVis: 0, shake: 0, crashedVis: false, riderHolder: null,
+      Rr, Rf, hx, wfHolder, shadow, rT: 0.105, heat, tyre: naked && BMOD ? { ar: 0.0525, br: 0.1034, af: 0.0475, bf: 0.061 } : null, dive: 0, diveV: 0, steerVis: 0, shake: 0, crashedVis: false, riderHolder: null,
       /* contact patches in world space (for skid marks / smoke) */
       rearContact(out) { return out.set(-hx, 0.02, 0).applyMatrix4(leanG.matrixWorld); },
       frontContact(out) { return out.set(hx, 0.02, 0).applyMatrix4(leanG.matrixWorld); },
@@ -668,7 +686,19 @@
     vis.steerVis = damp(vis.steerVis, st, 16, dt); vis.steerG.rotation.y = -vis.steerVis + (p.headShake ? Math.sin(time * 38) * 0.14 * p.headShake : 0);   // tank-slapper after a fast landing
     // brake light
     const br = (p.brake + (p.rearBrake || 0)) > 0.08 && !p.crashed;
-    vis.brakeMat.color.setRGB(br ? 3.2 : 0.3, br ? 0.22 : 0.03, br ? 0.12 : 0.02);
+    const bl = br ? (p.brake > 0.8 && p.speed > 12 && Math.sin(time * 37.7) < 0 ? 0.3 : 1) : 0;      // hard on the brakes: it flashes, six times a second
+    vis.brakeMat.color.setRGB(br ? 0.5 + 2.7 * bl : 0.3, br ? 0.04 + 0.18 * bl : 0.03, br ? 0.02 + 0.1 * bl : 0.02);
+    if (vis.heat) {
+      const H = vis.heat, sp = p.speed, bk = p.crashed ? 0 : p.brake || 0, rb = p.crashed ? 0 : p.rearBrake || 0, air = 0.07 + sp * 0.004, work = clamp(sp / 40, 0, 1.2);
+      H.tf = clamp(H.tf + (bk * work * 0.34 - H.tf * air) * dt, 0, 1.25); H.tr = clamp(H.tr + ((rb + bk * 0.25) * work * 0.2 - H.tr * air) * dt, 0, 1.25);
+      const gf = smoothstep(0.42, 1.1, H.tf), gr = smoothstep(0.42, 1.1, H.tr);
+      H.mF.opacity = Math.sqrt(gf) * 0.9; H.mF.color.setRGB(0.55 + 0.45 * gf, 0.02 + 0.15 * gf * gf, 0.004); H.mR.opacity = Math.sqrt(gr) * 0.9; H.mR.color.setRGB(0.55 + 0.45 * gr, 0.02 + 0.15 * gr * gr, 0.004);   // deep red first, a full orange when really hot - never washed out to white
+      // exhaust: warms with revs and load, cools slowly; a pop on the overrun lights it up for an instant
+      const load = clamp((p.rpm - p.spec.idle) / (p.spec.redline - p.spec.idle), 0, 1) * (0.35 + 0.65 * (p.throttle || 0));
+      H.te += (load - H.te) * (load > H.te ? 0.45 : 0.1) * dt; if (p.fx && p.fx.backfire > 0) H.flash = Math.max(H.flash, 0.5 * p.fx.backfire); H.flash *= Math.exp(-9 * dt);
+      const ge = p.crashed ? 0 : 0.05 + 0.4 * H.te * H.te + H.flash;
+      H.mE.color.setRGB(ge * 1.1, ge * 0.14, ge * 0.015);
+    }
     // rider
     const rg = vis.rider.group;
     if (!p.crashed) {

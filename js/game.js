@@ -293,6 +293,8 @@
       if (r() < 0.5) sm.spawn(rx, 0.15 + ys, rz, b.vx * 0.5 + (r() - 0.5) * 5, 2 + r() * 3, b.vz * 0.5 + (r() - 0.5) * 5, 0.5, 0.11, g ? 0.6 : 0.3, g ? 0.54 : 0.44, g ? 0.4 : 0.18, 0.95, 0, 0.6, 14);
     }
     if (f.scrape && r() < 0.7) G.sparks.spawn(b.x, 0.5 + ys, b.z, -b.vx * 0.2 + (r() - 0.5) * 5, 1 + r() * 2, -b.vz * 0.2 + (r() - 0.5) * 5, 0.22, 0.1, 1, 0.8, 0.35, 1, 0, 1, 10);
+    // now and then a few sparks out of the pipe: on a downshift, or held on the limiter
+    if ((f.shift === -1 && r() < 0.35) || (b.limiter && r() < 0.03)) { vis.exhaustPos(_v); for (let k = 0, n = 1 + (r() < 0.4 ? 1 : 0); k < n; k++) G.sparks.spawn(_v.x, _v.y, _v.z, -cx * (2 + r() * 2) + (r() - 0.5), 0.2 + r() * 0.6, -sz * (2 + r() * 2) + (r() - 0.5), 0.07, 0.3, 1, 0.55, 0.18, 0.9, 1.5, 4, 0); }
     if (f.backfire > 0 && r() < 0.05) { vis.exhaustPos(_v); G.sparks.spawn(_v.x, _v.y, _v.z, -cx * 3, 0.3, -sz * 3, 0.09, 0.4, 1, 0.6, 0.2, 0.9, 1.5, 4, 0); if (b === G.player) G.pop = 0.55; }
   }
   function burst(b) {
@@ -373,7 +375,7 @@
     const yT = p.yaw - (p.slipAngle || 0) * 0.4;
     if (Math.abs(AX.wrapAngle(yT - G.povYaw)) > 1.2) G.povYaw = yT;     // respawned or spun: no long swing round
     G.povYaw += AX.wrapAngle(yT - G.povYaw) * (1 - Math.exp(-8 * dt));
-    G.povRoll = damp(G.povRoll, p.lean * 0.6, 4, dt);            // the horizon tilts a bit over half as far as the bike, eased
+    G.povRoll = damp(G.povRoll, p.lean * 0.3, 4, dt);            // the rider holds his head nearly level: the horizon tilts less than a third as far as the bike
     G.povPitch = damp(G.povPitch, Math.max(-0.2, p.pitch) * 0.3, 3, dt);
     G.povSlope = damp(G.povSlope, Math.atan(p.slope || 0), 2, dt);
     G.povLook = damp(G.povLook, clamp(p.lean * 0.15, -0.2, 0.2), 1.5, dt);
