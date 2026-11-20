@@ -512,7 +512,7 @@
       const lm = RM && LIMB[r0 + ':' + r1], key = lm ? 'rider:' + lm : 'cyl:' + r0 + ':' + r1;
       const m = new THREE.Mesh(RB.geo(key, () => lm ? mergeAsset('rider/' + lm, null, (n) => !/dark|accent/.test(n)) : cylGeo(r0, r1)), mats.suit); m.userData.rb = { key, col }; g.add(m);
       // panels in the suit's second colour (shoulders, knees, cuffs): their own instances too
-      if (lm && AX.Assets.get('rider/' + lm).parts.some((q) => /accent/.test(q.material.name || ''))) { const ak = 'rider:' + lm + ':accent', c = new THREE.Mesh(RB.geo(ak, () => mergeAsset('rider/' + lm, null, (n) => /accent/.test(n))), mats.suit); c.userData.rb = { key: ak, col: accent }; c.userData.povHide = true; m.add(c); }
+      if (lm && AX.Assets.get('rider/' + lm).parts.some((q) => /accent/.test(q.material.name || ''))) { const ak = 'rider:' + lm + ':accent', c = new THREE.Mesh(RB.geo(ak, () => mergeAsset('rider/' + lm, null, (n) => /accent/.test(n))), mats.suit); c.userData.rb = { key: ak, col: accent }; m.add(c); }
       // boots and gloves: their own instances (always dark), riding along as children of the limb
       if (lm && (lm === 'shin' || lm === 'foarm')) { const dk = 'rider:' + lm + ':dark', c = new THREE.Mesh(RB.geo(dk, () => mergeAsset('rider/' + lm, null, (n) => /dark/.test(n))), mats.suit); c.userData.rb = { key: dk, col: lm === 'shin' ? 0x1b1c20 : 0x222327 }; m.add(c); }
       return m; };
@@ -524,11 +524,11 @@
       parts.arms.push({ up: limb(0.074, 0.062, suit), lo: limb(0.062, 0.05, suit), sh: ball(RM ? 0.072 : 0.084, accent), el: ball(0.064, suit), hand: part('glove', 0x1b1c20, () => ball(0.06, dark, 1.3, 0.85, 1)) });
       parts.legs.push({ up: limb(0.104, 0.08, suit), lo: limb(0.078, 0.06, suit), hip: ball(0.105, suit), kn: ball(RM ? 0.078 : 0.084, accent), foot: part('boot', 0x1b1c20, () => ball(0.064, dark, 2.0, 0.85, 1)) });
     }
-    // in the helmet cam only the gloves stay visible
+    // in the helmet cam the forearms and gloves stay visible
     const hideIn = (o) => { o.userData.povHide = true; o.children.forEach(hideIn); };
     for (const L of parts.legs) [L.up, L.lo, L.hip, L.kn, L.foot].forEach(hideIn);
-    for (const A of parts.arms) { [A.up, A.sh, A.el].forEach(hideIn); A.lo.userData.povHide = true; }
-    for (const A of parts.arms) A.sh.userData.chestHide = true; for (const L of parts.legs) L.hip.userData.chestHide = true;   // right beside / behind the chest cam   // the cam is steadier than the rider: only the gloves on the bars stay in view
+    for (const A of parts.arms) [A.up, A.sh].forEach(hideIn);   // the forearms stay in view, whole, from the elbow to the glove; upper arms and shoulders sit beside the camera
+    for (const A of parts.arms) A.sh.userData.chestHide = true; for (const L of parts.legs) L.hip.userData.chestHide = true;   // right beside / behind the chest cam
     const rig = {
       group: g, torso, helmet, parts, naked, bars, pov: false,
       hang: 0, tuck: 0, sit: 0, kneeOut: 0, headYaw: 0, kneeDown: [false, false], elbowDown: [false, false], footDown: [false, false], dangle: 0,
@@ -663,7 +663,8 @@
     const roll = p.speed * dt / (vis.Rr * vis.scale);
     vis.wheelR.rotation.z -= roll * (1 + p.spin * 0.45); vis.wheelF.rotation.z -= p.pitch > 0.06 ? roll * 0.6 : roll;
     // steering: counter-steers into a slide, turns in at walking pace
-    const st = p.crashed ? 0.5 * (p.crashSide || 1) : clamp(-p.slipAngle * 1.1 + p.steer * lerp(0.42, 0.03, smoothstep(2, 14, p.speed)), -0.55, 0.55);
+    const pvw = vis.rider.pov ? 0.6 : 1.1, pvm = vis.rider.pov ? 0.32 : 0.55;   // seen from the saddle, the bars need far less opposite lock to read as a slide
+    const st = p.crashed ? 0.5 * (p.crashSide || 1) : clamp(-p.slipAngle * pvw + p.steer * lerp(0.42, 0.03, smoothstep(2, 14, p.speed)), -pvm, pvm);
     vis.steerVis = damp(vis.steerVis, st, 16, dt); vis.steerG.rotation.y = -vis.steerVis + (p.headShake ? Math.sin(time * 38) * 0.14 * p.headShake : 0);   // tank-slapper after a fast landing
     // brake light
     const br = (p.brake + (p.rearBrake || 0)) > 0.08 && !p.crashed;

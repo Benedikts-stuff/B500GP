@@ -340,14 +340,14 @@
      so the bike moves about underneath it, and the arms, the knees and the road sliding past them are all in shot. */
   function chestCamera(p, dt) {
     const v = G.vis[0], rig = v.rider; v.root.updateMatrixWorld(true);
-    if (G.povReset) { G.povYaw = p.yaw; G.povRoll = p.lean * 0.72; G.povPitch = 0; G.povSlope = Math.atan(p.slope || 0); G.povLook = 0; G.povReset = false; }
+    if (G.povReset) { G.povYaw = p.yaw; G.povRoll = p.lean * 0.18; G.povPitch = 0; G.povSlope = Math.atan(p.slope || 0); G.povLook = 0; G.povReset = false; }
     const yT = p.yaw - (p.slipAngle || 0) * 0.35;
     if (Math.abs(AX.wrapAngle(yT - G.povYaw)) > 1.2) G.povYaw = yT;
     G.povYaw += AX.wrapAngle(yT - G.povYaw) * (1 - Math.exp(-9 * dt));
-    G.povRoll = damp(G.povRoll, p.lean * 0.72 + (rig.hang || 0) * 0.06, 6, dt);      // strapped to the body: the horizon goes over nearly as far as the bike
+    G.povRoll = damp(G.povRoll, p.lean * 0.18, 5, dt);                               // held level like a rider's head (and an action cam's horizon lock): bike and body lean, the horizon barely does
     G.povPitch = damp(G.povPitch, Math.max(-0.2, p.pitch) * 0.45, 4, dt);
     G.povSlope = damp(G.povSlope, Math.atan(p.slope || 0), 2.5, dt);
-    G.povLook = damp(G.povLook, clamp(p.lean * 0.22, -0.3, 0.3), 2.2, dt);           // the shoulders turn into the corner
+    G.povLook = damp(G.povLook, clamp(p.lean * 0.34, -0.42, 0.42), 2.2, dt);         // and it looks into the corner, the way the rider does
     _hp.set(0.125, 0.455, 0); rig.torso.localToWorld(_hp);                           // high on the chest, just clear of the leathers: over the tank, not behind it
     v.susG.worldToLocal(_hp); _hp.z *= 0.6; v.susG.localToWorld(_hp);                 // most of the way out with the body - far enough to feel it, not so far that the bike leaves the frame
     _e.set(0, -G.povYaw, G.povSlope + G.povPitch - 0.3, 'YZX'); _q.setFromEuler(_e);

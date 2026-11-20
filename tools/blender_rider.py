@@ -136,17 +136,18 @@ loft_y('neckroll', [dict(y=-0.165, x=0.0, w=0.09, df=0.108, db=0.1, e=2.3), dict
 
 # ------------------------------------------------------------------ limbs (unit length along +y; the rig stretches them to arm / leg length and rolls them freely)
 SEG = 24
-lathe_y('uparm_w', [(0.0, 0.0), (0.0, 0.072), (0.12, 0.078), (0.3, 0.079), (0.5, 0.073)], L_accent, 'uparm', SEG)
-lathe_y('uparm', [(0.5, 0.073), (0.75, 0.066), (1.0, 0.06), (1.0, 0.0)], L_suit, 'uparm', SEG)
-lathe_y('foarm', [(0.0, 0.0), (0.0, 0.06), (0.2, 0.064), (0.45, 0.06), (0.6, 0.054)], L_suit, 'foarm', SEG)
-lathe_y('foarm_w', [(0.6, 0.054), (0.7, 0.0515)], L_accent, 'foarm', SEG)
-lathe_y('foarm_glove', [(0.7, 0.0515), (0.705, 0.06), (0.74, 0.062), (0.92, 0.056), (1.0, 0.05), (1.02, 0.0)], L_dark, 'foarm', SEG)
-lathe_y('thigh', [(0.0, 0.0), (0.0, 0.1), (0.15, 0.108), (0.5, 0.1), (0.86, 0.085)], L_suit, 'thigh', SEG)
-lathe_y('thigh_w', [(0.86, 0.085), (1.0, 0.079), (1.0, 0.0)], L_accent, 'thigh', SEG)
-lathe_y('shin_w', [(0.0, 0.0), (0.0, 0.078), (0.1, 0.0805)], L_accent, 'shin', SEG)
-lathe_y('shin', [(0.1, 0.0805), (0.3, 0.077), (0.5, 0.066)], L_suit, 'shin', SEG)
-lathe_y('shin_boot', [(0.5, 0.066), (0.505, 0.073), (0.56, 0.075), (0.8, 0.066), (1.0, 0.06), (1.03, 0.0)], L_dark, 'shin', SEG)
-lathe_y('shin_cuff', [(0.555, 0.0765), (0.61, 0.0752)], L_accent, 'shin', SEG)
+# every piece is closed at both ends: whichever of them a camera shows on its own, there is nothing to look into
+lathe_y('uparm_w', [(0.0, 0.0), (0.0, 0.072), (0.12, 0.078), (0.3, 0.079), (0.5, 0.073), (0.5, 0.0)], L_accent, 'uparm', SEG)
+lathe_y('uparm', [(0.5, 0.0), (0.5, 0.073), (0.75, 0.066), (1.0, 0.06), (1.0, 0.0)], L_suit, 'uparm', SEG)
+lathe_y('foarm', [(0.0, 0.0), (0.0, 0.06), (0.2, 0.064), (0.45, 0.06), (0.6, 0.054), (0.6, 0.0)], L_suit, 'foarm', SEG)
+lathe_y('foarm_w', [(0.6, 0.0), (0.6, 0.054), (0.7, 0.0515), (0.7, 0.0)], L_accent, 'foarm', SEG)
+lathe_y('foarm_glove', [(0.7, 0.0), (0.7, 0.0515), (0.705, 0.06), (0.74, 0.062), (0.92, 0.056), (1.0, 0.05), (1.02, 0.0)], L_dark, 'foarm', SEG)
+lathe_y('thigh', [(0.0, 0.0), (0.0, 0.1), (0.15, 0.108), (0.5, 0.1), (0.86, 0.085), (0.86, 0.0)], L_suit, 'thigh', SEG)
+lathe_y('thigh_w', [(0.86, 0.0), (0.86, 0.085), (1.0, 0.079), (1.0, 0.0)], L_accent, 'thigh', SEG)
+lathe_y('shin_w', [(0.0, 0.0), (0.0, 0.078), (0.1, 0.0805), (0.1, 0.0)], L_accent, 'shin', SEG)
+lathe_y('shin', [(0.1, 0.0), (0.1, 0.0805), (0.3, 0.077), (0.5, 0.066), (0.5, 0.0)], L_suit, 'shin', SEG)
+lathe_y('shin_boot', [(0.5, 0.0), (0.5, 0.066), (0.505, 0.073), (0.56, 0.075), (0.8, 0.066), (1.0, 0.06), (1.03, 0.0)], L_dark, 'shin', SEG)
+lathe_y('shin_cuff', [(0.555, 0.0), (0.555, 0.0765), (0.61, 0.0752), (0.61, 0.0)], L_accent, 'shin', SEG)
 
 # ------------------------------------------------------------------ glove (a fist round the grip) and boot (ankle at the origin, the peg under the arch)
 loft_x('glove', [dict(x=-0.046, y=0.0, w=0.03, ht=0.018, hb=0.018), dict(x=-0.03, y=0.0, w=0.052, ht=0.034, hb=0.032, e=3.0), dict(x=0.012, y=0.002, w=0.055, ht=0.036, hb=0.034, e=3.0),
