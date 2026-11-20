@@ -9,19 +9,19 @@
   /* ------------------------------------------------------------------ text */
   const STR = {
     de: { lap: 'RUNDE', best: 'BEST', last: 'LETZTE', modeRace: 'RENNEN', modeTT: 'ZEITFAHREN', laps: 'RUNDEN', opponents: 'GEGNER', difficulty: 'KI-STÄRKE', d0: 'LEICHT', d1: 'MITTEL', d2: 'SCHWER', d3: 'PROFI',
-      assists: 'FAHRHILFEN', a0: 'VOLL', a1: 'SPORT', a2: 'AUS', camera: 'KAMERA', c0: 'VERFOLGER', c1: 'FAHRERSICHT', c2: 'VON OBEN', quality: 'GRAFIK', q0: 'NIEDRIG', q1: 'MITTEL', q2: 'HOCH', volume: 'LAUTSTÄRKE', kbAssist: 'LENKHILFE', on: 'AN', off: 'AUS', noteKbA: 'Tastatur: A/D halten legt das Motorrad so weit in die Kurve, wie die Straße vor dir verlangt. Länger halten = mehr Schräglage.', noteKbOff: 'Tastatur: A/D halten legt das Motorrad voll um, Antippen hält eine mittlere Schräglage.',
+      assists: 'FAHRHILFEN', a0: 'VOLL', a1: 'SPORT', a2: 'AUS', camera: 'KAMERA', c0: 'VERFOLGER', c1: 'FAHRERSICHT', c2: 'VON OBEN', c3: 'BRUSTKAMERA', quality: 'GRAFIK', q0: 'NIEDRIG', q1: 'MITTEL', q2: 'HOCH', volume: 'LAUTSTÄRKE', kbAssist: 'LENKHILFE', on: 'AN', off: 'AUS', noteKbA: 'Tastatur: A/D halten legt das Motorrad so weit in die Kurve, wie die Straße vor dir verlangt. Länger halten = mehr Schräglage.', noteKbOff: 'Tastatur: A/D halten legt das Motorrad voll um, Antippen hält eine mittlere Schräglage.',
       start: 'START', chooseBike: 'MOTORRAD', chooseTrack: 'STRECKE', paused: 'PAUSE', resume: 'WEITER', restart: 'NEUSTART', toMenu: 'HAUPTMENÜ', again: 'NOCHMAL',
       noteEasy: 'Traktions-, Wheelie- und Kurven-ABS greifen früh ein. Zum Reinkommen.', noteSport: 'Keine Hilfen: Highsider, Überschlag und wegrutschendes Vorderrad gibt es. Hinterradbremse und Slides gehören dir.', notePro: 'Wie Sport, nur mit mehr Spielraum: ein paar Grad mehr Schräglage, etwas mehr Grip am Limit, Slides kommen leichter und werfen dich später ab, Trail-Braking zieht stärker. Schneller als Sport, wenn du es kannst.',
       speed: 'TEMPO', accel: 'SCHUB', agility: 'HANDLING', brake: 'BREMSE', record: 'REKORD', go: 'LOS!', finish: 'ZIEL', result: 'ERGEBNIS', ttResult: 'ZEITFAHREN', place: 'PLATZ', fastest: 'SCHNELLSTE RUNDE', newBest: 'NEUE BESTZEIT', lastLap: 'LETZTE RUNDE',
       wheelie: 'WHEELIE', crash_lowside: 'LOWSIDER', crash_highside: 'HIGHSIDER', crash_wall: 'EINSCHLAG', crash_loop: 'ÜBERSCHLAG', crash_stoppie: 'STOPPIE-ABFLUG', crash_contact: 'KOLLISION', you: 'DU', lapsDone: 'Runden', bestLap: 'Beste Runde', loading: 'STRECKE WIRD GEBAUT',
       keys: '<kbd>A</kbd><kbd>D</kbd> Lenken · <kbd>W</kbd> Gas · <kbd>S</kbd> Vorderradbremse · <kbd>Leertaste</kbd> Hinterradbremse<br><kbd>←</kbd><kbd>→</kbd> Körper zur Kurveninnenseite (mehr Grip, mehr Schräglage) · <kbd>↑</kbd> Gewicht nach vorn (besser beschleunigen, weniger Wheelie, Windschatten) · <kbd>↓</kbd> Gewicht nach hinten / aufrichten (besser bremsen, kein Stoppie, Wheelie mit Gas)<br>Leicht bremsen in Schräglage (Trail-Braking) lenkt schärfer ein · Hinterradbremse oder Gewicht nach vorn beim Bremsen stellt das Heck quer<br><kbd>Shift</kbd> halten: sanft Gas geben und bremsen · ohne Körper-Taste hängt sich der Fahrer selbst in die Kurve<br><kbd>C</kbd> Kamera · <kbd>R</kbd> Zurücksetzen · <kbd>Esc</kbd> Pause · <kbd>M</kbd> Ton<br>Gamepad: linker Stick lenken · rechter Stick Körper · RT Gas · LT Vorderradbremse · LB Hinterradbremse',
-      cam_chase: 'VERFOLGER', cam_pov: 'FAHRERSICHT', cam_tv: 'TOP-DOWN', cam_follow: 'MITDREHEND', toSummit: 'BIS ZUM GIPFEL', alt: 'HÖHE', hillclimb: 'Bergrennen', summit: 'GIPFEL',
+      cam_chase: 'VERFOLGER', cam_pov: 'FAHRERSICHT', cam_chest: 'BRUSTKAMERA', cam_tv: 'TOP-DOWN', cam_follow: 'MITDREHEND', toSummit: 'BIS ZUM GIPFEL', alt: 'HÖHE', hillclimb: 'Bergrennen', summit: 'GIPFEL',
       hint: [['W', 'GAS'], ['S', 'BREMSE'], ['Leertaste', 'HINTERRAD'], ['A D', 'LENKEN'], ['← → ↑ ↓', 'KÖRPER'], ['C', 'KAMERA']],
       settings: 'EINSTELLUNGEN', lookL: 'GRAFIKSTIL', lookOn: 'ABENDSTIMMUNG', lookOff: 'KLASSISCH', lookNoteOn: 'Der neue Look: tiefe Abendsonne, Dunst, echtes Gras, Lärchen und Tannen. Braucht eine starke Grafikkarte.', lookNoteOff: 'Der bisherige Look mit Zuschauern und Deko.', controls: 'STEUERUNG', back: 'ZURÜCK', mainHead: 'HAUPTMENÜ', subTT: 'Allein gegen die Uhr', subRace: 'Gegen die KI zum Gipfel',
       noteTT: 'Du gegen die Uhr, vom Dorf bis auf den Pass. Deine Bestfahrt fährt als Ghost mit, Zwischenzeiten zeigen dir, wo du Zeit gewinnst oder verlierst.',
       noteRace: 'Massenstart auf der Passstraße gegen KI-Fahrer. Wer zuerst oben ist, gewinnt.', noteSettings: 'Grafik, Lenkhilfe, Lautstärke und Sprache.', noteControls: 'Alle Tasten und ein paar Fahrtipps.',
       nav: [['↑ ↓', 'WÄHLEN'], ['← →', 'ÄNDERN'], ['Enter', 'OK'], ['Esc', 'ZURÜCK']], noteStart: 'Los geht’s.',
-      camNote: { chase: 'Hinter dem Motorrad, schwenkt sanft mit.', pov: 'Cockpit-Sicht über dem Tank, ruhig geführt.', tv: 'Hoch von oben, wie eine Übersichtskarte.' },
+      camNote: { chase: 'Hinter dem Motorrad, schwenkt sanft mit.', pov: 'Cockpit-Sicht über dem Tank, ruhig geführt.', chest: 'Kamera auf der Brust: geht mit dem Fahrer mit, Arme und Knie im Bild.', tv: 'Hoch von oben, wie eine Übersichtskarte.' },
       qNote: { low: 'Für ältere Rechner und Laptops.', medium: 'Ausgewogen, mit weichem Licht.', high: 'Alles an, inklusive Umgebungsverschattung. Für starke Grafikkarten.' },
       volNote: 'Gesamtlautstärke. M schaltet im Spiel stumm.', langNote: 'Sprache der Menüs.', oppNote: 'Anzahl der KI-Fahrer.', diffNote: 'Wie schnell die KI fährt.',
       length: 'LÄNGE', hairpins: 'KEHREN', climb: 'HÖHE', yourBest: 'DEINE BESTZEIT', sector: 'SEKTOR', gold: 'GOLD', silver: 'SILBER', bronze: 'BRONZE', toBest: 'ZUR BESTZEIT', firstRun: 'ERSTE ZEIT',
@@ -31,19 +31,19 @@
       ctlM: [['C', 'Kamera'], ['R', 'zurück auf die Straße'], ['Esc', 'Pause'], ['M', 'Ton aus'], ['F', 'FPS'], ['Mausrad', 'Kamera-Abstand']],
       ctlTip: 'Leicht weiterbremsen beim Einlenken zieht das Motorrad enger in die Kurve. Hart bremsen und kurz lenken, dazu die Hinterradbremse, stellt das Heck quer. Ohne Körper-Taste hängt sich der Fahrer selbst in die Kurve.' },
     en: { lap: 'LAP', best: 'BEST', last: 'LAST', modeRace: 'RACE', modeTT: 'TIME TRIAL', laps: 'LAPS', opponents: 'OPPONENTS', difficulty: 'AI LEVEL', d0: 'EASY', d1: 'MEDIUM', d2: 'HARD', d3: 'EXPERT',
-      assists: 'ASSISTS', a0: 'FULL', a1: 'SPORT', a2: 'OFF', camera: 'CAMERA', c0: 'CHASE', c1: 'HELMET', c2: 'TOP-DOWN', quality: 'GRAPHICS', q0: 'LOW', q1: 'MEDIUM', q2: 'HIGH', volume: 'VOLUME', kbAssist: 'STEER ASSIST', on: 'ON', off: 'OFF', noteKbA: 'Keyboard: holding A/D leans the bike as far as the road ahead needs. Hold longer for more lean.', noteKbOff: 'Keyboard: holding A/D leans the bike all the way, tapping holds a medium lean.',
+      assists: 'ASSISTS', a0: 'FULL', a1: 'SPORT', a2: 'OFF', camera: 'CAMERA', c0: 'CHASE', c1: 'HELMET', c2: 'TOP-DOWN', c3: 'CHEST CAM', quality: 'GRAPHICS', q0: 'LOW', q1: 'MEDIUM', q2: 'HIGH', volume: 'VOLUME', kbAssist: 'STEER ASSIST', on: 'ON', off: 'OFF', noteKbA: 'Keyboard: holding A/D leans the bike as far as the road ahead needs. Hold longer for more lean.', noteKbOff: 'Keyboard: holding A/D leans the bike all the way, tapping holds a medium lean.',
       start: 'START', chooseBike: 'BIKE', chooseTrack: 'CIRCUIT', paused: 'PAUSED', resume: 'RESUME', restart: 'RESTART', toMenu: 'MAIN MENU', again: 'AGAIN',
       noteEasy: 'Traction, wheelie and cornering ABS step in early. Good for learning.', noteSport: 'No assists: highsides, loop-outs and front-end tucks included. The rear brake and the slides are all yours.', notePro: 'Like Sport with more room: a few degrees more lean, a little more grip at the limit, slides come easier and throw you off later, trail braking bites harder. Faster than Sport if you can ride it.',
       speed: 'SPEED', accel: 'DRIVE', agility: 'HANDLING', brake: 'BRAKES', record: 'RECORD', go: 'GO!', finish: 'FINISH', result: 'RESULT', ttResult: 'TIME TRIAL', place: 'PLACE', fastest: 'FASTEST LAP', newBest: 'NEW BEST LAP', lastLap: 'FINAL LAP',
       wheelie: 'WHEELIE', crash_lowside: 'LOWSIDE', crash_highside: 'HIGHSIDE', crash_wall: 'IMPACT', crash_loop: 'LOOPED IT', crash_stoppie: 'OVER THE BARS', crash_contact: 'CONTACT', you: 'YOU', lapsDone: 'laps', bestLap: 'Best lap', loading: 'BUILDING CIRCUIT',
       keys: '<kbd>A</kbd><kbd>D</kbd> steer · <kbd>W</kbd> throttle · <kbd>S</kbd> front brake · <kbd>Space</kbd> rear brake<br><kbd>←</kbd><kbd>→</kbd> hang off to the inside (more grip, more lean) · <kbd>↑</kbd> weight forward (better drive, fewer wheelies, tucks in) · <kbd>↓</kbd> weight back / sit up (better braking, no stoppie, wheelie with throttle)<br>Light braking while leaned (trail braking) turns in sharper · rear brake or weight forward under braking backs the rear in<br>Hold <kbd>Shift</kbd> for gentle throttle and brakes · with no body key held the rider hangs off into the corner by himself<br><kbd>C</kbd> camera · <kbd>R</kbd> reset · <kbd>Esc</kbd> pause · <kbd>M</kbd> mute<br>Gamepad: left stick steer · right stick body · RT throttle · LT front brake · LB rear brake',
-      cam_chase: 'CHASE', cam_pov: 'HELMET CAM', cam_tv: 'TOP-DOWN', cam_follow: 'ROTATING', toSummit: 'TO SUMMIT', alt: 'ALTITUDE', hillclimb: 'Hill climb', summit: 'SUMMIT',
+      cam_chase: 'CHASE', cam_pov: 'HELMET CAM', cam_chest: 'CHEST CAM', cam_tv: 'TOP-DOWN', cam_follow: 'ROTATING', toSummit: 'TO SUMMIT', alt: 'ALTITUDE', hillclimb: 'Hill climb', summit: 'SUMMIT',
       hint: [['W', 'THROTTLE'], ['S', 'BRAKE'], ['Space', 'REAR'], ['A D', 'STEER'], ['← → ↑ ↓', 'BODY'], ['C', 'CAMERA']],
       settings: 'SETTINGS', lookL: 'ART STYLE', lookOn: 'GOLDEN HOUR', lookOff: 'CLASSIC', lookNoteOn: 'The new look: low evening sun, haze, real grass, larches and firs. Needs a strong graphics card.', lookNoteOff: 'The previous look with spectators and dressing.', controls: 'CONTROLS', back: 'BACK', mainHead: 'MAIN MENU', subTT: 'Alone against the clock', subRace: 'Race the AI to the summit',
       noteTT: 'You against the clock, from the village to the top of the pass. Your best run rides along as a ghost, split times show where you gain or lose.',
       noteRace: 'Mass start on the pass road against AI riders. First to the top wins.', noteSettings: 'Graphics, steer assist, volume and language.', noteControls: 'Every key and a few riding tips.',
       nav: [['↑ ↓', 'SELECT'], ['← →', 'CHANGE'], ['Enter', 'OK'], ['Esc', 'BACK']], noteStart: 'Let’s go.',
-      camNote: { chase: 'Behind the bike, swings round gently.', pov: 'Cockpit view over the tank, steady.', tv: 'High overhead, like a map.' },
+      camNote: { chase: 'Behind the bike, swings round gently.', pov: 'Cockpit view over the tank, steady.', chest: 'Camera on the chest: moves with the rider, arms and knees in shot.', tv: 'High overhead, like a map.' },
       qNote: { low: 'For older computers and laptops.', medium: 'Balanced, with soft light.', high: 'Everything on, including ambient occlusion. For strong graphics cards.' },
       volNote: 'Master volume. M mutes in game.', langNote: 'Menu language.', oppNote: 'Number of AI riders.', diffNote: 'How fast the AI rides.',
       length: 'LENGTH', hairpins: 'HAIRPINS', climb: 'CLIMB', yourBest: 'YOUR BEST', sector: 'SECTOR', gold: 'GOLD', silver: 'SILVER', bronze: 'BRONZE', toBest: 'TO YOUR BEST', firstRun: 'FIRST TIME',
@@ -304,14 +304,14 @@
 
   /* ------------------------------------------------------------------ camera */
   const _look = new THREE.Vector3(), _pos = new THREE.Vector3();
-  function cycleCam() { const o = ['chase', 'pov', 'tv', 'follow']; S.cam = o[(o.indexOf(S.cam) + 1) % 3]; save(); toast(T['cam_' + S.cam]); }
+  function cycleCam() { const o = ['chase', 'pov', 'chest', 'tv']; S.cam = o[(o.indexOf(S.cam) + 1) % o.length]; save(); toast(T['cam_' + S.cam]); }
   /* helmet camera: sits in the rider's head, rolls with the bike but less (riders keep their eyes level) */
   const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _e = new THREE.Euler(), _hp = new THREE.Vector3();
   let povOn = false;
   function setPov(on) {
     if (on === povOn) return; povOn = on; const v = G.vis[0]; if (!v) return;
-    const rig = v.rider; if (on && !rig.pov) G.povReset = true; rig.pov = on; rig.torso.visible = !on; rig.helmet.visible = !on;
-    if (on && !v.dash) makeDash(v); if (v.dash) v.dash.visible = on;
+    const rig = v.rider; if (on) G.povReset = true; rig.pov = on; rig.torso.visible = !on; rig.helmet.visible = !on;   // on: false, 'pov' (cockpit) or 'chest'
+    if (on && !v.dash) makeDash(v); if (v.dash) v.dash.visible = !!on;
     camera.near = on ? 0.05 : 0.3; camera.updateProjectionMatrix();
   }
   /* digital dash on the top yoke: gear, speed, rev bar with shift lights (only in the helmet cam) */
@@ -335,6 +335,28 @@
     g.font = '700 70px "Helvetica Neue", Arial, sans-serif'; g.fillStyle = '#ffffff'; g.textAlign = 'right'; g.fillText(p.speed < 0.5 && p.throttle < 0.05 ? 'N' : String(p.gear + 1), 244, 106);
     if (p.spin > 0.2 || p.rearLock > 0.2) { g.fillStyle = '#ffb000'; g.font = '700 14px Arial'; g.textAlign = 'left'; g.fillText('TC', 130, 122); }
     v.dashTex.needsUpdate = true;
+  }
+  /* chest cam: an action camera strapped to the rider's chest. It goes wherever the upper body goes - hanging off, tucking in, sitting up -
+     so the bike moves about underneath it, and the arms, the knees and the road sliding past them are all in shot. */
+  function chestCamera(p, dt) {
+    const v = G.vis[0], rig = v.rider; v.root.updateMatrixWorld(true);
+    if (G.povReset) { G.povYaw = p.yaw; G.povRoll = p.lean * 0.72; G.povPitch = 0; G.povSlope = Math.atan(p.slope || 0); G.povLook = 0; G.povReset = false; }
+    const yT = p.yaw - (p.slipAngle || 0) * 0.35;
+    if (Math.abs(AX.wrapAngle(yT - G.povYaw)) > 1.2) G.povYaw = yT;
+    G.povYaw += AX.wrapAngle(yT - G.povYaw) * (1 - Math.exp(-9 * dt));
+    G.povRoll = damp(G.povRoll, p.lean * 0.72 + (rig.hang || 0) * 0.06, 6, dt);      // strapped to the body: the horizon goes over nearly as far as the bike
+    G.povPitch = damp(G.povPitch, Math.max(-0.2, p.pitch) * 0.45, 4, dt);
+    G.povSlope = damp(G.povSlope, Math.atan(p.slope || 0), 2.5, dt);
+    G.povLook = damp(G.povLook, clamp(p.lean * 0.22, -0.3, 0.3), 2.2, dt);           // the shoulders turn into the corner
+    _hp.set(0.125, 0.455, 0); rig.torso.localToWorld(_hp);                           // high on the chest, just clear of the leathers: over the tank, not behind it
+    v.susG.worldToLocal(_hp); _hp.z *= 0.6; v.susG.localToWorld(_hp);                 // most of the way out with the body - far enough to feel it, not so far that the bike leaves the frame
+    _e.set(0, -G.povYaw, G.povSlope + G.povPitch - 0.3, 'YZX'); _q.setFromEuler(_e);
+    _q2.setFromAxisAngle(V3Y, -Math.PI / 2 - G.povLook); _q.multiply(_q2);
+    _q2.setFromAxisAngle(V3Z, -G.povRoll); _q.multiply(_q2);
+    drawDash(v, p, dt);
+    camera.position.copy(_hp); camera.quaternion.copy(_q);
+    const fov = 80 + clamp(p.speed / 68, 0, 1) * 6; if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = damp(camera.fov, fov, 2, dt); camera.updateProjectionMatrix(); }
+    G.camLook.set(p.x, p.y || 0, p.z); G.camPos.copy(camera.position); post.tilt = 0;
   }
   function povCamera(p, dt) {
     const v = G.vis[0], rig = v.rider; v.root.updateMatrixWorld(true);
@@ -370,13 +392,15 @@
     if (!G.player) return; const p = G.rs[0] || G.player;
     const sf = clamp(p.speed / 68, 0, 1), fx = Math.cos(p.yaw), fz = Math.sin(p.yaw);
     const mode = G.state === 'menu' ? 'menu' : S.cam; let fov = 27; const py = p.y || 0, t = G.track;
-    setPov(mode === 'pov' && !p.crashed);
+    setPov((mode === 'pov' || mode === 'chest') && !p.crashed ? mode : false);
     if (mode === 'menu') {
       G.menuAng += dt * 0.16; const a = G.menuAng + p.yaw + 2.4, R = 8.2;
       _look.set(p.x + fx * 0.3, py + 0.85, p.z + fz * 0.3); _pos.set(p.x + Math.cos(a) * R, py + 2.3 + Math.sin(G.menuAng * 0.7) * 0.5, p.z + Math.sin(a) * R); fov = 30;
     } else if (mode === 'pov' && !p.crashed) {
       return povCamera(p, dt);
-    } else if (mode === 'chase' || mode === 'pov') {
+    } else if (mode === 'chest' && !p.crashed) {
+      return chestCamera(p, dt);
+    } else if (mode === 'chase' || mode === 'pov' || mode === 'chest') {
       G.camYaw += AX.wrapAngle(Math.atan2(p.vz, p.vx) * (p.speed > 4 ? 1 : 0) + (p.speed > 4 ? 0 : p.yaw) - G.camYaw) * (1 - Math.exp(-4.2 * dt));
       const cx = Math.cos(G.camYaw), cz = Math.sin(G.camYaw), d = (6.2 + sf * 1.4) * G.zoom;
       const ia = t.wr(p.idx + Math.round((9 + p.speed * 0.5) / t.ds)), ya = t.heightAt(ia, 0);
@@ -391,13 +415,13 @@
         const cx = Math.cos(G.camYaw), cz = Math.sin(G.camYaw); _look.set(tx + cx * h * 0.16, py, tz + cz * h * 0.16); _pos.set(_look.x - cx * h * 0.6, py + h, _look.z - cz * h * 0.6);
       } else { _look.set(tx, py, tz - h * 0.03); _pos.set(_look.x, py + h, _look.z + h * 0.62); G.camYaw = p.yaw; }
     }
-    const k = G.camInit ? 1 - Math.exp(-(mode === 'chase' || mode === 'pov' ? 14 : mode === 'menu' ? 3 : 6.5) * dt) : 1; G.camInit = true;
+    const k = G.camInit ? 1 - Math.exp(-(mode === 'chase' || mode === 'pov' || mode === 'chest' ? 14 : mode === 'menu' ? 3 : 6.5) * dt) : 1; G.camInit = true;
     G.camLook.lerp(_look, k); G.camPos.lerp(_pos, k);
     camera.position.copy(G.camPos);
     if (G.shake > 0.01) { camera.position.x += (Math.random() - 0.5) * G.shake * 0.9; camera.position.y += (Math.random() - 0.5) * G.shake * 0.5; camera.position.z += (Math.random() - 0.5) * G.shake * 0.9; G.shake *= Math.exp(-7 * dt); }
     camera.up.set(0, 1, 0); camera.lookAt(G.camLook);
     if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = damp(camera.fov, fov, 6, dt); camera.updateProjectionMatrix(); }
-    post.tilt = mode === 'chase' ? (AX.LOOK ? 0.5 : 0) : mode === 'pov' ? 0 : mode === 'menu' ? 0.7 : 1; post.focusY = mode === 'menu' ? 0.45 : 0.5;
+    post.tilt = mode === 'chase' ? (AX.LOOK ? 0.5 : 0) : mode === 'pov' || mode === 'chest' ? 0 : mode === 'menu' ? 0.7 : 1; post.focusY = mode === 'menu' ? 0.45 : 0.5;
   }
 
   /* ------------------------------------------------------------------ HUD */
@@ -592,7 +616,7 @@
       const it = [
         { k: 'bike', label: T.chooseBike, opts: AX.BIKE_ORDER.map((id) => [id, AX.BIKES[id].name]), note: () => AX.BIKES[S.bike].blurb[S.lang], after: menuPreview },
         { k: 'assist', label: T.assists, opts: [['easy', T.a0], ['sport', T.a1], ['pro', T.a2]], note: () => T[{ easy: 'noteEasy', sport: 'noteSport', pro: 'notePro' }[S.assist]] },
-        { k: 'cam', label: T.camera, opts: [['chase', T.c0], ['pov', T.c1], ['tv', T.c2]], note: () => T.camNote[S.cam] }];
+        { k: 'cam', label: T.camera, opts: [['chase', T.c0], ['pov', T.c1], ['chest', T.c3], ['tv', T.c2]], note: () => T.camNote[S.cam] }];
       if (S.mode === 'race') it.push({ k: 'opp', label: T.opponents, opts: [[3, '3'], [5, '5'], [7, '7'], [9, '9']], note: T.oppNote }, { k: 'diff', label: T.difficulty, opts: [[0, T.d0], [1, T.d1], [2, T.d2], [3, T.d3]], note: T.diffNote });
       it.push({ label: T.start, cls: 'act-go', note: T.noteStart, run: startFromMenu }, back);
       return it;

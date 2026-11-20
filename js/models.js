@@ -447,7 +447,7 @@
       for (const k in this.ims) this.ims[k].count = 0;
       for (const e of this.entries) {
         if (!e.owner.root.visible || !e.owner.rider.group.visible) continue;
-        if (e.owner.rider.pov && e.mesh.userData.povHide) continue;
+        const pv = e.owner.rider.pov; if (pv && (pv === 'chest' ? e.mesh.userData.chestHide : e.mesh.userData.povHide)) continue;   // cockpit cam: gloves only; chest cam: arms and legs stay in shot
         const im = this.im(e.key); if (!im.parent) scene.add(im);
         if (im.count >= im.instanceMatrix.count) continue;
         if (e.scale) _bm.multiplyMatrices(e.mesh.matrixWorld, e.scale); else _bm.copy(e.mesh.matrixWorld);
@@ -527,7 +527,8 @@
     // in the helmet cam only the gloves stay visible
     const hideIn = (o) => { o.userData.povHide = true; o.children.forEach(hideIn); };
     for (const L of parts.legs) [L.up, L.lo, L.hip, L.kn, L.foot].forEach(hideIn);
-    for (const A of parts.arms) { [A.up, A.sh, A.el].forEach(hideIn); A.lo.userData.povHide = true; }   // the cam is steadier than the rider: only the gloves on the bars stay in view
+    for (const A of parts.arms) { [A.up, A.sh, A.el].forEach(hideIn); A.lo.userData.povHide = true; }
+    for (const A of parts.arms) A.sh.userData.chestHide = true; for (const L of parts.legs) L.hip.userData.chestHide = true;   // right beside / behind the chest cam   // the cam is steadier than the rider: only the gloves on the bars stay in view
     const rig = {
       group: g, torso, helmet, parts, naked, bars, pov: false,
       hang: 0, tuck: 0, sit: 0, kneeOut: 0, headYaw: 0, kneeDown: [false, false], elbowDown: [false, false], footDown: [false, false], dangle: 0,
