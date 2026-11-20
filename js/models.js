@@ -688,8 +688,8 @@
     const br = (p.brake + (p.rearBrake || 0)) > 0.08 && !p.crashed;
     const bl = br ? (p.brake > 0.8 && p.speed > 12 && Math.sin(time * 37.7) < 0 ? 0.3 : 1) : 0;      // hard on the brakes: it flashes, six times a second
     vis.brakeMat.color.setRGB(br ? 0.5 + 2.7 * bl : 0.3, br ? 0.04 + 0.18 * bl : 0.03, br ? 0.02 + 0.1 * bl : 0.02);
-    if (vis.heat) {
-      const H = vis.heat, sp = p.speed, bk = p.crashed ? 0 : p.brake || 0, rb = p.crashed ? 0 : p.rearBrake || 0, air = 0.07 + sp * 0.004, work = clamp(sp / 40, 0, 1.2);
+    if (vis.heat && p.spec) {
+      const H = vis.heat, sp = p.speed || 0, bk = p.crashed ? 0 : p.brake || 0, rb = p.crashed ? 0 : p.rearBrake || 0, air = 0.07 + sp * 0.004, work = clamp(sp / 40, 0, 1.2);
       H.tf = clamp(H.tf + (bk * work * 0.34 - H.tf * air) * dt, 0, 1.25); H.tr = clamp(H.tr + ((rb + bk * 0.25) * work * 0.2 - H.tr * air) * dt, 0, 1.25);
       const gf = smoothstep(0.42, 1.1, H.tf), gr = smoothstep(0.42, 1.1, H.tr);
       H.mF.opacity = Math.sqrt(gf) * 0.9; H.mF.color.setRGB(0.55 + 0.45 * gf, 0.02 + 0.15 * gf * gf, 0.004); H.mR.opacity = Math.sqrt(gr) * 0.9; H.mR.color.setRGB(0.55 + 0.45 * gr, 0.02 + 0.15 * gr * gr, 0.004);   // deep red first, a full orange when really hot - never washed out to white
@@ -738,6 +738,7 @@
   function ghostify(vis, color) {
     const m = new THREE.MeshBasicMaterial({ color: color || 0x66ccff, transparent: true, opacity: 0.32, depthWrite: false });
     const f = (o) => { if (o.isMesh) { o.material = m; o.castShadow = false; } };
+    if (vis.heat) { const H = vis.heat, kill = []; vis.root.traverse((o) => { if (o.isMesh && (o.material === H.mF || o.material === H.mR || o.material === H.mE)) kill.push(o); }); for (const o of kill) o.parent.remove(o); vis.heat = null; }   // a ghost has no engine to glow
     vis.root.traverse(f); vis.rider.group.traverse(f); vis.brakeMat = new THREE.MeshBasicMaterial(); return vis;
   }
 
