@@ -365,15 +365,17 @@
      head/rake: a point on the steering axis and its angle · PIV: swingarm pivot · S0/S1: shock eyes on frame and swingarm · SPR: gearbox sprocket
      chain: [gearbox sprocket radius, wheel sprocket radius, z, number of links] · hose: front brake line, top to caliper, and the sides that have one
      tyre: half axes of the tyres' cross-sections (rear a/b, front a/b) · plate: number on the front plate [x, y, size] · side: number on the side panels
-     ex: where the pipe ends, which way it points, how wide it is · bar: the grips [x, y, z] · fit: where the rider sits (hips, shoulders upright and tucked, boots) */
+     ex: where the pipe ends, which way it points, how wide it is · bar: the grips [x, y, z] · fit: where the rider sits (hips, shoulders upright and tucked, boots)
+     and how he rides: 'motard' = he stays upright on top of the bike and pushes it down into the corner, elbows up, inside leg out in front;
+     pov / chest: where the helmet and chest cameras sit and how far they look down, when the usual place would leave the bars out of shot */
   const SPRUNG = {
     duetto: { wb: 1.42, Rr: 0.325, Rf: 0.315, rake: 24, head: [0.398, 0.932], PIV: [-0.15, 0.43], S0: [-0.20, 0.716], S1: [-0.325, 0.458], SPR: [-0.075, 0.445], chain: [0.0385, 0.1095, -0.118, 108],
       hose: [[0.53485, 0.77615, 0.014], [0.54931, 0.72509, 0.058], [0.53069, 0.62923, 0.084], [0.58663, 0.4790, 0.092], [0.54505, 0.35613, 0.09]], hoseSides: [-1, 1],
       tyre: { ar: 0.0525, br: 0.1034, af: 0.0475, bf: 0.061 }, plate: [0.5395, 0.8957, 0.2], heat: true, ex: [[-0.795, 0.532, 0.232], [-0.866, 0.483, 0.129], 0.036] },
-    supermoto: { wb: 1.47, Rr: 0.315, Rf: 0.30, rake: 26.5, head: [0.387, 0.953], PIV: [-0.145, 0.445], S0: [-0.05, 0.795], S1: [-0.165, 0.375], SPR: [-0.055, 0.425], chain: [0.0365, 0.121, -0.092, 114],
+    supermoto: { wb: 1.47, Rr: 0.315, Rf: 0.30, rake: 26.5, head: [0.387, 0.953], PIV: [-0.145, 0.445], S0: [-0.05, 0.795], S1: [-0.165, 0.375], SPR: [-0.055, 0.425], chain: [0.0365, 0.121, -0.097, 114],
       hose: [[0.5206, 0.8468, 0.055], [0.5477, 0.7206, 0.06], [0.5386, 0.6044, 0.084], [0.5993, 0.4558, 0.092], [0.5588, 0.3712, 0.09]], hoseSides: [-1],
-      tyre: { ar: 0.034, br: 0.0835, af: 0.031, bf: 0.0632 }, plate: [0.5026, 0.9993, 0.125], side: [-0.275, 0.818, 0.1295, 0.082], ex: [[-0.757, 0.8175, 0.188], [-0.886, 0.464, 0.022], 0.0215],
-      bar: [0.252, 1.174, 0.34], fit: { hip: [-0.15, 0.985], sh: [0.045, 1.467, 0.185, 1.385], foot: [-0.20, 0.40, 0.172] } }
+      tyre: { ar: 0.040, br: 0.0885, af: 0.0365, bf: 0.0632 }, plate: [0.5026, 0.9993, 0.125], side: [-0.275, 0.818, 0.1295, 0.082], ex: [[-0.757, 0.8175, 0.188], [-0.886, 0.464, 0.022], 0.0215],
+      bar: [0.286, 1.174, 0.367], fit: { hip: [-0.15, 0.985], sh: [0.045, 1.467, 0.185, 1.385], foot: [-0.20, 0.40, 0.172], style: 'motard' } }
   };
   function buildBike(spec, rider, opts) {
     opts = opts || {}; const env = opts.env || null; const st = spec.style; const naked = st.fairing === 'naked', mdl = naked ? st.model || 'duetto' : null, MD = mdl ? SPRUNG[mdl] : null;
@@ -745,7 +747,7 @@
     }
     // in the helmet cam the forearms and gloves stay visible
     const hideIn = (o) => { o.userData.povHide = true; o.children.forEach(hideIn); };
-    for (const L of parts.legs) [L.up, L.lo, L.hip, L.kn, L.foot, L.puck].forEach((o) => o && hideIn(o));
+    for (const L of parts.legs) (fit && fit.pov ? [L.hip] : [L.up, L.lo, L.hip, L.kn, L.foot, L.puck]).forEach((o) => o && hideIn(o));   // (a camera set back sees the legs: the boot coming off the peg is part of the picture)
     for (const A of parts.arms) [A.up, A.sh].forEach(hideIn);   // the forearms stay in view, whole, from the elbow to the glove; upper arms and shoulders sit beside the camera
     for (const A of parts.arms) A.sh.userData.chestHide = true; for (const L of parts.legs) L.hip.userData.chestHide = true;   // right beside / behind the chest cam
     const rig = {
@@ -790,19 +792,20 @@
   /* st: {lean [-1..1 normalised hang-off], tuck 0..1, sit 0..1 (upright under braking), steer} ; k = smoothing blend 0..1 */
   function poseRider(rig, st, k) {
     rig.hang = lerp(rig.hang, st.lean, k); rig.tuck = lerp(rig.tuck, st.tuck, k); rig.sit = lerp(rig.sit, st.sit, k); rig.dangle = lerp(rig.dangle || 0, st.dangle || 0, k * 0.6);
-    const h = rig.hang, ah = Math.abs(h), tk = rig.tuck, si = rig.sit, J = rig.J, nk = rig.naked, bars = rig.bars, F = rig.fit;
+    const h = rig.hang, ah = Math.abs(h), tk = rig.tuck, si = rig.sit, J = rig.J, nk = rig.naked, bars = rig.bars, F = rig.fit, mt = !!F && F.style === 'motard';
     // hips slide to the inside, torso follows further, head leads into the corner
-    J.H.set(F ? F.hip[0] : -0.3, (F ? F.hip[1] : 0.86) - ah * 0.02, h * 0.17);
+    if (mt) J.H.set(F.hip[0] + ah * 0.03, F.hip[1] - ah * 0.01, -h * 0.055);      // supermoto: he slides to the outer edge of the seat instead of hanging off
+    else J.H.set(F ? F.hip[0] : -0.3, (F ? F.hip[1] : 0.86) - ah * 0.02, h * 0.17);
     const sx = F ? lerp(F.sh[0], F.sh[2], tk) - si * 0.04 : nk ? lerp(-0.03, 0.07, tk) - si * 0.04 : lerp(0.14, 0.24, tk) - si * 0.1;      // hips to shoulders is 0.52 m, as on a real rider
     const sy = F ? lerp(F.sh[1], F.sh[3], tk) + si * 0.03 : nk ? lerp(1.30, 1.21, tk) + si * 0.03 : lerp(1.15, 1.04, tk) + si * 0.1 - ah * 0.03;
-    J.S.set(sx + ah * 0.02, sy - ah * 0.04, h * 0.27);
+    if (mt) J.S.set(sx + ah * 0.03, sy - ah * 0.015, -h * 0.2); else J.S.set(sx + ah * 0.02, sy - ah * 0.04, h * 0.27);
     // torso basis: Y along spine, Z to rider's right (rolled a little into the corner)
-    _y.subVectors(J.S, J.H).normalize(); _z.set(0, -h * 0.25, 1).normalize(); _x.crossVectors(_y, _z).normalize(); _z.crossVectors(_x, _y).normalize();
+    _y.subVectors(J.S, J.H).normalize(); _z.set(0, mt ? h * 0.1 : -h * 0.25, 1).normalize(); _x.crossVectors(_y, _z).normalize(); _z.crossVectors(_x, _y).normalize();
     _m4.makeBasis(_x, _y, _z); rig.torso.quaternion.setFromRotationMatrix(_m4); rig.torso.position.copy(J.H);
     rig.torso.scale.set(1, J.S.distanceTo(J.H) / 0.52, 1);
     // the helmet sits on the neck: its socket (a point inside the bottom opening, a little behind the middle) is put on the top of the neck,
     // whichever way the head is turned - so the neck always runs up into the helmet and never stands beside it
-    rig.helmet.rotation.set(-h * 0.45, -h * 0.3, lerp(nk ? -0.13 : -0.2, -0.42, tk) + si * 0.15, 'YXZ');
+    rig.helmet.rotation.set(-h * (mt ? 0.28 : 0.45), -h * 0.3, lerp(nk ? -0.13 : -0.2, -0.42, tk) + si * 0.15, 'YXZ');
     J.head.set(-0.022, -0.092, 0).applyQuaternion(rig.helmet.quaternion).negate().add(J.H).addScaledVector(_x, 0.048).addScaledVector(_y, 0.615 * J.S.distanceTo(J.H) / 0.52);
     J.head.z += h * 0.03; rig.helmet.position.copy(J.head);
     for (let s = 0; s < 2; s++) {
@@ -811,7 +814,8 @@
       const A = rig.parts.arms[s];
       _a.copy(J.S).addScaledVector(_z, sg * 0.192).addScaledVector(_y, -0.045);
       _b.set(bars.barX, bars.barY + 0.02, sg * bars.barZ);
-      rig.poleTmp = _d; const pole = nk ? J.pole.set(-0.42, -0.72 - inside * 0.3, sg * (0.82 + tk * 0.1 + inside * 0.3))      // wide bars: elbows out and up, ready to push
+      rig.poleTmp = _d; const pole = mt ? J.pole.set(-0.3, -0.18 - inside * 0.25, sg * (1.1 + inside * 0.2))      // supermoto: elbows high and wide
+        : nk ? J.pole.set(-0.42, -0.72 - inside * 0.3, sg * (0.82 + tk * 0.1 + inside * 0.3))      // wide bars: elbows out and up, ready to push
         : J.pole.set(-0.5, -1.0 - inside * 0.3, sg * (0.42 + tk * 0.1 + inside * 0.3));
       ik(_a, _b, 0.285, 0.275, pole, J.c); const ph = rig.bikeLean || 0, inLean = ph * sg > 0 ? Math.abs(ph) : 0;
       rig.elbowDown[s] = clearGround(J.c, ph, 0.07, inside > 0.8 && inLean > 1.0 ? 0.62 : 0) && inside > 0.5;
@@ -821,21 +825,22 @@
       _a.copy(J.H).addScaledVector(_z, sg * 0.105); _a.y -= 0.03;
       const fx = F ? F.foot[0] : -0.25, fy = F ? F.foot[1] : 0.48, fz = F ? F.foot[2] : 0.18;
       _b.set(fx, fy, sg * fz);
-      const dg = sg * rig.dangle > 0 ? Math.abs(rig.dangle) : 0;           // MotoGP leg dangle on the brakes
+      let dg = sg * rig.dangle > 0 ? Math.abs(rig.dangle) : 0;           // MotoGP leg dangle on the brakes
+      const out = mt ? smoothstep(0.16, 0.55, inside) : 0; if (out > dg) dg = out;      // supermoto: the inside boot comes off the peg in every corner
       rig.footDown[s] = false;
       if (dg > 0.01) {
         // the boot leaves the peg, swings forward and out beside the front of the engine, toe down, hovering just off the
         // tarmac; the knee points out and up. A loose leg flaps a little in the wind and over the bumps.
         const w = Math.min(1, dg), deep = Math.max(0, dg - 1), tt = (rig.dgClock = (rig.dgClock || 0) + 0.016);
-        _b.set(lerp(fx, 0.14, w) + Math.sin(tt * 6.3) * 0.03 * w, lerp(fy, 0.16 - deep * 0.08, w) + Math.sin(tt * 9.1) * 0.012 * w,
-          sg * (lerp(fz, 0.5, w) + deep * 0.06 + Math.sin(tt * 4.7 + s) * 0.025 * w));
+        _b.set(lerp(fx, mt ? 0.27 : 0.14, w) + Math.sin(tt * 6.3) * (mt ? 0.008 : 0.03) * w, lerp(fy, (mt ? 0.2 : 0.16) - deep * 0.08, w) + Math.sin(tt * 9.1) * (mt ? 0.004 : 0.012) * w,
+          sg * (lerp(fz, mt ? 0.3 : 0.5, w) + deep * 0.06 + Math.sin(tt * 4.7 + s) * 0.025 * w));
         // leaned (or sliding) to that side, the boot reaches the asphalt and drags along it
         rig.footDown[s] = clearGround(_b, ph, 0.03, w > 0.7 ? 0.62 : 0) && w > 0.5;
       }
       J.pole.set(0.9 - dg * 0.5, 0.5 - inside * 0.5 + dg * 0.5, sg * (0.25 + inside * 1.6 + dg * 1.1));
       ik(_a, _b, 0.44, 0.44, J.pole, J.c); rig.kneeDown[s] = clearGround(J.c, ph, Lg.puck ? 0.084 : 0.075, inside > 0.5 && inLean > 0.7 ? 0.7 : 0) && inside > 0.3;      // the slider, not the knee, is what touches
       setLimb(Lg.up, _a, J.c); setLimb(Lg.lo, J.c, _b); setKnee(Lg, _a, J.c, _b, sg); Lg.hip.position.copy(_a); Lg.kn.position.copy(J.c); Lg.foot.position.set(_b.x + 0.03, _b.y - 0.01, _b.z);
-      Lg.foot.rotation.set(0, 0, -0.75 * Math.min(1, dg));     // toe down when the leg is out
+      Lg.foot.rotation.set(0, 0, (mt ? 0.1 : -0.75) * Math.min(1, dg));     // toe down when the leg is out (supermoto: the sole skims the road, toe up)
     }
   }
   /* rag-doll-ish pose for a rider sliding after a crash (rider group is detached and laid flat by the caller) */
@@ -873,7 +878,7 @@
     vis.shake = damp(vis.shake, sh, 12, dt);
     const jit = vis.shake ? Math.sin(time * 61.3 + p.x) * vis.shake : 0;
     const hangIn = p.crashed ? 0 : Math.max(0, p.hangIn || 0);
-    const phi = p.lean * (1 - 0.13 * hangIn) + jit * 0.6;     // hanging off lets the bike itself stay more upright
+    const phi = p.lean * (1 + (vis.rider.fit && vis.rider.fit.style === 'motard' ? 0.08 : -0.13) * hangIn) + jit * 0.6;     // hanging off lets the bike itself stay more upright; pushed down supermoto-style it leans further than its rider
     vis.leanG.rotation.x = phi;
     let dFront = 0;
     if (vis.tyre) {   // modelled tyres: roll on the real (elliptical) section of the rear tyre, and let the narrower front one down onto the road too

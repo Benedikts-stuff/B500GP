@@ -44,6 +44,13 @@
      gears: speed [m/s] reached at redline in each gear
      cgB: CoM distance ahead of rear contact, cgH: CoM height  -> wheelie threshold = g*cgB/cgH
      leanRate: natural frequency of roll response [rad/s]
+     What sets the bikes apart:
+       maxLean   how far the bike itself can be laid over before something touches down. The rider's weight to the inside adds up to 9°
+                 on top. The supermoto and the 600 reach the limit of their tyres sitting on the bike; the V4 needs some hanging off for
+                 that, and the naked twin runs out of ground clearance before it runs out of grip.
+       leanRate  how fast it goes from one side to the other: supermoto > 600 > twin > V4
+       torqueShape / gears   where the engine pulls: twin and single from the bottom, the 600 only at the top, the V4 everywhere
+       stats     what the menu shows (0..1): top speed, thrust, pull from low revs, handling, lean, brakes
      engine: firing layout for the sound synth. The top-level values drive the original voice; `multi` (if present) switches the
      bike to the per-cylinder voice in audio.js with its own firing order and tuning. Delete a bike's `multi` block to get its
      original sound back.                                                   */
@@ -54,8 +61,8 @@
       mass: 248, power: 96, redline: 15600, idle: 1350,
       gears: [26.5, 35.5, 43.5, 51, 58, 66],
       torqueShape: [[0, 0.42], [0.2, 0.5], [0.4, 0.66], [0.55, 0.8], [0.7, 0.93], [0.82, 1.0], [0.92, 0.97], [1.0, 0.86]],
-      wheelbase: 1.38, cgB: 0.66, cgH: 0.58, mu: 1.60, maxLean: 58, leanRate: 9.6, brake: 13.4, dragTop: 68,
-      stats: { speed: 0.68, accel: 0.66, agility: 0.98, brake: 0.92 },
+      wheelbase: 1.38, cgB: 0.66, cgH: 0.58, mu: 1.64, maxLean: 60, leanRate: 10.6, brake: 13.4, dragTop: 68,
+      stats: { speed: 0.78, accel: 0.7, torque: 0.45, agility: 0.86, lean: 0.9, brake: 0.92 },
       engine: { cyl: 4, fire: [0, 0.25, 0.5, 0.75], rough: 0.05, pipe: 0.0026, bright: 1.25, body: 0.8,
         // inline four, tuned against a recording of a 600 supersport: an even hum at idle, muffled off the throttle, brighter and rougher
         // the harder it revs, an engine-braking howl, and a few deep bangs on the overrun and at the shift
@@ -70,8 +77,8 @@
       mass: 276, power: 158, redline: 14200, idle: 1400,
       gears: [29, 39, 48, 56.5, 65, 75],
       torqueShape: [[0, 0.5], [0.2, 0.62], [0.4, 0.8], [0.55, 0.93], [0.7, 1.0], [0.82, 0.99], [0.92, 0.94], [1.0, 0.84]],
-      wheelbase: 1.45, cgB: 0.68, cgH: 0.60, mu: 1.64, maxLean: 57, leanRate: 8.4, brake: 13.0, dragTop: 77,
-      stats: { speed: 0.98, accel: 0.98, agility: 0.74, brake: 0.86 },
+      wheelbase: 1.45, cgB: 0.68, cgH: 0.60, mu: 1.62, maxLean: 56, leanRate: 8.0, brake: 13.0, dragTop: 77,
+      stats: { speed: 0.98, accel: 0.98, torque: 0.8, agility: 0.6, lean: 0.78, brake: 0.86 },
       gearTq: [0.72, 0.82, 0.93],   // torque map trims 1st-3rd: the 200-section rear can put it down
       engine: { cyl: 4, fire: [0, 0.125, 0.5, 0.625], rough: 0.09, pipe: 0.0034, bright: 1.0, body: 1.15,
         // 90° V4 with the twin-pulse firing order (0-90-290-380°), two banks with slightly different headers
@@ -85,8 +92,8 @@
       mass: 262, power: 92, redline: 10400, idle: 1250,
       gears: [24.5, 33, 41, 48.5, 55.5, 62],
       torqueShape: [[0, 0.66], [0.2, 0.82], [0.38, 0.97], [0.5, 1.0], [0.65, 0.98], [0.8, 0.92], [0.92, 0.84], [1.0, 0.72]],
-      wheelbase: 1.42, cgB: 0.62, cgH: 0.62, mu: 1.52, maxLean: 54, leanRate: 9.0, brake: 12.4, dragTop: 63,
-      stats: { speed: 0.6, accel: 0.74, agility: 0.86, brake: 0.8 },
+      wheelbase: 1.42, cgB: 0.62, cgH: 0.62, mu: 1.52, maxLean: 52, leanRate: 9.0, brake: 12.4, dragTop: 63,
+      stats: { speed: 0.68, accel: 0.72, torque: 0.95, agility: 0.7, lean: 0.66, brake: 0.8 },
       engine: { cyl: 2, fire: [0, 0.375], rough: 0.12, pipe: 0.0046, bright: 0.72, body: 1.5,
         // 90° V-twin: uneven beat, dark and rough, lumpy idle
         multi: { fire: [0, 0.375], rough: 0.12,
@@ -108,10 +115,10 @@
     id: 'supermoto', name: 'MOTARD 450', cls: 'Supermoto', engineLabel: '449 cm³ · 1 Zyl.',
     blurb: { de: 'Federleicht und wendig. Wenig Topspeed, aber quer durch jede Kehre.', en: 'Featherweight and nimble. Not much top speed, but sideways through every hairpin.' },
     mass: 190, power: 46, redline: 11500, idle: 1900,
-    gears: [16.5, 22.5, 28.5, 34.5, 40.5, 47],
-    torqueShape: [[0, 0.6], [0.2, 0.78], [0.4, 0.95], [0.55, 1.0], [0.7, 0.98], [0.82, 0.93], [0.92, 0.86], [1.0, 0.76]],
-    wheelbase: 1.47, cgB: 0.69, cgH: 0.66, mu: 1.52, maxLean: 56, leanRate: 10.8, brake: 12.8, dragTop: 45,
-    stats: { speed: 0.42, accel: 0.62, agility: 1.0, brake: 0.84 },
+    gears: [17.5, 23.5, 29.5, 35.5, 41, 47],
+    torqueShape: [[0, 0.74], [0.2, 0.92], [0.4, 1.0], [0.55, 1.0], [0.7, 0.94], [0.82, 0.86], [0.92, 0.78], [1.0, 0.68]],
+    wheelbase: 1.47, cgB: 0.69, cgH: 0.66, mu: 1.62, maxLean: 64, leanRate: 12.5, brake: 13.2, dragTop: 45,
+    stats: { speed: 0.4, accel: 0.55, torque: 0.88, agility: 1.0, lean: 1.0, brake: 0.9 },
     engine: (AX.ENGINES && AX.ENGINES.single450) || { cyl: 1, fire: [0], rough: 0.14, pipe: 0.004, bright: 1, body: 1 },
     style: { fairing: 'naked', model: 'supermoto', tail: 'slim', exhaust: 'side', bars: 'wide', winglets: false, scale: 1.0, dash: false }
   };

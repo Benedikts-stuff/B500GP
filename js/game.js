@@ -12,7 +12,7 @@
       assists: 'FAHRHILFEN', a0: 'VOLL', a1: 'SPORT', a2: 'AUS', camera: 'KAMERA', c0: 'VERFOLGER', c1: 'FAHRERSICHT', c2: 'VON OBEN', c3: 'BRUSTKAMERA', quality: 'GRAFIK', q0: 'NIEDRIG', q1: 'MITTEL', q2: 'HOCH', volume: 'LAUTSTÄRKE', kbAssist: 'LENKHILFE', on: 'AN', off: 'AUS', noteKbA: 'Tastatur: A/D halten legt das Motorrad so weit in die Kurve, wie die Straße vor dir verlangt. Länger halten = mehr Schräglage.', noteKbOff: 'Tastatur: A/D halten legt das Motorrad voll um, Antippen hält eine mittlere Schräglage.',
       start: 'START', chooseBike: 'MOTORRAD', chooseTrack: 'STRECKE', paused: 'PAUSE', resume: 'WEITER', restart: 'NEUSTART', toMenu: 'HAUPTMENÜ', again: 'NOCHMAL',
       noteEasy: 'Traktions-, Wheelie- und Kurven-ABS greifen früh ein. Zum Reinkommen.', noteSport: 'Keine Hilfen: Highsider, Überschlag und wegrutschendes Vorderrad gibt es. Hinterradbremse und Slides gehören dir.', notePro: 'Wie Sport, nur mit mehr Spielraum: ein paar Grad mehr Schräglage, etwas mehr Grip am Limit, Slides kommen leichter und werfen dich später ab, Trail-Braking zieht stärker. Schneller als Sport, wenn du es kannst.',
-      speed: 'TEMPO', accel: 'SCHUB', agility: 'HANDLING', brake: 'BREMSE', record: 'REKORD', go: 'LOS!', finish: 'ZIEL', result: 'ERGEBNIS', ttResult: 'ZEITFAHREN', place: 'PLATZ', fastest: 'SCHNELLSTE RUNDE', newBest: 'NEUE BESTZEIT', lastLap: 'LETZTE RUNDE',
+      speed: 'TEMPO', accel: 'SCHUB', torque: 'DURCHZUG', agility: 'HANDLING', lean: 'SCHRÄGLAGE', brake: 'BREMSE', record: 'REKORD', go: 'LOS!', finish: 'ZIEL', result: 'ERGEBNIS', ttResult: 'ZEITFAHREN', place: 'PLATZ', fastest: 'SCHNELLSTE RUNDE', newBest: 'NEUE BESTZEIT', lastLap: 'LETZTE RUNDE',
       wheelie: 'WHEELIE', crash_lowside: 'LOWSIDER', crash_highside: 'HIGHSIDER', crash_wall: 'EINSCHLAG', crash_loop: 'ÜBERSCHLAG', crash_stoppie: 'STOPPIE-ABFLUG', crash_contact: 'KOLLISION', you: 'DU', lapsDone: 'Runden', bestLap: 'Beste Runde', loading: 'STRECKE WIRD GEBAUT',
       keys: '<kbd>A</kbd><kbd>D</kbd> Lenken · <kbd>W</kbd> Gas · <kbd>S</kbd> Vorderradbremse · <kbd>Leertaste</kbd> Hinterradbremse<br><kbd>←</kbd><kbd>→</kbd> Körper zur Kurveninnenseite (mehr Grip, mehr Schräglage) · <kbd>↑</kbd> Gewicht nach vorn (besser beschleunigen, weniger Wheelie, Windschatten) · <kbd>↓</kbd> Gewicht nach hinten / aufrichten (besser bremsen, kein Stoppie, Wheelie mit Gas)<br>Leicht bremsen in Schräglage (Trail-Braking) lenkt schärfer ein · Hinterradbremse oder Gewicht nach vorn beim Bremsen stellt das Heck quer<br><kbd>Shift</kbd> halten: sanft Gas geben und bremsen · ohne Körper-Taste hängt sich der Fahrer selbst in die Kurve<br><kbd>C</kbd> Kamera · <kbd>R</kbd> Zurücksetzen · <kbd>Esc</kbd> Pause · <kbd>M</kbd> Ton<br>Gamepad: linker Stick lenken · rechter Stick Körper · RT Gas · LT Vorderradbremse · LB Hinterradbremse',
       cam_chase: 'VERFOLGER', cam_pov: 'FAHRERSICHT', cam_chest: 'BRUSTKAMERA', cam_tv: 'TOP-DOWN', cam_follow: 'MITDREHEND', toSummit: 'BIS ZUM GIPFEL', alt: 'HÖHE', hillclimb: 'Bergrennen', summit: 'GIPFEL',
@@ -34,7 +34,7 @@
       assists: 'ASSISTS', a0: 'FULL', a1: 'SPORT', a2: 'OFF', camera: 'CAMERA', c0: 'CHASE', c1: 'HELMET', c2: 'TOP-DOWN', c3: 'CHEST CAM', quality: 'GRAPHICS', q0: 'LOW', q1: 'MEDIUM', q2: 'HIGH', volume: 'VOLUME', kbAssist: 'STEER ASSIST', on: 'ON', off: 'OFF', noteKbA: 'Keyboard: holding A/D leans the bike as far as the road ahead needs. Hold longer for more lean.', noteKbOff: 'Keyboard: holding A/D leans the bike all the way, tapping holds a medium lean.',
       start: 'START', chooseBike: 'BIKE', chooseTrack: 'CIRCUIT', paused: 'PAUSED', resume: 'RESUME', restart: 'RESTART', toMenu: 'MAIN MENU', again: 'AGAIN',
       noteEasy: 'Traction, wheelie and cornering ABS step in early. Good for learning.', noteSport: 'No assists: highsides, loop-outs and front-end tucks included. The rear brake and the slides are all yours.', notePro: 'Like Sport with more room: a few degrees more lean, a little more grip at the limit, slides come easier and throw you off later, trail braking bites harder. Faster than Sport if you can ride it.',
-      speed: 'SPEED', accel: 'DRIVE', agility: 'HANDLING', brake: 'BRAKES', record: 'RECORD', go: 'GO!', finish: 'FINISH', result: 'RESULT', ttResult: 'TIME TRIAL', place: 'PLACE', fastest: 'FASTEST LAP', newBest: 'NEW BEST LAP', lastLap: 'FINAL LAP',
+      speed: 'SPEED', accel: 'DRIVE', torque: 'TORQUE', agility: 'HANDLING', lean: 'LEAN', brake: 'BRAKES', record: 'RECORD', go: 'GO!', finish: 'FINISH', result: 'RESULT', ttResult: 'TIME TRIAL', place: 'PLACE', fastest: 'FASTEST LAP', newBest: 'NEW BEST LAP', lastLap: 'FINAL LAP',
       wheelie: 'WHEELIE', crash_lowside: 'LOWSIDE', crash_highside: 'HIGHSIDE', crash_wall: 'IMPACT', crash_loop: 'LOOPED IT', crash_stoppie: 'OVER THE BARS', crash_contact: 'CONTACT', you: 'YOU', lapsDone: 'laps', bestLap: 'Best lap', loading: 'BUILDING CIRCUIT',
       keys: '<kbd>A</kbd><kbd>D</kbd> steer · <kbd>W</kbd> throttle · <kbd>S</kbd> front brake · <kbd>Space</kbd> rear brake<br><kbd>←</kbd><kbd>→</kbd> hang off to the inside (more grip, more lean) · <kbd>↑</kbd> weight forward (better drive, fewer wheelies, tucks in) · <kbd>↓</kbd> weight back / sit up (better braking, no stoppie, wheelie with throttle)<br>Light braking while leaned (trail braking) turns in sharper · rear brake or weight forward under braking backs the rear in<br>Hold <kbd>Shift</kbd> for gentle throttle and brakes · with no body key held the rider hangs off into the corner by himself<br><kbd>C</kbd> camera · <kbd>R</kbd> reset · <kbd>Esc</kbd> pause · <kbd>M</kbd> mute<br>Gamepad: left stick steer · right stick body · RT throttle · LT front brake · LB rear brake',
       cam_chase: 'CHASE', cam_pov: 'HELMET CAM', cam_chest: 'CHEST CAM', cam_tv: 'TOP-DOWN', cam_follow: 'ROTATING', toSummit: 'TO SUMMIT', alt: 'ALTITUDE', hillclimb: 'Hill climb', summit: 'SUMMIT',
@@ -349,9 +349,9 @@
     G.povPitch = damp(G.povPitch, Math.max(-0.2, p.pitch) * 0.45, 4, dt);
     G.povSlope = damp(G.povSlope, Math.atan(p.slope || 0), 2.5, dt);
     G.povLook = damp(G.povLook, clamp(p.lean * 0.34, -0.42, 0.42), 2.2, dt);         // and it looks into the corner, the way the rider does
-    _hp.set(0.125, 0.55, 0); rig.torso.localToWorld(_hp);                           // high on the chest, just clear of the leathers: over the tank, not behind it
+    const cf = rig.fit && rig.fit.chest; _hp.set(cf ? cf[0] : 0.125, cf ? cf[1] : 0.55, 0); rig.torso.localToWorld(_hp);                           // high on the chest, just clear of the leathers: over the tank, not behind it
     v.susG.worldToLocal(_hp); _hp.z *= 0.6; v.susG.localToWorld(_hp);                 // most of the way out with the body - far enough to feel it, not so far that the bike leaves the frame
-    _e.set(0, -G.povYaw, G.povSlope + G.povPitch - 0.3, 'YZX'); _q.setFromEuler(_e);
+    _e.set(0, -G.povYaw, G.povSlope + G.povPitch - (cf ? cf[2] : 0.3), 'YZX'); _q.setFromEuler(_e);
     _q2.setFromAxisAngle(V3Y, -Math.PI / 2 - G.povLook); _q.multiply(_q2);
     _q2.setFromAxisAngle(V3Z, -G.povRoll); _q.multiply(_q2);
     drawDash(v, p, dt);
@@ -364,9 +364,9 @@
     // arcade cockpit cam: the eye is a fixed point over the bike's centre line, not the rider's head - hanging off,
     // tucking, head shake and slides don't move it, so the bike stays near the bottom centre of the screen. The horizon
     // tilts a bit over half as far as the bike; heading, pitch and roll are all eased so nothing snaps.
-    const nk = rig.naked;
+    const nk = rig.naked, pf = rig.fit && rig.fit.pov;      // pf: the model asks for its own eye point (further back, so the bars are in shot)
     if (!G.povB || G.povReset) {
-      const hp = rig.helmet.position; G.povB = { x: Math.min(hp.x - 0.1, nk ? 0.0 : 0.1), y: hp.y + (nk ? -0.05 : 0.03) };
+      const hp = rig.helmet.position; G.povB = pf ? { x: pf[0], y: pf[1] } : { x: Math.min(hp.x - 0.1, nk ? 0.0 : 0.1), y: hp.y + (nk ? -0.05 : 0.03) };
       G.povYaw = p.yaw; G.povRoll = 0; G.povPitch = 0; G.povSlope = Math.atan(p.slope || 0); G.povLook = 0; G.povReset = false;
     }
     const py = p.y || 0;
@@ -379,7 +379,7 @@
     G.povSlope = damp(G.povSlope, Math.atan(p.slope || 0), 2, dt);
     G.povLook = damp(G.povLook, clamp(p.lean * 0.15, -0.2, 0.2), 1.5, dt);
     _hp.set(G.povB.x, G.povB.y, 0); v.susG.localToWorld(_hp);        // the eye rides on the bike's centre line
-    _e.set(0, -G.povYaw, G.povSlope + G.povPitch - (nk ? 0.31 : 0.18), 'YZX'); _q.setFromEuler(_e);
+    _e.set(0, -G.povYaw, G.povSlope + G.povPitch - (pf ? pf[2] : nk ? 0.31 : 0.18), 'YZX'); _q.setFromEuler(_e);
     _q2.setFromAxisAngle(V3Y, -Math.PI / 2 - G.povLook); _q.multiply(_q2);
     _q2.setFromAxisAngle(V3Z, -G.povRoll); _q.multiply(_q2);
     if (p.surf === AX.SURF.KERB) _hp.y += Math.sin(G.time * 53) * 0.001;      // just a whisper of the kerbs
@@ -530,7 +530,7 @@
   }
 
   // medal times per bike, set from what a quick, clean AI run manages on the pass
-  const PAR = { corsa: 73.0, strada: 73.3, duetto: 76.5, supermoto: 80.0 };
+  const PAR = { corsa: 72.5, strada: 74.0, duetto: 78.5, supermoto: 76.0 };
   function medalTimes(bike) { const p = PAR[bike] || 75; return [['g', T.gold, p + 1.5], ['s', T.silver, p + 6], ['b', T.bronze, p + 14]]; }
 
   function showResults() {
@@ -652,7 +652,7 @@
     if (scr === 'setup') {
       const s = AX.BIKES[S.bike], st = s.stats;
       bi.innerHTML = '<div class="k">' + T.chooseBike + '</div><h3>' + s.name + '</h3><p>' + s.cls + ' · ' + s.engineLabel + ' · ' + s.power + ' kW</p><div class="stats">' +
-        [['speed', st.speed], ['accel', st.accel], ['agility', st.agility], ['brake', st.brake]].map((q) => '<span>' + T[q[0]] + '</span><b style="--v:' + Math.round(q[1] * 100) + '%"></b>').join('') + '</div>';
+        [['speed', st.speed], ['accel', st.accel], ['torque', st.torque], ['agility', st.agility], ['lean', st.lean], ['brake', st.brake]].filter((q) => q[1] != null).map((q) => '<span>' + T[q[0]] + '</span><b style="--v:' + Math.round(q[1] * 100) + '%"></b>').join('') + '</div>';
     } else bi.innerHTML = '';
     const d = AX.TRACKS[S.track], tr = thumbTrack(S.track), rec = loadRec(S.track, S.bike), rt = rec && rec.t;
     const climb = tr.open ? Math.round(tr.py[tr.finishIdx] - tr.py[tr.startIdx]) : 0, len = tr.open ? (tr.finishS - (tr.startS || 0)) : tr.length;

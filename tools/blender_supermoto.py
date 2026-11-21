@@ -22,7 +22,8 @@ exec(compile(open(KIT).read(), KIT, 'exec'), globals())
 # ------------------------------------------------------------------ geometry (metres): a long, tall, narrow bike on 17-inch wheels
 WB = 1.47; HX = WB / 2                       # wheelbase
 RF, RR = 0.300, 0.315                        # tyre radii (125/75-16.5 and 165/55-17 slicks)
-WF, WR = 0.0625, 0.0825                      # tyre half widths
+WF, WR = 0.0625, 0.0875                      # tyre half widths
+CHZ = -0.097                                 # the chain line: just clear of the rear tyre
 RIMF, RIMR = 0.2095, 0.2160                  # bead seat radii (16.5 and 17 inch)
 RAKE = math.radians(26.5); OFFSET = 0.020    # steering head angle, fork offset
 F = (HX, RF); A = (-HX, RR)                  # axles
@@ -194,11 +195,40 @@ if 'chassis' in STAGES:
                 cyl('pinch%d_%d_%.3f' % (s, k, dz), 0.006, 0.02, (fp(sv + dz)[0] + N[0] * 0.047, fp(sv + dz)[1] + N[1] * 0.047, s * FZ), X_steel, 'front', axis='z', seg=8, bevel=0)
 
     # ---- wire wheels: black rims, 36 steel spokes laced three-cross, slick tyres
-    def wheel(asm, R, W, rr, hw, c2, hh, fr, disc=None, sprocket=None):
+    def wheel(asm, R, W, rr, hw, c2, hh, fr, disc=None, sprocket=None, grooves=0):
         cx, cy = c2; c = (cx, cy, 0); H = R - rr
-        # slick: the bead sits inside the rim's lip, a fairly upright side wall, a square shoulder and a gently rounded tread
-        half = [(rr + 0.004, hw - 0.004), (rr + 0.016, hw + 0.004), (rr + 0.22 * H, W * 0.95), (rr + 0.46 * H, W), (rr + 0.68 * H, W * 0.975), (rr + 0.84 * H, W * 0.86), (rr + 0.935 * H, W * 0.64), (rr + 0.985 * H, W * 0.33), (R, 0.0)]
+        # supermoto slick: the bead sits inside the rim's lip, a short side wall, then one round sweep over the shoulder to the crown
+        half = [(rr + 0.004, hw - 0.004), (rr + 0.016, hw + 0.004), (rr + 0.2 * H, W * 0.93), (rr + 0.36 * H, W * 0.99), (rr + 0.5 * H, W), (rr + 0.66 * H, W * 0.965), (rr + 0.8 * H, W * 0.86), (rr + 0.9 * H, W * 0.68),
+                (rr + 0.965 * H, W * 0.44), (rr + 0.992 * H, W * 0.22), (R, 0.0)]
         lathe(asm + '_tyre', [(r, -z) for (r, z) in half[:-1]] + [(r, z) for (r, z) in reversed(half)], M_tyre, asm, 72, c, 80)
+        if grooves:
+            # the few cut grooves a supermoto race tyre has: a slanted cut from near the crown out to the shoulder with a short hook, by turns left and right
+            tread = [q for q in half if q[0] >= rr + 0.5 * H - 1e-9]
+            def rz(z):                                   # radius of the tread at the lateral position z
+                a = abs(z)
+                for (r0, z0), (r1, z1) in zip(tread, tread[1:]):
+                    if z1 - 1e-9 <= a <= z0 + 1e-9: return r0 + (r1 - r0) * (z0 - a) / max(z0 - z1, 1e-9)
+                return tread[0][0]
+            def cut(bm):
+                n = grooves; path = [(0.0, 0.2), (0.105, 0.64), (0.165, 0.64)]      # (angle, share of the half width)
+                for k in range(2 * n):
+                    sd = 1 if k % 2 else -1; th0 = k / (2 * n) * 6.2832; pts = []
+                    for (a0, z0), (a1, z1) in zip(path, path[1:]):
+                        for j in range(7): pts.append((th0 + a0 + (a1 - a0) * j / 6, sd * W * (z0 + (z1 - z0) * j / 6)))
+                    ring = []
+                    for j, (th, z) in enumerate(pts):
+                        th2, z2 = pts[min(j + 1, len(pts) - 1)]; th1, z1 = pts[max(j - 1, 0)]; r = rz(z)
+                        du, dv = (th2 - th1) * r, z2 - z1; L = math.hypot(du, dv) or 1.0; nu, nv = -dv / L * 0.003, du / L * 0.003      # half the cut's width, across its run
+                        row = []
+                        for sg2 in (-1, 1):
+                            zz = z + sg2 * nv; tt = th + sg2 * nu / r; rr2 = rz(zz) + 0.0006
+                            row.append(bm.verts.new(V(cx + rr2 * math.cos(tt), cy + rr2 * math.sin(tt), zz)))
+                        ring.append(row)
+                    for a2, b2 in zip(ring, ring[1:]):
+                        f = bm.faces.new([a2[0], a2[1], b2[1], b2[0]])
+                        co = f.calc_center_median(); f.normal_update()
+                        if f.normal.dot(co - V(cx, cy, co.y * -1.0)) < 0: f.normal_flip()
+            bmc = bmesh.new(); cut(bmc); obj_from_bm(bmc, asm + '_cuts', mat('M_smcut', '060607'), asm, 60)      # (not many(): these are open strips, their facing is set above)
         # rim: the lips either side, and the well between them that one sees through the spokes
         rim = [(rr + 0.019, hw + 0.002), (rr + 0.02, hw + 0.0075), (rr + 0.012, hw + 0.011), (rr - 0.002, hw + 0.0105), (rr - 0.011, hw * 0.94), (rr - 0.017, hw * 0.55), (rr - 0.0215, hw * 0.22), (rr - 0.022, 0.0)]
         lathe(asm + '_rim', [(r, -z) for (r, z) in rim[:-1]] + [(r, z) for (r, z) in reversed(rim)], G_rim, asm, 72, c, 50)
@@ -235,7 +265,7 @@ if 'chassis' in STAGES:
             lathe(asm + '_scone', [(0.03, math.copysign(hh + 0.004, z)), (0.066, z + math.copysign(0.005, -z)), (0.066, z + math.copysign(0.01, -z)), (0.03, math.copysign(hh - 0.002, z))], X_dark, asm, 28, c, 40)
             many(asm + '_spb', X_steel, asm, lambda bm: [bm_tube(bm, pol(c2, 0.063, k / 6 * 6.2832, z - 0.006), pol(c2, 0.063, k / 6 * 6.2832, z + 0.006), 0.0055, 6) for k in range(6)], 40)
     wheel('wheelF', RF, WF, RIMF, 0.046, F, 0.034, 0.041, disc=(0.155, 0.122, -0.07, 6))
-    wheel('wheelR', RR, WR, RIMR, 0.066, A, 0.05, 0.047, disc=(0.11, 0.084, 0.085, 4), sprocket=(-0.092, 48, 0.121))
+    wheel('wheelR', RR, WR, RIMR, 0.066, A, 0.05, 0.047, disc=(0.11, 0.084, 0.085, 4), sprocket=(CHZ, 48, 0.121), grooves=9)
 
 # ================================================================== STAGE 2: engine, cooling, exhaust, final drive
 if 'engine' in STAGES:
@@ -270,8 +300,8 @@ if 'engine' in STAGES:
     lathe('gencover', [(0.076, -0.093), (0.076, -0.104), (0.065, -0.12), (0.032, -0.127), (0.0, -0.127)], G_cover, 'body', 32, (EC[0], EC[1], 0), 40)
     lathe('genrim', [(0.08, -0.093), (0.08, -0.0995), (0.076, -0.103)], X_alu, 'body', 32, (EC[0], EC[1], 0), 40)
     many('genbolts', X_steel, 'body', lambda bm: [bm_tube(bm, pol(EC, 0.07, k / 5 * 6.2832, -0.103), pol(EC, 0.07, k / 5 * 6.2832, -0.111), 0.0045, 6) for k in range(5)], 40)
-    lathe('sprocketF', [(0.012, -0.0975), (0.0335, -0.0965), (0.0335, -0.0885), (0.012, -0.0875)], X_steel, 'body', 20, (SPR[0], SPR[1], 0), 30)
-    plate('sprocketguard', hull(circ(SPR[0], SPR[1], 0.056) + circ(SPR[0] + 0.045, SPR[1] + 0.03, 0.03)), 0.01, M_dark, 'body', off=-0.111, bevel=0.004)
+    lathe('sprocketF', [(0.012, CHZ - 0.0055), (0.0335, CHZ - 0.0045), (0.0335, CHZ + 0.0035), (0.012, CHZ + 0.0045)], X_steel, 'body', 20, (SPR[0], SPR[1], 0), 30)
+    plate('sprocketguard', hull(circ(SPR[0], SPR[1], 0.056) + circ(SPR[0] + 0.045, SPR[1] + 0.03, 0.03)), 0.01, M_dark, 'body', off=CHZ - 0.019, bevel=0.004)
     # cylinder, head and cam cover, stacked up the cylinder axis; the cam chain runs up a tunnel on the left
     sweep('cylinder', [ept(0.085), ept(0.20)], 0.064, 0.063, X_cyl, 'body', e=4.5, ring=20)
     # joint lines: base gasket, head gasket, cam cover seal - thin dark lines standing a hair proud of the castings
@@ -331,12 +361,12 @@ if 'engine' in STAGES:
 
     # ---- final drive: chain round both sprockets (a stand-in here, the game draws it link by link), slider and guide on the swingarm
     r1, r2 = 0.0365, 0.121; dx, dy = SPR[0] - A[0], SPR[1] - A[1]; Dc = math.hypot(dx, dy); phi = math.atan2(dy, dx); al = math.acos((r2 - r1) / Dc); loop = []
-    for k in range(21): loop.append(pol(A, r2, phi + al + (2 * math.pi - 2 * al) * k / 20, -0.092))
-    for k in range(13): loop.append(pol(SPR, r1, phi - al + 2 * al * k / 12, -0.092))
+    for k in range(21): loop.append(pol(A, r2, phi + al + (2 * math.pi - 2 * al) * k / 20, CHZ))
+    for k in range(13): loop.append(pol(SPR, r1, phi - al + 2 * al * k / 12, CHZ))
     loop.append(loop[0])
     sweep('chain', loop, 0.0085, 0.0062, X_chain, 'swing', e=4.0, ring=8, caps=False)['noexport'] = 1
     sweep('chainslider', [(-0.165, 0.49, -0.128), (-0.25, 0.488, -0.13), (-0.34, 0.468, -0.132)], 0.014, 0.007, M_dark, 'swing', e=3.0, ring=10, smooth=3)
-    plate('chainguide', [(-0.60, 0.292), (-0.545, 0.292), (-0.535, 0.252), (-0.605, 0.238)], 0.03, M_dark, 'swing', off=-0.095, bevel=0.005)
+    plate('chainguide', [(-0.60, 0.292), (-0.545, 0.292), (-0.535, 0.252), (-0.605, 0.238)], 0.03, M_dark, 'swing', off=CHZ - 0.003, bevel=0.005)
     plate('guidemount', [(-0.585, 0.345), (-0.555, 0.345), (-0.552, 0.288), (-0.59, 0.288)], 0.006, X_swing, 'swing', off=-0.118, bevel=0.0015)
 
 # ================================================================== STAGE 3: bodywork
@@ -405,10 +435,12 @@ if 'body' in STAGES:
     # heat shield where the rider's leg passes the pipe
     sweep('heatshield', [(-0.07, 0.56, 0.176), (-0.17, 0.584, 0.182), (-0.27, 0.606, 0.191)], 0.004, 0.03, G_black, 'body', e=3.0, ring=10, smooth=4)
     if 'engine' in STAGES: label('ad_can', 'DRIFTWERK', CAN, cpt(0.5)[:2], 0.034, 1, mat('G_smtxtyellow', 'ffd21a'), 'body', tilt=math.atan2(C0[1] - C1[1], C0[0] - C1[0]))
-    # front fender: a red beak under the lower fork clamp, steering with the fork
-    FF = [(0.315, 0.757, 0.044, 0.012), (0.44, 0.792, 0.07, 0.022), (0.60, 0.796, 0.078, 0.024), (0.76, 0.778, 0.066, 0.02), (0.90, 0.75, 0.04, 0.012)]
-    panel('fender_front', tight([[(x, y, -w), (x, y + c, 0.0), (x, y, w)] for (x, y, w, c) in FF], 0.2), 0.006, G_red, 'front')
-    for sg in (-1, 1): rod('fender_stay%d' % sg, (0.455, 0.812, sg * 0.05), (sp(0.61)[0] + N[0] * 0.03, sp(0.61)[1] + N[1] * 0.03 - 0.016, sg * 0.05), 0.007, M_dark, 'front', seg=8)
+    # front fender, steering with the fork: narrow where it passes between the legs, a flap dropping down behind them, then a broad blade
+    # with turned-down edges and a raised spine that ends in a blunt tip
+    FF = [(0.455, 0.700, 0.046, 0.003, 0.0), (0.446, 0.757, 0.054, 0.004, 0.0), (0.468, 0.797, 0.056, 0.012, 0.006), (0.545, 0.808, 0.078, 0.022, 0.018), (0.64, 0.806, 0.088, 0.027, 0.022),
+          (0.745, 0.79, 0.086, 0.026, 0.022), (0.85, 0.765, 0.072, 0.021, 0.017), (0.918, 0.744, 0.046, 0.013, 0.01), (0.936, 0.737, 0.028, 0.007, 0.005)]
+    panel('fender_front', tight([[(x, y - d, -w), (x, y, -w * 0.86), (x, y + c * 0.62, -w * 0.4), (x, y + c, 0.0), (x, y + c * 0.62, w * 0.4), (x, y, w * 0.86), (x, y - d, w)] for (x, y, w, c, d) in FF], 0.2), 0.005, G_red, 'front')
+    for sg in (-1, 1): rod('fender_stay%d' % sg, (0.47, 0.806, sg * 0.04), (sp(0.61)[0] + N[0] * 0.03, sp(0.61)[1] + N[1] * 0.03 - 0.016, sg * 0.05), 0.007, M_dark, 'front', seg=8)
     # start-number plate in front of the clamps: red, with a white field for the number
     NPC = (fp(0.74)[0] + N[0] * 0.064, fp(0.74)[1] + N[1] * 0.064, 0.0)
     def npp(h, z, b): return (NPC[0] + U[0] * h + N[0] * b, NPC[1] + U[1] * h + N[1] * b, z)
@@ -432,7 +464,7 @@ if 'controls' in STAGES:
     def fwd(q, d, z=None): return (q[0] + N[0] * d, q[1] + N[1] * d, q[2] if z is None else z)
     # ---- handlebar: wide tapered bar on two risers, a pad over the clamps
     BC = fwd(sp(0.932), 0.012)
-    HB = [(0.0, 0.0, 0.0), (0.0, 0.0, 0.065), (-0.006, 0.035, 0.14), (-0.018, 0.058, 0.21), (-0.045, 0.064, 0.30), (-0.08, 0.064, 0.40)]      # one half of the bar, relative to its centre
+    HB = [(0.0, 0.0, 0.0), (0.0, 0.0, 0.07), (-0.003, 0.036, 0.15), (-0.008, 0.058, 0.23), (-0.02, 0.064, 0.33), (-0.036, 0.064, 0.425)]      # one half of the bar, relative to its centre
     def bar(z, dx=0.0, dy=0.0):                            # point on the bar at lateral position z (either side)
         a = min(abs(z), HB[-1][2])
         for k in range(len(HB) - 1):
@@ -446,36 +478,36 @@ if 'controls' in STAGES:
     sweep('barpad', [(BC[0] - 0.002, BC[1] + 0.016, -0.072), (BC[0] - 0.002, BC[1] + 0.016, 0.072)], 0.034, 0.03, G_red, 'front', e=4.0, ring=16)
     for s in (-1, 1):
         # grip, flange and end
-        tube('grip%d' % s, [bar(s * 0.288), bar(s * 0.40)], 0.0168, M_grip, 'front', seg=14)
-        tube('gripflange%d' % s, [bar(s * 0.281), bar(s * 0.288)], 0.0215, M_grip, 'front', seg=14)
-        tube('barend%d' % s, [bar(s * 0.40), (bar(s * 0.40)[0] - 0.003, bar(s * 0.40)[1], s * 0.408)], 0.0155, M_dark, 'front', seg=12)
+        tube('grip%d' % s, [bar(s * 0.311), bar(s * 0.423)], 0.0168, M_grip, 'front', seg=14)
+        tube('gripflange%d' % s, [bar(s * 0.304), bar(s * 0.311)], 0.0215, M_grip, 'front', seg=14)
+        tube('barend%d' % s, [bar(s * 0.423), (bar(s * 0.423)[0] - 0.003, bar(s * 0.423)[1], s * 0.431)], 0.0155, M_dark, 'front', seg=12)
         # lever perch with its pivot and a short lever that follows the sweep of the bar
-        g = bar(s * 0.245)
-        tube('perch%d' % s, [bar(s * 0.232), bar(s * 0.257)], 0.0185, X_cast, 'front', seg=12)
-        rod('perchbody%d' % s, (g[0] + 0.012, g[1] - 0.004, s * 0.245), (g[0] + 0.072, g[1] - 0.014, s * 0.242), [0.0125, 0.0115, 0.0105], X_cast, 'front', seg=12)
-        piv = (g[0] + 0.058, g[1] - 0.012, s * 0.247)
+        g = bar(s * 0.268)
+        tube('perch%d' % s, [bar(s * 0.255), bar(s * 0.280)], 0.0185, X_cast, 'front', seg=12)
+        rod('perchbody%d' % s, (g[0] + 0.012, g[1] - 0.004, s * 0.268), (g[0] + 0.072, g[1] - 0.014, s * 0.265), [0.0125, 0.0115, 0.0105], X_cast, 'front', seg=12)
+        piv = (g[0] + 0.058, g[1] - 0.012, s * 0.270)
         cyl('leverpivot%d' % s, 0.0075, 0.022, piv, X_steel, 'front', axis='y', seg=10, bevel=0.001)
-        LV = [(bar(s * z)[0] + f, bar(s * z)[1] - 0.013, s * z) for (z, f) in ((0.234, 0.05), (0.262, 0.068), (0.315, 0.063), (0.362, 0.052), (0.388, 0.043))]
+        LV = [(bar(s * z)[0] + f, bar(s * z)[1] - 0.013, s * z) for (z, f) in ((0.257, 0.05), (0.285, 0.068), (0.338, 0.063), (0.385, 0.052), (0.411, 0.043))]
         sweep('lever%d' % s, LV, [0.006, 0.0055, 0.0045, 0.004, 0.0045], [0.0085, 0.0075, 0.006, 0.0052, 0.0065], X_alu, 'front', e=3.0, ring=8, smooth=4)
         cyl('leverball%d' % s, 0.007, 0.012, LV[-1], X_alu, 'front', axis='y', seg=10, bevel=0.003)
         # hand guard: a red shield in front of lever and hand, on an arm clamped to the bar
-        rows = [[(bar(s * z)[0] + f + b * t, bar(s * z)[1] - 0.006 + dy * t, s * z) for (z, f, t) in ((0.212, 0.07, 0.8), (0.27, 0.09, 1.0), (0.345, 0.088, 0.95), (0.412, 0.056, 0.6))] for (dy, b) in ((0.04, -0.03), (0.026, -0.004), (0.0, 0.006), (-0.028, -0.004), (-0.044, -0.03))]
+        rows = [[(bar(s * z)[0] + f + b * t, bar(s * z)[1] - 0.006 + dy * t, s * z) for (z, f, t) in ((0.235, 0.07, 0.8), (0.293, 0.09, 1.0), (0.368, 0.088, 0.95), (0.437, 0.056, 0.6))] for (dy, b) in ((0.04, -0.03), (0.026, -0.004), (0.0, 0.006), (-0.028, -0.004), (-0.044, -0.03))]
         panel('handguard%d' % s, tight(rows, 0.2), 0.004, G_red, 'front')
-        tube('guardarm%d' % s, [bar(s * 0.185), (bar(s * 0.19)[0] + 0.04, bar(s * 0.19)[1] - 0.004, s * 0.192), (bar(s * 0.215)[0] + 0.076, bar(s * 0.215)[1] - 0.004, s * 0.215)], 0.0065, M_dark, 'front', seg=8, smooth=4)
-        tube('guardclamp%d' % s, [bar(s * 0.176), bar(s * 0.194)], 0.0165, M_dark, 'front', seg=12)
-    mr, ml = bar(0.245), bar(-0.245)
+        tube('guardarm%d' % s, [bar(s * 0.208), (bar(s * 0.213)[0] + 0.04, bar(s * 0.213)[1] - 0.004, s * 0.215), (bar(s * 0.238)[0] + 0.076, bar(s * 0.238)[1] - 0.004, s * 0.238)], 0.0065, M_dark, 'front', seg=8, smooth=4)
+        tube('guardclamp%d' % s, [bar(s * 0.199), bar(s * 0.217)], 0.0165, M_dark, 'front', seg=12)
+    mr, ml = bar(0.268), bar(-0.268)
     # right: front brake master cylinder with its fluid reservoir, throttle housing. Left: cable clutch with its adjuster, kill switch.
-    box('brakeresv', (0.044, 0.028, 0.036), (mr[0] + 0.038, mr[1] + 0.02, 0.243), X_cast, 'front', bevel=0.005)
-    box('brakeresv_cap', (0.047, 0.007, 0.039), (mr[0] + 0.038, mr[1] + 0.037, 0.243), M_dark, 'front', bevel=0.002)
-    tube('throttle', [bar(0.262), bar(0.281)], 0.021, M_dark, 'front', seg=12)
-    rod('throttle_out', (bar(0.27)[0] + 0.012, bar(0.27)[1] - 0.016, 0.27), (bar(0.27)[0] + 0.042, bar(0.27)[1] - 0.03, 0.262), 0.0065, M_dark, 'front', seg=8)
-    tube('killswitch', [bar(-0.262), bar(-0.277)], 0.019, M_dark, 'front', seg=12)
-    cyl('killbutton', 0.006, 0.008, (bar(-0.27)[0] - 0.012, bar(-0.27)[1] + 0.017, -0.27), G_red, 'front', axis='y', seg=10, bevel=0.002)
-    rod('clutchadj', (ml[0] + 0.058, ml[1] - 0.013, -0.228), (ml[0] + 0.074, ml[1] - 0.017, -0.196), [0.0085, 0.0085, 0.005], X_steel, 'front', seg=10)
+    box('brakeresv', (0.044, 0.028, 0.036), (mr[0] + 0.038, mr[1] + 0.02, 0.266), X_cast, 'front', bevel=0.005)
+    box('brakeresv_cap', (0.047, 0.007, 0.039), (mr[0] + 0.038, mr[1] + 0.037, 0.266), M_dark, 'front', bevel=0.002)
+    tube('throttle', [bar(0.285), bar(0.304)], 0.021, M_dark, 'front', seg=12)
+    rod('throttle_out', (bar(0.293)[0] + 0.012, bar(0.293)[1] - 0.016, 0.293), (bar(0.293)[0] + 0.042, bar(0.293)[1] - 0.03, 0.285), 0.0065, M_dark, 'front', seg=8)
+    tube('killswitch', [bar(-0.285), bar(-0.300)], 0.019, M_dark, 'front', seg=12)
+    cyl('killbutton', 0.006, 0.008, (bar(-0.293)[0] - 0.012, bar(-0.293)[1] + 0.017, -0.293), G_red, 'front', axis='y', seg=10, bevel=0.002)
+    rod('clutchadj', (ml[0] + 0.058, ml[1] - 0.013, -0.251), (ml[0] + 0.074, ml[1] - 0.017, -0.219), [0.0085, 0.0085, 0.005], X_steel, 'front', seg=10)
     # ---- lines on the bars. Brake: braided line from the master cylinder down behind the number plate to a guide on the lower clamp, then down the
     # back of the left leg to the caliper (that last piece has to flex with the fork: a stand-in here, the game draws it).
     G0 = fwd(fp(0.585), 0.052, -0.055)
-    hose('brakeline', [(mr[0] + 0.074, mr[1] - 0.016, 0.24), (BC[0] + 0.125, BC[1] - 0.03, 0.14), fwd(fp(0.80), 0.036, 0.03), fwd(fp(0.68), 0.04, -0.04), G0], 0.0046, X_chain, 'front', fit=X_alu)
+    hose('brakeline', [(mr[0] + 0.074, mr[1] - 0.016, 0.263), (BC[0] + 0.125, BC[1] - 0.03, 0.14), fwd(fp(0.80), 0.036, 0.03), fwd(fp(0.68), 0.04, -0.04), G0], 0.0046, X_chain, 'front', fit=X_alu)
     box('brakeguide', (0.014, 0.022, 0.018), G0, M_dark, 'front', rot=(0, 0, RAKE), bevel=0.003)
     HP = [G0, fwd(fp(0.46), 0.02, -0.06), fwd(fp(0.36), -0.04, -0.084), fwd(fp(0.2), -0.052, -0.092), pol(F, 0.19, math.radians(158), -0.09)]
     tube('brakeleg', HP, 0.0045, X_chain, 'front', seg=8, smooth=6)['noexport'] = 1
@@ -483,8 +515,8 @@ if 'controls' in STAGES:
     HOSES.append([list(q) for q in HP])
     # clutch cable and throttle cable: in a bow over the clamps, behind the number plate and past the steering head into the frame
     JL, JR = fwd(sp(0.70), 0.046, -0.03), fwd(sp(0.70), 0.046, 0.032)
-    hose('clutchcable_a', [(ml[0] + 0.074, ml[1] - 0.017, -0.196), (BC[0] + 0.13, BC[1] - 0.02, -0.11), fwd(fp(0.82), 0.04, -0.045), JL], 0.0038, M_line, 'front')
-    hose('throttlecable_a', [(bar(0.27)[0] + 0.042, bar(0.27)[1] - 0.03, 0.262), (BC[0] + 0.12, BC[1] - 0.045, 0.15), fwd(fp(0.80), 0.04, 0.06), JR], 0.0036, M_line, 'front')
+    hose('clutchcable_a', [(ml[0] + 0.074, ml[1] - 0.017, -0.219), (BC[0] + 0.13, BC[1] - 0.02, -0.11), fwd(fp(0.82), 0.04, -0.045), JL], 0.0038, M_line, 'front')
+    hose('throttlecable_a', [(bar(0.293)[0] + 0.042, bar(0.293)[1] - 0.03, 0.285), (BC[0] + 0.12, BC[1] - 0.045, 0.15), fwd(fp(0.80), 0.04, 0.06), JR], 0.0036, M_line, 'front')
     # ---- lines round the engine
     if 'engine' in STAGES:
         # clutch cable down the right of the frame to the release arm on top of the clutch cover; throttle cable to the throttle body
