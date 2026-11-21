@@ -10,7 +10,7 @@ Assemblies: body (frame, engine, bodywork) · swing (swingarm, pivots at PIV) ·
             shockU (damper body, turns about its top eye S0) · shockL (shaft and lower collar, follow the swingarm) · spring (squeezed between the collars)
             decalR / decalL (patches lying on the tank side panels, with UVs: the game prints number and name on them)
 The game moves these against each other (suspension); the chain and the two brake hoses down the fork legs are drawn by the game, because they change shape.
-Material prefixes tell the game which shader to use: P_ livery paint, M_ matte, X_ metal, G_ gloss, S_ screen, L_ brake light (glows), D_ decal."""
+Material prefixes tell the game which shader to use: P_ livery paint, M_ matte, X_ metal, C_ polished chrome, G_ gloss, S_ screen, L_ brake light (glows), D_ decal."""
 import bpy, bmesh, math
 from mathutils import Vector, Matrix
 
@@ -48,7 +48,7 @@ def mat(name, hexc):
     m = bpy.data.materials.get(name) or bpy.data.materials.new(name)
     m.use_nodes = True; b = m.node_tree.nodes.get('Principled BSDF')
     c = lin(hexc); b.inputs['Base Color'].default_value = (*c, 1); m['apex_col'] = c
-    m.diffuse_color = (*c, 1); m.metallic = 0.85 if name[0] == 'X' else 0.0; m.roughness = {'X': 0.38, 'G': 0.15, 'P': 0.3}.get(name[0], 0.62)   # viewport / preview look
+    m.diffuse_color = (*c, 1); m.metallic = 1.0 if name[0] == 'C' else 0.85 if name[0] == 'X' else 0.0; m.roughness = {'X': 0.38, 'C': 0.08, 'G': 0.15, 'P': 0.3}.get(name[0], 0.62)   # viewport / preview look
     MATS[name] = m; return m
 
 ASM = {'body': [], 'swing': [], 'front': [], 'fork': [], 'wheelF': [], 'wheelR': [], 'shockU': [], 'shockL': [], 'spring': [], 'decalR': [], 'decalL': []}
@@ -341,7 +341,7 @@ def coil(name, a, b, R, wire, turns, m, asm, n=14):
 # ------------------------------------------------------------------ materials
 P_body = mat('P_body', 'ffffff')
 M_dark = mat('M_dark', '1c1e22'); M_tyre = mat('M_tyre', '1a1a1c'); M_red = mat('M_red', 'c8281e'); M_disc = mat('M_disc', 'a9adb2'); M_cal = mat('M_caliper', 'b28a2c')
-M_spring = mat('M_spring', 'd8d9dc'); M_seat = mat('M_seat', '18191c'); M_groove = mat('M_groove', '070708'); M_resv = mat('M_resv', 'c9c6b4'); G_tail = mat('G_tail', 'ff2a1a'); G_lens = mat('G_lens', '0b0b0d'); L_tail = mat('L_tail', 'e0261a'); D_decal = mat('D_decal', '111214')
+M_spring = mat('M_spring', 'd8d9dc'); M_seat = mat('M_seat', '18191c'); M_groove = mat('M_groove', '070708'); M_resv = mat('M_resv', 'c9c6b4'); G_tail = mat('G_tail', 'ff2a1a'); G_lens = mat('G_lens', '0b0b0d'); C_chrome = mat('C_chrome', 'e4e7ea'); L_tail = mat('L_tail', 'e0261a'); D_decal = mat('D_decal', '111214')
 X_header = mat('X_header', '8a6c48'); X_ti = mat('X_ti', '9a958c'); X_chain = mat('X_chain', '55585e'); M_engine = mat('M_engine', '2e3136')
 X_brushed = mat('X_brushed', '9ea3aa'); FRAME = mat('G_frame', '141518'); G_stripe = mat('G_stripe', '0c0d0f'); M_bore = mat('M_bore', '050506'); M_lead = mat('M_lead', 'b3261c')
 X_alu = mat('X_alu', 'b9bdc2'); X_steel = mat('X_steel', 'd6d8db'); X_frame = mat('X_frame', '41454c'); X_rim = mat('X_rimdark', '34373d'); X_cast = mat('X_cast', '7d8188')
@@ -399,7 +399,7 @@ if 'chassis' in STAGES:
         plate('shk_lugB%d' % s, hull(circ(S1[0], S1[1], 0.015) + circ(-0.305, 0.43, 0.02)), 0.006, X_alu, 'swing', off=s * 0.02, bevel=0.0015)
     cyl('shk_eyeT', 0.014, 0.034, S0, X_steel, 'body', seg=14, bevel=0.002); cyl('shk_eyeB', 0.013, 0.034, S1, X_steel, 'swing', seg=14, bevel=0.002)
     rod('shk_body', shp(0.06), shp(0.52), [0.021, 0.024, 0.024, 0.024], X_frame, 'shockU', seg=16)
-    rod('shk_shaft', shp(0.28), shp(0.94), 0.0075, X_steel, 'shockL', seg=10)           # runs well up inside the body: the game slides it in and out
+    rod('shk_shaft', shp(0.28), shp(0.94), 0.0075, C_chrome, 'shockL', seg=14)           # runs well up inside the body: the game slides it in and out
     rod('shk_collarT', shp(0.115), shp(0.15), 0.039, X_alu, 'shockU', seg=20); rod('shk_collarB', shp(0.85), shp(0.885), 0.037, X_alu, 'shockL', seg=20)
     coil('shk_spring', shp(0.15), shp(0.85), 0.031, 0.0068, 7.5, M_spring, 'spring')
     rod('shk_res', (S0[0] - 0.05, S0[1] - 0.015, 0.046), (S0[0] - 0.105, S0[1] - 0.125, 0.046), 0.019, X_alu, 'shockU', seg=14)
@@ -410,7 +410,7 @@ if 'chassis' in STAGES:
         tube('forkO%d' % s, [fp(0.275, z), fp(0.30, z), fp(0.335, z), fp(0.728, z)], [0.0315, 0.0315, 0.0285, 0.0285], X_frame, 'front', seg=20)
         rod('forkseal%d' % s, fp(0.268, z), fp(0.277, z), 0.0295, M_dark, 'front', seg=20)
         rod('forkcap%d' % s, fp(0.728, z), fp(0.739, z), [0.024, 0.021], X_alu, 'front', seg=18); rod('forkadj%d' % s, fp(0.739, z), fp(0.748, z), 0.008, X_steel, 'front', seg=8)
-        rod('forkS%d' % s, fp(0.07, z), fp(0.46, z), 0.0215, X_steel, 'fork', seg=20)       # long enough to stay in the outer tube when the fork tops out
+        rod('forkS%d' % s, fp(0.07, z), fp(0.46, z), 0.0215, C_chrome, 'fork', seg=28)       # long enough to stay in the outer tube when the fork tops out
         tube('forkfoot%d' % s, [fp(-0.034, z), fp(-0.024, z), fp(0.03, z), fp(0.085, z), fp(0.095, z)], [0.02, 0.029, 0.03, 0.027, 0.0235], X_cast, 'fork', seg=18)
         cyl('axleboss%d' % s, 0.03, 0.05, (F[0], F[1], z), X_cast, 'fork', seg=18, bevel=0.004)
         # radial caliper behind the leg, on two lugs

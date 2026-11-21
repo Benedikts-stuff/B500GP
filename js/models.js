@@ -167,6 +167,8 @@
     SHARED.env = env;
     SHARED.matte = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.78, metalness: 0.05, envMap: env, envMapIntensity: 0.35 });
     SHARED.metal = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.32, metalness: 0.85, envMap: env, envMapIntensity: 1.0 });
+    SHARED.chrome = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.1, metalness: 1.0, envMap: env, envMapIntensity: 2.1 });   // fork stanchions, shock shaft: polished, mirror the sky and the road
+    SHARED.chrome.userData.psTame = SHARED.chrome.userData.lookBike = true;      // the look passes flatten the bike's metal - not this
     SHARED.gloss = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.22, metalness: 0.1, envMap: env, envMapIntensity: 0.9 });
     SHARED.suit = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0.0, envMap: env, envMapIntensity: 0.3 });
     SHARED.screen = new THREE.MeshStandardMaterial({ color: lin(0x10151c), roughness: 0.08, metalness: 0.4, transparent: true, opacity: 0.62, envMap: env, envMapIntensity: 1.4, side: THREE.DoubleSide });
@@ -500,7 +502,7 @@
     if (BMOD) {
       const sx = wb / BWB, Sx = new THREE.Matrix4().makeScale(sx, 1, 1);
       paint.vertexColors = true;
-      const catMat = (n) => /^P_/.test(n) ? paint : /^X_/.test(n) ? mats.metal : /^G_/.test(n) ? mats.gloss : /^S_/.test(n) ? mats.screen : /^L_/.test(n) ? brakeMat : mats.matte;
+      const catMat = (n) => /^P_/.test(n) ? paint : /^X_/.test(n) ? mats.metal : /^C_/.test(n) ? mats.chrome : /^G_/.test(n) ? mats.gloss : /^S_/.test(n) ? mats.screen : /^L_/.test(n) ? brakeMat : mats.matte;
       const merged = (name, pre) => {
         const groups = new Map();
         for (const p of AX.Assets.get(name).parts) { const k = (p.material.name || 'M_').slice(0, 2); (groups.get(k) || groups.set(k, []).get(k)).push(p.geometry); }
