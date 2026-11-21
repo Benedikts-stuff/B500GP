@@ -765,15 +765,16 @@
     _y.subVectors(J.S, J.H).normalize(); _z.set(0, -h * 0.25, 1).normalize(); _x.crossVectors(_y, _z).normalize(); _z.crossVectors(_x, _y).normalize();
     _m4.makeBasis(_x, _y, _z); rig.torso.quaternion.setFromRotationMatrix(_m4); rig.torso.position.copy(J.H);
     rig.torso.scale.set(1, J.S.distanceTo(J.H) / 0.47, 1);
-    J.head.copy(J.S).addScaledVector(_y, 0.16).addScaledVector(_x, 0.05); J.head.z += h * 0.07; J.head.y += lerp(0.02, -0.02, tk);
-    rig.helmet.position.copy(J.head); rig.helmet.rotation.set(-h * 0.45, -h * 0.3, lerp(nk ? -0.05 : -0.2, -0.42, tk) + si * 0.15, 'YXZ');
+    J.head.copy(J.S).addScaledVector(_y, 0.148).addScaledVector(_x, 0.085); J.head.z += h * 0.07; J.head.y += lerp(0.02, -0.02, tk);      // the upper back is rounded: the neck comes out of it forwards, the head sits a little lower between the shoulders
+    rig.helmet.position.copy(J.head); rig.helmet.rotation.set(-h * 0.45, -h * 0.3, lerp(nk ? -0.13 : -0.2, -0.42, tk) + si * 0.15, 'YXZ');
     for (let s = 0; s < 2; s++) {
       const sg = s === 0 ? -1 : 1, inside = sg * h > 0 ? Math.abs(h) : 0;
       // arm
       const A = rig.parts.arms[s];
       _a.copy(J.S).addScaledVector(_z, sg * 0.2).addScaledVector(_y, -0.05);
       _b.set(bars.barX, bars.barY + 0.02, sg * bars.barZ);
-      rig.poleTmp = _d; const pole = J.pole.set(-0.5, -1.0 - inside * 0.3, sg * (0.42 + tk * 0.1 + inside * 0.3));
+      rig.poleTmp = _d; const pole = nk ? J.pole.set(-0.42, -0.72 - inside * 0.3, sg * (0.82 + tk * 0.1 + inside * 0.3))      // wide bars: elbows out and up, ready to push
+        : J.pole.set(-0.5, -1.0 - inside * 0.3, sg * (0.42 + tk * 0.1 + inside * 0.3));
       ik(_a, _b, 0.285, 0.275, pole, J.c); const ph = rig.bikeLean || 0, inLean = ph * sg > 0 ? Math.abs(ph) : 0;
       rig.elbowDown[s] = clearGround(J.c, ph, 0.07, inside > 0.8 && inLean > 1.0 ? 0.62 : 0) && inside > 0.5;
       setLimb(A.up, _a, J.c); setLimb(A.lo, J.c, _b); A.sh.position.copy(_a); A.el.position.copy(J.c); A.hand.position.copy(_b);

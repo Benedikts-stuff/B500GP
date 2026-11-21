@@ -1,6 +1,6 @@
 """APEX rider parts, built in Blender. Game coordinates: x forward, y up, z right; Blender X = x, Y = -z, Z = y.
 Pieces (each its own GLB, placed by the game's rider rig):
-  torso  - hips at the origin, spine along +y (~0.5 m), chest faces +x, back -x
+  torso  - hips at the origin, shoulders 0.47 m up the +y axis, chest faces +x, back -x; the spine between them is a gentle curve (BEND degrees), not a plank
   helmet - centred at the origin, face towards +x
   limbs  - unit length along +y (0 = joint at the body side), real radii; rotationally symmetric so the rig can roll them freely
 Material prefixes: T_suit / T_accent / T_dark / H_shell / H_accent / H_dark / H_visor, L_suit / L_dark.
@@ -155,6 +155,25 @@ loft_x('glove', [dict(x=-0.046, y=0.0, w=0.03, ht=0.018, hb=0.018), dict(x=-0.03
 loft_x('boot', [dict(x=-0.115, y=0.02, w=0.028, ht=0.03, hb=0.03), dict(x=-0.09, y=0.022, w=0.044, ht=0.05, hb=0.042, e=3.0), dict(x=-0.02, y=0.025, w=0.048, ht=0.052, hb=0.045, e=3.0),
                 dict(x=0.05, y=0.012, w=0.049, ht=0.036, hb=0.032, e=3.0), dict(x=0.11, y=0.003, w=0.045, ht=0.024, hb=0.023, e=3.0), dict(x=0.15, y=0.0, w=0.03, ht=0.014, hb=0.018)],
        L_dark, 'boot', ring=14, subsurf=1)
+
+# ------------------------------------------------------------------ a rider's back is not a plank: bow the whole torso into one even curve
+# The spine bends forward by BEND degrees between the hips (y = 0.02) and the shoulder line (y = 0.50); the result is turned back so the
+# shoulders still stand straight above the hips at y = 0.47, which is what the game's rig expects. Seen against that line the small of the
+# back sits further back and more upright, the upper back and neck lean forward.
+BEND = math.radians(globals().get('BEND', 34.0)); BY0, BY1 = 0.02, 0.50
+if BEND > 1e-4:
+    Rb = (BY1 - BY0) / BEND
+    def bow(x, y):
+        s = min(max(y - BY0, 0.0), BY1 - BY0); th = s / Rb
+        cx, cy = Rb * (1 - math.cos(th)), BY0 + Rb * math.sin(th)
+        if y < BY0: cy += y - BY0
+        if y > BY1: cx += (y - BY1) * math.sin(th); cy += (y - BY1) * math.cos(th)
+        return cx + x * math.cos(th), cy - x * math.sin(th)
+    sxp, syp = bow(0.0, 0.47); ph = math.atan2(sxp, syp); k = 0.47 / math.hypot(sxp, syp); cp, sp = math.cos(ph), math.sin(ph)
+    for o in PIECES['torso']:
+        for v in o.data.vertices:
+            bx, by = bow(v.co.x, v.co.z); v.co.x, v.co.z = (bx * cp - by * sp) * k, (bx * sp + by * cp) * k
+        o.data.update()
 
 # lay the pieces apart for the AO bake
 offs = {'torso': (0, 0, 0), 'helmet': (1.0, 0, 0), 'uparm': (2, 0, 0), 'foarm': (2.5, 0, 0), 'thigh': (3, 0, 0), 'shin': (3.5, 0, 0), 'glove': (4, 0, 0), 'boot': (4.5, 0, 0)}
