@@ -63,7 +63,7 @@ Nach der ersten Nachbesserung flimmerten ferne Hänge und Tannen weiter. Die Urs
 
 - **Framerate auf „Hoch“:** Hier konnte nur ein Software-Renderer laufen. Ob „Hoch“ auf deinem Mac flüssig ist und ob die ersten Sekunden ruckeln, zeigt nur eine Probefahrt.
 - **Zittern in Fahrt:** siehe „Prüfen“. Die Messung ist eine Näherung.
-- **Laubmenge:** An Start und in der ersten Waldpassage liegt viel Laub auf der Straße. Die Menge steht in `passstyle.js` im Abschnitt „leaves“.
+- **Laubmenge:** geprüft, bleibt so.
 
 ## Leitplanken
 
@@ -246,5 +246,4 @@ Die Anteile wirken klein, sitzen aber gebündelt an Schattenkanten und auf Baumk
 
 ## Offene Entscheidungen
 
-1. **Akzentfarbe am Fahrer:** nicht umgesetzt (siehe „Abweichungen vom Plan“). Soll sie doch kommen, und wenn ja, wo?
-2. **Laubmenge auf der Straße:** so lassen oder weniger?
+Keine. Nach der Probefahrt entschieden: Die Laubmenge auf der Straße bleibt, und der Fahrer bekommt keine Akzentfarbe.
