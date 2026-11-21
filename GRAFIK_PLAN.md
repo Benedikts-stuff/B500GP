@@ -4,6 +4,47 @@ Stand: 21.11.2026. Betrifft nur den Pass im Golden-Hour-Stil (`js/passstyle.js`)
 
 Ziel: Das Bild soll schärfer und sauberer werden und mehr Kontrast bekommen, ohne den flachen Low-Poly-Stil zu verlassen. Es wird nichts eingebaut, das das Bild unruhig macht.
 
+## Stand der Umsetzung
+
+Der Plan ist auf dem Branch `grafik-premium` umgesetzt, in 14 Commits. Fast jeder Schritt hat seinen eigenen; Licht, Schatten und Himmel (1.2 bis 1.4, 2.3) hängen zusammen und sind einer. Vorher/Nachher-Bilder liegen in `screenshots/grafik/`.
+
+| Schritt | Stand | Was gemacht wurde |
+|---|---|---|
+| 0 Vergleichsbasis | erledigt | Bilder mit `tools/shots.js`, Zitter-Messung siehe „Prüfen“ |
+| 1.1 Auflösung, Stufen | erledigt | Standard „Hoch“; Deckel 1,0 / 1,5 / 2,0 mit Pixelbudget für 4K/5K; Stufe steuert Schattenkarte, Gras und Laub |
+| 1.2 Schatten | erledigt | PCF-Soft statt VSM, Sonne 3,2, Himmelslicht 1,0; Reichweite 70 m unverändert |
+| 1.3 Neutrale Farben | erledigt | Ursache war eine andere als angenommen, siehe unten |
+| 1.4 Zwei Himmel | erledigt | Violett (Vorgabe) und Blau, Zeile „HIMMEL“ in den Einstellungen |
+| 2.1 Fahrer abheben | teilweise | Kantenlicht ja; Akzentfarbe nicht, siehe unten |
+| 2.2 Trockenmauer | erledigt | Lagen aus flachen Steinen, schmale helle Fugen |
+| 2.3 Tiefe in der Ferne | erledigt | Dunst nimmt mit der Höhe ab, Ringe in drei Stufen, Horizont und Dunst im selben Ton |
+| 2.4 Wolken, Sonne | erledigt | 13 Low-Poly-Wolkenbänke, Sonnenscheibe mit Schein |
+| 2.5 Glanzlichter | anders gelöst | kein HDR-Ziel, dafür ruhiger Schein in jeder Auflösung, siehe unten |
+| 3.1 Blätter | erledigt | fallend, liegend, aufgewirbelt |
+| 3.2 Staub | erledigt | heller Steinstaub statt Rasengrün auf dem Bankett |
+| 3.3 Wolkenschatten | erledigt | nur auf den Berghängen außerhalb des Tals |
+
+### Abweichungen vom Plan
+
+- **Braune Straße (1.3):** Die Ursache war nicht die Sonnenfarbe. Das Straßenband war mit der Unterseite nach oben gebaut. Es bekam deshalb kein Sonnenlicht und keine Schatten, nur das braune Bodenlicht. Das erklärt auch, warum der Schatten des Motorrads fehlte. Richtig herum ist der Asphalt schiefergrau, die Linien sind weiß, und Baum- und Motorradschatten fallen auf die Straße. Die Sonnenfarbe wurde nur leicht aufgehellt (`#ffc890` → `#ffd2a2`).
+- **VSM-Schatten (1.2):** Die alte Weichzeichnung hat kleine Sonnenflecken ganz verschluckt. Mit PCF-Soft sind sie da.
+- **Akzentfarbe (2.1):** nicht umgesetzt. Auf der grauen Straße hebt sich der schwarz-weiße Fahrer jetzt klar ab, und eine Farbe hätte die Lederkombi verändert, die bewusst schwarz-weiß gestaltet ist. Wenn gewünscht, ist das eine Zeile in `js/core.js` (Fahrer „DU“).
+- **Glanzlichter (2.5):** kein HDR-Ziel. Es hätte kontrastreiche Kanten nach der Kantenglättung wieder ausgefranst und das Mischen aller durchsichtigen Effekte verändert, auch auf den alten Kursen. Stattdessen zählt beim Verkleinern für den Schein jetzt jeder Pixel (kleine Glanzpunkte blitzen nicht mehr), und der Schein ist auf jedem Bildschirm gleich breit.
+- **Schärfefilter:** nicht eingebaut. In voller Auflösung ist das Bild scharf, ein Filter hätte nur Flimmern verstärkt.
+- **Unschärfe im Verfolger:** Der Verfolger hatte am oberen und unteren Bildrand eine leichte Miniatur-Unschärfe. Sie ist entfernt; Menü und Draufsicht behalten sie.
+
+### Zusätzlich gemacht
+
+- Wiese und Gras ohne Spiegelglanz: Gegen die tiefe Sonne lag ein heller Schleier auf allem, was nach oben zeigt, und Halme an der Mauerkante wurden fast weiß.
+- Brücke: Brüstung und Abdeckung waren auf einer Seite spiegelverkehrt gebaut und zeigten ihre Innenseite.
+- Schärfere Texturen in den Nahkameras: Cockpit-Anzeige, Startnummer und Seitenschild werden in vierfacher Größe gezeichnet.
+
+### Noch von dir zu prüfen
+
+- **Framerate auf „Hoch“:** Hier konnte nur ein Software-Renderer laufen. Ob „Hoch“ auf deinem Mac flüssig ist und ob die ersten Sekunden ruckeln, zeigt nur eine Probefahrt.
+- **Zittern in Fahrt:** siehe „Prüfen“. Die Messung ist eine Näherung.
+- **Laubmenge:** An Start und in der ersten Waldpassage liegt viel Laub auf der Straße. Die Menge steht in `passstyle.js` im Abschnitt „leaves“.
+
 ## Leitplanken
 
 Diese Punkte sind entschieden und gelten für jeden Schritt:
@@ -15,7 +56,7 @@ Diese Punkte sind entschieden und gelten für jeden Schritt:
 
 ## Ausgangslage
 
-Gemessen an Standbildern vom aktuellen Stand (Verfolger, Helm, von oben; Grafik „Hoch“, 1280×720, Software-Renderer). Farben sind dort exakt, Framerate und Bewegung waren nicht zu beurteilen.
+Stand vor dem Umbau. Gemessen an Standbildern (Verfolger, Helm, von oben; Grafik „Hoch“, 1280×720, Software-Renderer). Farben sind dort exakt, Framerate und Bewegung waren nicht zu beurteilen.
 
 | Befund | Messwert / Stelle |
 |---|---|
@@ -25,6 +66,7 @@ Gemessen an Standbildern vom aktuellen Stand (Verfolger, Helm, von oben; Grafik 
 | Schlagschatten des Motorrads kaum sichtbar | Sonne steht 13° hoch, der Schatten müsste gut 4× so lang sein wie das Bike hoch |
 | Blockige Schattenflecken auf der Leitplanke | sichtbar im Verfolger, rechte Leitplanke |
 | Asphalt kommt graubraun an statt lavendel | Palette `#888fba`, am Bildschirm ca. rgb 116/96/87; Linien ocker statt weiß |
+| Ursache dafür (beim Umbau gefunden) | Straßenband mit der Unterseite nach oben gebaut: kein Sonnenlicht, keine Schatten |
 | Himmel dunkler und violetter als die Palette | Palette `#8fa3d8`, am Bildschirm ca. rgb 99/97/166; Shader ohne Gamma-Kodierung (`:248–258`) |
 | Ferne Hänge flächig orange | ca. rgb 206/123/72; die drei Silhouetten-Ringe (`:369`) gehen unter |
 | Fahrer und Bike heben sich kaum ab | schwarz-weiß auf dunkler Straße, im Verfolger rund 130 px hoch bei 720p |
@@ -138,12 +180,23 @@ Entschieden: Beide Himmel werden gebaut und sind in den Einstellungen wählbar.
 
 ## Prüfen
 
-Für jeden Schritt:
+So wurde geprüft:
 
-1. Die sechs Bilder aus Phase 0 neu erzeugen und neben „vorher“ legen.
-2. Die Zitter-Folge neu rechnen; der Wert darf nicht steigen.
-3. Du fährst die Strecke einmal auf deinem Mac in Verfolger- und Helmkamera. Zittern, Aufpoppen und Framerate lassen sich nur dort sicher beurteilen.
-4. Erst dann der nächste Schritt. Jeder Schritt ist ein eigener Commit, damit er einzeln zurückgenommen werden kann.
+1. **Feste Bilder:** dieselben Stellen vor und nach dem Umbau, in `screenshots/grafik/vorher`, `nachher` und `nachher_blau`. Erzeugt mit `tools/shots.js` (die KI fährt die Strecke).
+2. **Fehlerfreiheit:** keine Shader- oder Skriptfehler in allen vier Kameras, auf Niedrig, Mittel und Hoch, mit beiden Himmeln, im Rennen mit fünf Gegnern, beim Umschalten des Himmels im Menü und auf dem alten Rundkurs Kiefernring.
+3. **Zitter-Messung:** Die Welt steht still (keine Physik, Uhr angehalten), die Kamera gleitet 24 Bilder lang je 2 cm vorwärts. Alles im Bild sollte sich dann gleichmäßig ändern; was aufpoppt oder flimmert, zeigt sich als Unruhe von Bild zu Bild. Gemessen wird die mittlere Unruhe der Helligkeit (0 bis 255), einmal absolut und einmal im Verhältnis zur Kantenmenge im Bild, weil ein kontrastreicheres Bild bei gleicher Bewegung von selbst mehr Änderung zeigt.
+
+| Stelle | Unruhe vorher | Unruhe nachher | Im Verhältnis zu den Kanten |
+|---|---|---|---|
+| Anfahrt auf die Mauer (Schritt 1340) | 1,63 | 1,64 | 0,36 → 0,29 |
+| Waldpassage mit Laub (Schritt 1560) | 1,12 | 1,25 | 0,26 → 0,26 |
+| Lange Mauer, Leitplanke (Schritt 4100) | 1,33 | 1,49 | 0,26 → 0,28 |
+
+Ergebnis: Die Unruhe liegt auf dem alten Niveau. Sie steigt absolut leicht, weil das Bild mehr Kontrast hat (weiße Linien auf grauem Asphalt, scharfe Schatten, Laub); im Verhältnis zu den Kanten ist sie an einer Stelle deutlich niedriger, an einer gleich und an einer 5 % höher. Die stärkste Quelle ist vorher wie nachher das Gras direkt am Straßenrand.
+
+Grenzen: Das ist eine Näherung aus einem Software-Renderer bei 1280×720. Sie ersetzt keine Probefahrt. Eine erste Messung in voller Fahrt war unbrauchbar, weil dort die Bewegung selbst alles überdeckt.
+
+4. **Noch offen, nur auf deinem Mac möglich:** Framerate auf „Hoch“, die ersten Sekunden nach dem Start, und der Eindruck in Fahrt in Verfolger- und Helmkamera.
 
 ## Nicht im Plan
 
@@ -156,7 +209,7 @@ Für jeden Schritt:
 
 ## Entschieden
 
-- **Himmel:** beide Varianten, in den Einstellungen wählbar (1.4).
+- **Himmel:** beide Varianten, in den Einstellungen wählbar (1.4). Vorgabe bleibt Violett, solange es nur diese Strecke gibt.
 - **Standard-Grafikstufe:** „Hoch“ (1.1).
 - **HUD:** bleibt unverändert.
 - **Keine Konturlinien** an Motorrad und Fahrer.
@@ -164,4 +217,5 @@ Für jeden Schritt:
 
 ## Offene Entscheidungen
 
-1. **Vorgabe für den Himmel:** Violett oder Blau, nach dem Vergleich beider Varianten.
+1. **Akzentfarbe am Fahrer:** nicht umgesetzt (siehe „Abweichungen vom Plan“). Soll sie doch kommen, und wenn ja, wo?
+2. **Laubmenge auf der Straße:** so lassen oder weniger?
