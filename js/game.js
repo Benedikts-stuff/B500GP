@@ -17,7 +17,7 @@
       keys: '<kbd>A</kbd><kbd>D</kbd> Lenken · <kbd>W</kbd> Gas · <kbd>S</kbd> Vorderradbremse · <kbd>Leertaste</kbd> Hinterradbremse<br><kbd>←</kbd><kbd>→</kbd> Körper zur Kurveninnenseite (mehr Grip, mehr Schräglage) · <kbd>↑</kbd> Gewicht nach vorn (besser beschleunigen, weniger Wheelie, Windschatten) · <kbd>↓</kbd> Gewicht nach hinten / aufrichten (besser bremsen, kein Stoppie, Wheelie mit Gas)<br>Leicht bremsen in Schräglage (Trail-Braking) lenkt schärfer ein · Hinterradbremse oder Gewicht nach vorn beim Bremsen stellt das Heck quer<br><kbd>Shift</kbd> halten: sanft Gas geben und bremsen · ohne Körper-Taste hängt sich der Fahrer selbst in die Kurve<br><kbd>C</kbd> Kamera · <kbd>R</kbd> Zurücksetzen · <kbd>Esc</kbd> Pause · <kbd>M</kbd> Ton<br>Gamepad: linker Stick lenken · rechter Stick Körper · RT Gas · LT Vorderradbremse · LB Hinterradbremse',
       cam_chase: 'VERFOLGER', cam_pov: 'FAHRERSICHT', cam_chest: 'BRUSTKAMERA', cam_tv: 'TOP-DOWN', cam_follow: 'MITDREHEND', toSummit: 'BIS ZUM GIPFEL', alt: 'HÖHE', hillclimb: 'Bergrennen', summit: 'GIPFEL',
       hint: [['W', 'GAS'], ['S', 'BREMSE'], ['Leertaste', 'HINTERRAD'], ['A D', 'LENKEN'], ['← → ↑ ↓', 'KÖRPER'], ['C', 'KAMERA']],
-      settings: 'EINSTELLUNGEN', lookL: 'GRAFIKSTIL', lookOn: 'ABENDSTIMMUNG', lookOff: 'KLASSISCH', lookNoteOn: 'Der neue Look: tiefe Abendsonne, Dunst, echtes Gras, Lärchen und Tannen. Braucht eine starke Grafikkarte.', lookNoteOff: 'Der bisherige Look mit Zuschauern und Deko.', controls: 'STEUERUNG', back: 'ZURÜCK', mainHead: 'HAUPTMENÜ', subTT: 'Allein gegen die Uhr', subRace: 'Gegen die KI zum Gipfel',
+      settings: 'EINSTELLUNGEN', lookL: 'GRAFIKSTIL', lookOn: 'ABENDSTIMMUNG', lookOff: 'KLASSISCH', lookNoteOn: 'Der neue Look: tiefe Abendsonne, Dunst, echtes Gras, Lärchen und Tannen. Braucht eine starke Grafikkarte.', lookNoteOff: 'Der bisherige Look mit Zuschauern und Deko.', skyL: 'HIMMEL', sky0: 'VIOLETT', sky1: 'BLAU', skyNote0: 'Tiefe Abenddämmerung: violetter Himmel, goldenes Licht, warmer Dunst. Wirkt am Schwarzhornpass im Abendstil.', skyNote1: 'Später Nachmittag: klares Blau, helles Licht, zarter Dunst. Wirkt am Schwarzhornpass im Abendstil.', controls: 'STEUERUNG', back: 'ZURÜCK', mainHead: 'HAUPTMENÜ', subTT: 'Allein gegen die Uhr', subRace: 'Gegen die KI zum Gipfel',
       noteTT: 'Du gegen die Uhr, vom Dorf bis auf den Pass. Deine Bestfahrt fährt als Ghost mit, Zwischenzeiten zeigen dir, wo du Zeit gewinnst oder verlierst.',
       noteRace: 'Massenstart auf der Passstraße gegen KI-Fahrer. Wer zuerst oben ist, gewinnt.', noteSettings: 'Grafik, Lenkhilfe, Lautstärke und Sprache.', noteControls: 'Alle Tasten und ein paar Fahrtipps.',
       nav: [['↑ ↓', 'WÄHLEN'], ['← →', 'ÄNDERN'], ['Enter', 'OK'], ['Esc', 'ZURÜCK']], noteStart: 'Los geht’s.',
@@ -39,7 +39,7 @@
       keys: '<kbd>A</kbd><kbd>D</kbd> steer · <kbd>W</kbd> throttle · <kbd>S</kbd> front brake · <kbd>Space</kbd> rear brake<br><kbd>←</kbd><kbd>→</kbd> hang off to the inside (more grip, more lean) · <kbd>↑</kbd> weight forward (better drive, fewer wheelies, tucks in) · <kbd>↓</kbd> weight back / sit up (better braking, no stoppie, wheelie with throttle)<br>Light braking while leaned (trail braking) turns in sharper · rear brake or weight forward under braking backs the rear in<br>Hold <kbd>Shift</kbd> for gentle throttle and brakes · with no body key held the rider hangs off into the corner by himself<br><kbd>C</kbd> camera · <kbd>R</kbd> reset · <kbd>Esc</kbd> pause · <kbd>M</kbd> mute<br>Gamepad: left stick steer · right stick body · RT throttle · LT front brake · LB rear brake',
       cam_chase: 'CHASE', cam_pov: 'HELMET CAM', cam_chest: 'CHEST CAM', cam_tv: 'TOP-DOWN', cam_follow: 'ROTATING', toSummit: 'TO SUMMIT', alt: 'ALTITUDE', hillclimb: 'Hill climb', summit: 'SUMMIT',
       hint: [['W', 'THROTTLE'], ['S', 'BRAKE'], ['Space', 'REAR'], ['A D', 'STEER'], ['← → ↑ ↓', 'BODY'], ['C', 'CAMERA']],
-      settings: 'SETTINGS', lookL: 'ART STYLE', lookOn: 'GOLDEN HOUR', lookOff: 'CLASSIC', lookNoteOn: 'The new look: low evening sun, haze, real grass, larches and firs. Needs a strong graphics card.', lookNoteOff: 'The previous look with spectators and dressing.', controls: 'CONTROLS', back: 'BACK', mainHead: 'MAIN MENU', subTT: 'Alone against the clock', subRace: 'Race the AI to the summit',
+      settings: 'SETTINGS', lookL: 'ART STYLE', lookOn: 'GOLDEN HOUR', lookOff: 'CLASSIC', lookNoteOn: 'The new look: low evening sun, haze, real grass, larches and firs. Needs a strong graphics card.', lookNoteOff: 'The previous look with spectators and dressing.', skyL: 'SKY', sky0: 'VIOLET', sky1: 'BLUE', skyNote0: 'Deep dusk: violet sky, golden light, warm haze. Applies to the Schwarzhornpass in the golden-hour style.', skyNote1: 'Late afternoon: clear blue, bright light, a thin haze. Applies to the Schwarzhornpass in the golden-hour style.', controls: 'CONTROLS', back: 'BACK', mainHead: 'MAIN MENU', subTT: 'Alone against the clock', subRace: 'Race the AI to the summit',
       noteTT: 'You against the clock, from the village to the top of the pass. Your best run rides along as a ghost, split times show where you gain or lose.',
       noteRace: 'Mass start on the pass road against AI riders. First to the top wins.', noteSettings: 'Graphics, steer assist, volume and language.', noteControls: 'Every key and a few riding tips.',
       nav: [['↑ ↓', 'SELECT'], ['← →', 'CHANGE'], ['Enter', 'OK'], ['Esc', 'BACK']], noteStart: 'Let’s go.',
@@ -137,10 +137,10 @@
 
   /* ------------------------------------------------------------------ building a session */
   function buildWorld(trackId) {
-    if (G.world && G.track.id === trackId && G.quality === S.quality && G.look === S.look) return;
+    if (G.world && G.track.id === trackId && G.quality === S.quality && G.look === S.look && G.sky === S.sky) return;
     clearBikes(); if (G.world) G.world.dispose();
     AX.LOOK = S.look === 'on' && trackId === 'pass';
-    G.track = new AX.Track(trackId); G.world = new AX.World(renderer, G.track, { quality: S.quality }); G.quality = S.quality; G.look = S.look;
+    G.track = new AX.Track(trackId); G.world = new AX.World(renderer, G.track, { quality: S.quality, sky: S.sky }); G.quality = S.quality; G.look = S.look; G.sky = S.sky;
     if (AX.PassStyle) AX.PassStyle.applyRenderer(renderer, post, !!G.world.styled);
     if (G.world.styled) console.log('style', JSON.stringify(G.world.styleInfo));
     G.skid = new AX.SkidMarks(G.world.scene, 9000); G.smoke = new AX.Particles(G.world.scene, 1600, false); G.sparks = new AX.Particles(G.world.scene, 500, true);
@@ -627,6 +627,7 @@
     if (MS.scr === 'settings') return [
       { k: 'quality', label: T.quality, opts: [['low', T.q0], ['medium', T.q1], ['high', T.q2]], note: () => T.qNote[S.quality], after: () => loading(true, () => { resize(); menuPreview(); loading(false); }) },
       { k: 'look', label: T.lookL, opts: [['on', T.lookOn], ['off', T.lookOff]], note: () => (S.look === 'on' ? T.lookNoteOn : T.lookNoteOff), after: () => loading(true, () => { menuPreview(); loading(false); }) },
+      { k: 'sky', label: T.skyL, opts: [['violet', T.sky0], ['blue', T.sky1]], note: () => (S.sky === 'blue' ? T.skyNote1 : T.skyNote0), after: () => loading(true, () => { menuPreview(); loading(false); }) },
       { k: 'kbAssist', label: T.kbAssist, opts: [['on', T.on], ['off', T.off]], note: () => (S.kbAssist === 'on' ? T.noteKbA : T.noteKbOff) },
       { k: 'vol', label: T.volume, opts: Array.from({ length: 11 }, (_, i) => [i / 10, i * 10 + ' %']), note: T.volNote, after: () => { sound.init(); sound.setVolume(S.vol); } },
       { k: 'lang', label: S.lang === 'de' ? 'SPRACHE' : 'LANGUAGE', opts: [['de', 'DEUTSCH'], ['en', 'ENGLISH']], note: T.langNote },

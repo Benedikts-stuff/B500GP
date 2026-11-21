@@ -179,7 +179,7 @@
   /* ------------------------------------------------------------------ the world */
   class World {
     constructor(renderer, track, opts) {
-      opts = opts || {}; this.renderer = renderer; this.track = track; this.q = opts.quality || 'high';
+      opts = opts || {}; this.renderer = renderer; this.track = track; this.q = opts.quality || 'high'; this.skyId = opts.sky || 'violet';
       this.theme = AX.THEMES[track.def.theme] || AX.THEMES.forest; this.rng = AX.RNG(track.def.seed || 5);
       this.scene = new THREE.Scene(); this.aniso = Math.min(16, renderer.capabilities.getMaxAnisotropy());
       this.startLights = []; this.flags = []; this.disposables = [];

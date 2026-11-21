@@ -13,12 +13,42 @@
 
   /* ------------------------------------------------------------------ palette (as in the demo) */
   const SUN = new THREE.Vector3(-0.62, 0.22, -0.75).normalize();
+  /* Sky and haze colours are written the way they should look on screen. The picture goes through the renderer's filmic
+     curve, so toScene() runs that curve backwards: it returns the scene colour that comes out as the given screen colour.
+     Sky, haze and the far ridges all use it, which is why the horizon and the mist on the mountains meet in one tone. */
+  const EXPOSURE = 1.15;
+  const toScene = (hex) => {
+    const t = new THREE.Color(hex).convertSRGBToLinear();
+    // inverse of ACESFilmicToneMapping (three r128): output matrix, the fitted curve, input matrix, exposure / 0.6
+    const y = [1.60475, -0.53108, -0.07367, -0.10208, 1.10813, -0.00605, -0.00327, -0.07276, 1.07602], inv3 = (m, v) => {
+      const [a, b, c, d, e, f, g, h, i] = m, A = e * i - f * h, B = -(d * i - f * g), Cc = d * h - e * g, det = a * A + b * B + c * Cc;
+      return [(A * v[0] - (b * i - c * h) * v[1] + (b * f - c * e) * v[2]) / det, (B * v[0] + (a * i - c * g) * v[1] - (a * f - c * d) * v[2]) / det, (Cc * v[0] - (a * h - b * g) * v[1] + (a * e - b * d) * v[2]) / det];
+    };
+    const q = inv3(y, [t.r, t.g, t.b]).map((v) => { const A = v * 0.983729 - 1, B = v * 0.4329510 - 0.0245786, Cq = v * 0.238081 + 0.000090537; return Math.max(0, (-B - Math.sqrt(Math.max(0, B * B - 4 * A * Cq))) / (2 * A)); });
+    const r = inv3([0.59719, 0.35458, 0.04823, 0.07600, 0.90834, 0.01566, 0.02840, 0.13383, 0.83777], q).map((v) => Math.max(0, v) * 0.6 / EXPOSURE);
+    return new THREE.Color(r[0], r[1], r[2]);
+  };
+  /* Two skies over the same pass (setting "sky"). Each brings its own light, haze and ridge colours, so everything stays in
+     one mood. flag: the fog's near distance tells the shared haze code which sky is up (see below). */
+  const SKIES = {
+    violet: {   // deep violet dusk, golden light from low in the west: the look the pass was drawn in
+      flag: 44.5, sun: C('#ffd2a2'), sunI: 3.2, hemiSky: C('#c9caf2'), hemiGround: C('#a88a62'), hemiI: 1.0,
+      top: toScene('#4a5cae'), topSun: toScene('#7b6cb8'), grad: 0.55, hazeWarm: toScene('#f0bf9c'), hazeCool: toScene('#b3a3c8'), fogFar: 460,
+      sunDisc: new THREE.Color(9.0, 5.6, 2.9), cloudLit: toScene('#ffc7a0'), cloudShade: toScene('#8573ad'),
+      ring: [toScene('#56607c'), toScene('#7c769e'), toScene('#a596bd')]
+    },
+    blue: {     // late afternoon: clear blue above, pale peach haze, lighter and airier
+      flag: 44.6, sun: C('#ffe1bc'), sunI: 3.2, hemiSky: C('#c2d2f6'), hemiGround: C('#a8946e'), hemiI: 1.05,
+      top: toScene('#4f8fe0'), topSun: toScene('#86aee6'), grad: 0.4, hazeWarm: toScene('#ecd6bf'), hazeCool: toScene('#c2cde6'), fogFar: 620,
+      sunDisc: new THREE.Color(10.0, 8.2, 5.6), cloudLit: toScene('#fff3e0'), cloudShade: toScene('#9fb0d6'),
+      ring: [toScene('#5d7189'), toScene('#8597b4'), toScene('#aebcd6')]
+    }
+  };
+  const skyOf = (id) => SKIES[id] || SKIES.violet;
   const P = {
-    sun: C('#ffc890'), sunI: 2.25, hemiSky: C('#cfc8f0'), hemiGround: C('#a88a62'), hemiI: 1.45,
-    hazeWarm: C('#ffb98a'), hazeCool: C('#c8aed0'),
-    skyTop: C('#8fa3d8'), skyTopSun: C('#b8acdc'),
+    sun: SKIES.violet.sun, sunI: SKIES.violet.sunI, hemiSky: SKIES.violet.hemiSky, hemiGround: SKIES.violet.hemiGround, hemiI: SKIES.violet.hemiI,
     gDeep: C('#3d6a2c'), gWarm: C('#93a33a'), gDry: C('#c9a64e'), earth: C('#7a6450'), forestFloor: C('#34502a'),
-    road: C('#888fba'), roadLine: C('#f2eee6'), shoulder: C('#9497a0'),
+    road: C('#6c6b6a'), roadLine: C('#f2eee6'), shoulder: C('#8d8a85'),
     rock: C('#716b69'), rockLight: C('#867f7a'),
     stoneA: C('#8a8279'), stoneB: C('#a1978a'), cap: C('#b9b0a2'),
     rail: C('#7b8087'), water: C('#4f8fa0'),
@@ -48,15 +78,18 @@
   /* ------------------------------------------------------------------ haze: golden toward the sun, lavender away from it.
      Switched on by the style's fog (near = 44.5); every other world keeps its own fog. */
   {
-    const ch = THREE.ShaderChunk, orig = ch.fog_fragment;
+    const ch = THREE.ShaderChunk, orig = ch.fog_fragment, A = SKIES.violet, B = SKIES.blue;
+    // one smooth curve by distance and height: mist lies in the valley and thins toward the ridges; never a hard switch.
+    // The far slopes keep a little of their own light and shade (cap below 1), so the mountains read as layers
     ch.fog_fragment = `#ifdef USE_FOG
-      if (abs(fogNear - 44.5) < 0.01) {
+      if (fogNear > 44.4 && fogNear < 44.7) {
+        float hzV = step(44.55, fogNear);
         vec3 hzD = normalize(vFogWP - cameraPosition);
         float hzS = clamp(dot(hzD, ${SUNV}) * 0.5 + 0.5, 0.0, 1.0);
-        vec3 hzC = mix(${v3(P.hazeCool)}, ${v3(P.hazeWarm)}, pow(hzS, 1.7));
-        float hzF = 1.0 - exp(-max(fogDepth - fogNear, 0.0) / fogFar);
-        hzF *= 1.0 - 0.3 * smoothstep(120.0, 420.0, vFogWP.y);
-        gl_FragColor.rgb = mix(gl_FragColor.rgb, hzC, clamp(hzF, 0.0, 0.96));
+        vec3 hzC = mix(mix(${v3(A.hazeCool)}, ${v3(B.hazeCool)}, hzV), mix(${v3(A.hazeWarm)}, ${v3(B.hazeWarm)}, hzV), pow(hzS, 1.7));
+        float hzF = 1.0 - exp(-max(fogDepth - 44.5, 0.0) / fogFar);
+        hzF *= 1.0 - 0.5 * smoothstep(70.0, 400.0, vFogWP.y);
+        gl_FragColor.rgb = mix(gl_FragColor.rgb, hzC, clamp(hzF, 0.0, 0.86));
       } else {
     #endif
     ${orig}
@@ -66,13 +99,16 @@
   }
   AX.windT = AX.windT || { value: 0 };
 
+  // matt surfaces (meadow, grass, rock): no mirror glare. Looking into the low sun, the standard material would lay a pale sheen
+  // over everything that faces up; grass and ground keep their colour instead
+  const MATTE = (fs) => fs.replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\nreflectedLight.directSpecular = vec3(0.0); reflectedLight.indirectSpecular = vec3(0.0);');
   /* ------------------------------------------------------------------ materials */
   function terrainMat() {
     const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0 });
     m.onBeforeCompile = (sh) => {
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vW; varying vec3 vWN; attribute float aRoad; varying float vRoad;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvW = (modelMatrix * vec4(position, 1.0)).xyz; vWN = normalize(mat3(modelMatrix) * normal); vRoad = aRoad;');
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vW; varying vec3 vWN; varying float vRoad;\n' + GLSL_GROUND)
+      sh.fragmentShader = MATTE(sh.fragmentShader).replace('#include <common>', '#include <common>\nvarying vec3 vW; varying vec3 vWN; varying float vRoad;\n' + GLSL_GROUND)
         .replace('#include <color_fragment>', `#include <color_fragment>
           vec3 g = groundCol(vW.xz);
           // the floor under the forest is darker; the high slopes turn to dry autumn grass
@@ -84,7 +120,7 @@
           g = mix(g, ${v3(P.earth)}, smoothstep(0.5, 0.0, vRoad) * 0.45);
           diffuseColor.rgb = g;`);
     };
-    m.customProgramCacheKey = () => 'ps-terrain';
+    m.customProgramCacheKey = () => 'ps-terrain2';
     return m;
   }
   function roadMat(hw) {
@@ -156,13 +192,13 @@
           transformed.xz *= 1.0 + cd / 22.0;
           float w = sin(uT * 1.6 + ip.x * 0.19 + ip.z * 0.13) * 0.6 + sin(uT * 2.9 + ip.x * 0.6) * 0.25;
           transformed.x += w * aT * aT * 0.11; transformed.z += w * aT * aT * 0.06;`);
-      sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', THREE.ShaderChunk.normal_fragment_begin.replace(/normal = normal \* faceDirection;/g, ''))
+      sh.fragmentShader = MATTE(sh.fragmentShader).replace('#include <normal_fragment_begin>', THREE.ShaderChunk.normal_fragment_begin.replace(/normal = normal \* faceDirection;/g, ''))
         .replace('#include <common>', '#include <common>\nvarying float vT; varying vec3 vGW;\n' + GLSL_GROUND)
         .replace('#include <color_fragment>', `#include <color_fragment>
           vec3 g = groundCol(vGW.xz) * diffuseColor.rgb;
           diffuseColor.rgb = g * mix(0.94, 1.24, vT * vT) + vec3(0.012, 0.01, 0.0) * vT;`);
     };
-    m.customProgramCacheKey = () => 'ps-grass';
+    m.customProgramCacheKey = () => 'ps-grass2';
     return m;
   }
 
@@ -245,32 +281,44 @@
     this.styled = true; this.startLights = this.startLights || [];
 
     /* ---- sky, haze, light */
+    const K = skyOf(this.skyId); this.skyK = K;
+    // the sky runs through the same filmic curve as everything else, and its horizon is the haze colour itself:
+    // far slopes fade into exactly the tone that stands behind them
     this.sky = new THREE.Mesh(new THREE.SphereGeometry(5000, 32, 16), new THREE.ShaderMaterial({
       side: THREE.BackSide, depthWrite: false, depthTest: false, fog: false,
+      uniforms: { uTop: { value: K.top }, uTopSun: { value: K.topSun }, uWarm: { value: K.hazeWarm }, uCool: { value: K.hazeCool }, uDisc: { value: K.sunDisc }, uGrad: { value: K.grad } },
       vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-      fragmentShader: `varying vec3 vP; void main(){ vec3 d = normalize(vP); vec3 S = ${SUNV};
+      fragmentShader: `uniform vec3 uTop; uniform vec3 uTopSun; uniform vec3 uWarm; uniform vec3 uCool; uniform vec3 uDisc; uniform float uGrad; varying vec3 vP;
+        void main(){ vec3 d = normalize(vP); vec3 S = ${SUNV};
         float sd = clamp(dot(d, S) * 0.5 + 0.5, 0.0, 1.0), h = clamp(d.y, 0.0, 1.0);
-        vec3 hor = mix(${v3(P.hazeCool)}, ${v3(P.hazeWarm)}, pow(sd, 1.7));
-        vec3 top = mix(${v3(P.skyTop)}, ${v3(P.skyTopSun)}, pow(sd, 3.0));
-        vec3 c = mix(hor, top, pow(h, 0.55));
-        float s = max(dot(d, S), 0.0); c += vec3(1.0, 0.82, 0.6) * (pow(s, 10.0) * 0.28 + pow(s, 90.0) * 0.45 + pow(s, 2000.0) * 1.6);
+        vec3 hor = mix(uCool, uWarm, pow(sd, 1.7));
+        vec3 top = mix(uTop, uTopSun, pow(sd, 3.0));
+        vec3 c = mix(hor, top, pow(h, uGrad));
+        // the sun: a clean disc with a wide soft glow round it
+        float s = max(dot(d, S), 0.0), aa = fwidth(s) * 1.5;
+        c += uDisc * (pow(s, 12.0) * 0.022 + pow(s, 120.0) * 0.05 + pow(s, 1400.0) * 0.22);
+        c = mix(c, uDisc, smoothstep(0.99955 - aa, 0.99955 + aa, s));
         c = mix(c, hor, clamp(-d.y * 8.0, 0.0, 1.0));
-        gl_FragColor = vec4(c, 1.0); }`
+        gl_FragColor = vec4(c, 1.0);
+        #include <tonemapping_fragment>
+        #include <encodings_fragment>
+        }`
     }));
+    this.sky.material.extensions = { derivatives: true };
     this.sky.renderOrder = -10; this.sky.frustumCulled = false; sc.add(this.sky);
-    sc.fog = new THREE.Fog(0xffffff, 44.5, 420);
-    this.hemi = new THREE.HemisphereLight(P.hemiSky, P.hemiGround, P.hemiI); sc.add(this.hemi);
-    const sun = this.sun = new THREE.DirectionalLight(P.sun, P.sunI); this.sunDir = SUN.clone();
+    sc.fog = new THREE.Fog(0xffffff, K.flag, K.fogFar);
+    this.hemi = new THREE.HemisphereLight(K.hemiSky, K.hemiGround, K.hemiI); sc.add(this.hemi);
+    const sun = this.sun = new THREE.DirectionalLight(K.sun, K.sunI); this.sunDir = SUN.clone();
     const QL = this.q === 'low' ? 0 : this.q === 'medium' ? 1 : 2;       // the graphics level: shadow map and grass density here, resolution in game.js
     const SM = QL === 0 ? 2048 : 4096;
     sun.castShadow = true; sun.shadow.mapSize.set(SM, SM); this.shadowR = 70;
     Object.assign(sun.shadow.camera, { left: -70, right: 70, top: 70, bottom: -70, near: 120, far: 430 });
-    sun.shadow.radius = 4; sun.shadow.bias = -0.0003; sun.shadow.normalBias = 0.03; sc.add(sun); sc.add(sun.target);
+    sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.035; sc.add(sun); sc.add(sun.target);      // PCF-soft: edges about two texels wide, so shadows read as shapes
     {   // a soft environment for the bike's paint and visor, in the sky's colours
       const pm = new THREE.PMREMGenerator(this.renderer), es = new THREE.Scene();
-      const hor = P.hazeCool.clone().lerp(P.hazeWarm, 0.5);
+      const hor = K.hazeCool.clone().lerp(K.hazeWarm, 0.5), envTop = K.top.clone().lerp(K.topSun, 0.35);
       const dome = new THREE.Mesh(new THREE.SphereGeometry(50, 16, 10), new THREE.ShaderMaterial({
-        uniforms: { uTop: { value: P.skyTop }, uHor: { value: hor }, uG: { value: P.gDeep } }, side: THREE.BackSide,
+        uniforms: { uTop: { value: envTop }, uHor: { value: hor }, uG: { value: P.gDeep } }, side: THREE.BackSide,
         vertexShader: 'varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
         fragmentShader: 'uniform vec3 uTop; uniform vec3 uHor; uniform vec3 uG; varying vec3 vP; void main(){ float h=normalize(vP).y; vec3 up=mix(uHor,uTop,pow(max(h,0.0),0.5)); vec3 dn=mix(uHor,uG*0.6,clamp(-h*4.0,0.0,1.0)); vec3 c=mix(dn,up,step(0.0,h)); gl_FragColor=vec4(c,1.0);\n#include <encodings_fragment>\n}'
       })); es.add(dome);
@@ -368,10 +416,12 @@
       g.setAttribute('aRoad', new THREE.BufferAttribute(rd, 1)); g.computeVertexNormals();
       const m = new THREE.Mesh(g, tm); m.receiveShadow = true; m.name = 'psCoarse'; sc.add(m);
     }
-    // hazy silhouettes beyond: three rings of ridges, coloured close to the sky at the horizon
+    // hazy silhouettes beyond: three rings of ridges. Each takes the sky's own horizon tone for its direction (warm toward the
+    // sun, cool away from it) and keeps a share of its own colour: the nearest ring the most, the farthest the least.
+    // That gives three clear steps of depth; mist gathers at the foot of every ridge
     {
-      const hz = P.hazeCool.clone().lerp(P.hazeWarm, 0.45), y0 = t.planeH(cx, cz);
-      const ring = (R2, hMin, hMax, col, seed) => {
+      const y0 = t.planeH(cx, cz);
+      const ring = (R2, hMin, hMax, col, seed, keep) => {
         const n = 720, pos = [], idx = [];
         for (let k = 0; k <= n; k++) {
           const a = (k / n) * 6.283, ca = Math.cos(a), sa = Math.sin(a);
@@ -381,9 +431,21 @@
           if (k < n) { const bb = k * 2; idx.push(bb, bb + 1, bb + 2, bb + 1, bb + 3, bb + 2); }
         }
         const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
-        const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide, fog: false })); m.renderOrder = -5; m.name = 'psRing'; sc.add(m);
+        const m = new THREE.Mesh(g, new THREE.ShaderMaterial({
+          side: THREE.DoubleSide, fog: false,
+          uniforms: { uCol: { value: col }, uWarm: { value: K.hazeWarm }, uCool: { value: K.hazeCool }, uKeep: { value: keep }, uY: { value: new THREE.Vector2(y0, y0 + hMax) } },
+          vertexShader: 'varying vec3 vW; void main(){ vW = (modelMatrix * vec4(position, 1.0)).xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+          fragmentShader: `uniform vec3 uCol; uniform vec3 uWarm; uniform vec3 uCool; uniform float uKeep; uniform vec2 uY; varying vec3 vW;
+            void main(){ vec3 d = normalize(vW - cameraPosition); float sd = clamp(dot(d, ${SUNV}) * 0.5 + 0.5, 0.0, 1.0);
+              vec3 hor = mix(uCool, uWarm, pow(sd, 1.7));
+              float k = uKeep * mix(0.35, 1.0, smoothstep(uY.x, uY.y * 0.75, vW.y));
+              gl_FragColor = vec4(mix(hor, uCol, k), 1.0);
+              #include <tonemapping_fragment>
+              #include <encodings_fragment>
+            }`
+        })); m.renderOrder = -5; m.name = 'psRing'; sc.add(m);
       };
-      ring(4700, 350, 1350, P.ring[2].clone().lerp(hz, 0.74), 9.1); ring(3600, 300, 950, P.ring[1].clone().lerp(hz, 0.62), 4.7); ring(2300, 300, 700, P.ring[0].clone().lerp(hz, 0.5), 1.3);
+      ring(4700, 350, 1350, K.ring[2], 9.1, 0.3); ring(3600, 300, 950, K.ring[1], 4.7, 0.48); ring(2300, 300, 700, K.ring[0], 1.3, 0.66);
     }
 
     /* ---- road: one ribbon from barrier to barrier, asphalt, lines and shoulders drawn in the shader */
@@ -394,7 +456,7 @@
         const L0 = t.bar[0][i] + (t.barType[0][i] === 2 ? 0.05 : 0.3), L1 = t.bar[1][i] + (t.barType[1][i] === 2 ? 0.05 : 0.3), nx = t.nx[i], nz = t.nz[i], y = t.py[i] + 0.02;
         if (i) s += Math.hypot(t.px[i] - t.px[i - 1], t.pz[i] - t.pz[i - 1]);
         pos.push(t.px[i] - nx * L0, y, t.pz[i] - nz * L0, t.px[i] + nx * L1, y, t.pz[i] + nz * L1); rdA.push(-L0, s, L1, s); nor.push(0, 1, 0, 0, 1, 0);
-        if (i) { const a = (i - 1) * 2; idx.push(a, a + 2, a + 1, a + 1, a + 2, a + 3); }
+        if (i) { const a = (i - 1) * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); }      // wound to face up: the road takes the sun and the shadows that fall on it
       }
       const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); g.setAttribute('aRd', new THREE.Float32BufferAttribute(rdA, 2)); g.setIndex(idx);
       const m = new THREE.Mesh(g, roadMat(hw)); m.receiveShadow = true; sc.add(m);
@@ -724,12 +786,13 @@
   let brightOrig = null;
   function applyRenderer(renderer, post, on) {
     const mb = post.mBright; if (brightOrig == null) brightOrig = mb.fragmentShader;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     if (on) {
-      renderer.shadowMap.type = THREE.VSMShadowMap; renderer.toneMappingExposure = 1.15;
+      renderer.toneMappingExposure = EXPOSURE;
       mb.fragmentShader = brightOrig.replace('smoothstep(0.80,1.0,l)', 'smoothstep(0.93,1.0,l)');
       post.mFinal.uniforms.uBloom.value = 0.55; post.mFinal.uniforms.uVig.value = 0.24; post.mFinal.uniforms.uSat.value = 1.0;
     } else {
-      renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.toneMappingExposure = 1.0; mb.fragmentShader = brightOrig;
+      renderer.toneMappingExposure = 1.0; mb.fragmentShader = brightOrig;
     }
     mb.needsUpdate = true;
   }
@@ -746,5 +809,5 @@
   function tameBike(root) {
     root.traverse((o) => { if (!o.material) return; for (const m of [].concat(o.material)) { if (!m.isMeshStandardMaterial || m.userData.psTame) continue; m.userData.psTame = true; m.envMapIntensity = 0.25; if (!m.transparent && m.roughness > 0.1) m.roughness = Math.max(m.roughness, 0.6); m.metalness *= 0.5; } });
   }
-  AX.PassStyle = { applyRenderer, update, tameBike, SUN, P };
+  AX.PassStyle = { applyRenderer, update, tameBike, SUN, P, SKIES };
 })();
