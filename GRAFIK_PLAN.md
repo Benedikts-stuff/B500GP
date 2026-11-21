@@ -39,6 +39,18 @@ Der Plan ist auf dem Branch `grafik-premium` umgesetzt, in 14 Commits. Fast jede
 - Brücke: Brüstung und Abdeckung waren auf einer Seite spiegelverkehrt gebaut und zeigten ihre Innenseite.
 - Schärfere Texturen in den Nahkameras: Cockpit-Anzeige, Startnummer und Seitenschild werden in vierfacher Größe gezeichnet.
 
+### Nachbesserung nach der ersten Probefahrt
+
+Die Probefahrt hat gezeigt: Beim Zufahren auf Dinge flackerten Schatten, vor allem auf Baumkronen, und die Mauer verlor nach etwa zehn Metern ihr Muster. Die erste Zitter-Messung hatte das nicht erfasst, weil sie mit kleinen Kameraschritten arbeitete und die Schattenkarte dabei kaum wanderte. Behoben ist:
+
+- **Schatten stehen fest.** Bisher wanderte eine einzige Schattenkarte mit dem Motorrad mit. Sie rastete nur grob und in der Höhe gar nicht ein, also verschob sich jede Schattenkante bei jedem Bild ein wenig, und Schatten gab es nur im Umkreis von etwa 70 m. Jetzt gibt es zwei Karten derselben Sonne: eine für die ganze Strecke, die einmal beim Laden gezeichnet wird und sich nie bewegt, und eine schärfere um die Kamera, die nur in ganzen Texeln ihres eigenen Rasters weiterrückt. Dazwischen liegt eine breite, weiche Überblendung. Nebenbei haben die fernen Hänge jetzt Baumschatten.
+- **Bäume bekommen keine Karten-Schatten mehr.** Sie werfen Schatten, aber ihre eigene Form kommt nur aus dem festen Sonnenlicht auf ihren Flächen. Die gezackten Flecken auf den Kronen, die sich beim Näherkommen ständig änderten, sind damit weg.
+- **Leuchten nur von echtem Licht.** Der Leuchteffekt sprach auf das helle Gelb der Bäume an, und zwar stärker, je größer der Baum im Bild wurde. Er reagiert nur noch auf Sonne, weiße Glanzlichter, Bremslicht und Auspuffflamme.
+- **Mauer als echte Textur.** Das Steinmuster wird einmal in eine Textur gemalt (12,8 m × 3,2 m, 320 Pixel pro Meter, nahtlos wiederholt). Die Grafikkarte filtert sie wie jede Textur; nichts wird mehr von Hand ein- oder ausgeblendet.
+- **Mauerenden geschlossen.** Jede Mauer endet in einem Steinpfeiler mit eigenem Deckstein. Vorher war die Stirnseite offen, und man sah unter die Abdeckung auf den Hang.
+- **Kein Lichtspalt am Mauerfuß.** Die Mauer war für die Schatten nur ein dünnes Blatt. Zwei unsichtbare Flächen im Hang dahinter stehen jetzt für den Mauerkörper.
+- **Laub in fester Größe.** Blätter wurden mit der Entfernung etwas breiter gezeichnet; jetzt haben sie überall dieselbe Größe.
+
 ### Noch von dir zu prüfen
 
 - **Framerate auf „Hoch“:** Hier konnte nur ein Software-Renderer laufen. Ob „Hoch“ auf deinem Mac flüssig ist und ob die ersten Sekunden ruckeln, zeigt nur eine Probefahrt.
