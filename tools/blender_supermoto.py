@@ -172,7 +172,10 @@ if 'chassis' in STAGES:
         z = s * FZ
         FORKO[s] = tube('forkO%d' % s, [fp(0.30, z), fp(0.535, z), fp(0.575, z), fp(0.905, z)], [0.0335, 0.0335, 0.0298, 0.0298], X_gold, 'front', seg=22)
         rod('forkseal%d' % s, fp(0.288, z), fp(0.302, z), 0.031, M_dark, 'front', seg=22)
-        rod('forkcap%d' % s, fp(0.905, z), fp(0.916, z), [0.026, 0.023], X_alu, 'front', seg=18); rod('forkadj%d' % s, fp(0.916, z), fp(0.925, z), 0.008, X_steel, 'front', seg=8)
+        rod('forkcap%d' % s, fp(0.905, z), fp(0.916, z), [0.026, 0.023], X_alu, 'front', seg=18); 
+        # the clickers on top of the caps: compression on one leg, rebound on the other - anodised red and black, with a screw slot
+        rod('forkadj%d' % s, fp(0.916, z), fp(0.929, z), [0.0125, 0.0125, 0.0105], mat('X_smadjred', 'c8161c') if s < 0 else mat('X_smadjblack', '15161a'), 'front', seg=10)
+        rod('forkadjscrew%d' % s, fp(0.929, z), fp(0.932, z), 0.0048, X_steel, 'front', seg=8)
         rod('forkS%d' % s, fp(0.10, z), fp(0.72, z), 0.024, C_chrome, 'fork', seg=28)
         tube('forkfoot%d' % s, [fp(-0.046, z), fp(-0.034, z), fp(0.03, z), fp(0.115, z), fp(0.128, z)], [0.022, 0.033, 0.034, 0.03, 0.026], X_cast, 'fork', seg=20)
         cyl('axleboss%d' % s, 0.034, 0.05, (F[0], F[1], z), X_cast, 'fork', seg=20, bevel=0.004)

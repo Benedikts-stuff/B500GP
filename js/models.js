@@ -363,6 +363,8 @@
   /* Bikes modelled with working suspension: everything the rig has to know about each model. All positions are the model's own, in metres
      (tools/blender_duetto.py, tools/blender_supermoto.py).
      head/rake: a point on the steering axis and its angle · PIV: swingarm pivot · S0/S1: shock eyes on frame and swingarm · SPR: gearbox sprocket
+     travel: how much further than the Duetto it dives and squats (long-travel suspension) · forkMax: the most the fork may close up
+     link: the shock is worked through a linkage - its lower eye moves this share of the wheel's travel (0: it sits on the swingarm itself)
      chain: [gearbox sprocket radius, wheel sprocket radius, z, number of links] · hose: front brake line, top to caliper, and the sides that have one
      tyre: half axes of the tyres' cross-sections (rear a/b, front a/b) · plate: number on the front plate [x, y, size] · side: number on the side panels
      ex: where the pipe ends, which way it points, how wide it is · bar: the grips [x, y, z] · fit: where the rider sits (hips, shoulders upright and tucked, boots)
@@ -376,7 +378,7 @@
       tyre: { ar: 0.0525, br: 0.1034, af: 0.0475, bf: 0.061 }, plate: [0.5395, 0.8957, 0.2], heat: true, ex: [[-0.795, 0.532, 0.232], [-0.866, 0.483, 0.129], 0.036] },
     supermoto: { wb: 1.47, Rr: 0.315, Rf: 0.30, rake: 26.5, head: [0.387, 0.953], PIV: [-0.145, 0.445], S0: [-0.05, 0.795], S1: [-0.165, 0.375], SPR: [-0.055, 0.425], chain: [0.0365, 0.121, -0.097, 114],
       hose: [[0.5206, 0.8468, 0.055], [0.5477, 0.7206, 0.06], [0.5386, 0.6044, 0.084], [0.5993, 0.4558, 0.092], [0.5588, 0.3712, 0.09]], hoseSides: [-1],
-      tyre: { ar: 0.040, br: 0.0885, af: 0.0365, bf: 0.0632 }, plate: [0.5026, 0.9993, 0.125], side: [-0.275, 0.818, 0.1295, 0.082], ex: [[-0.757, 0.8175, 0.188], [-0.886, 0.464, 0.022], 0.0215],
+      travel: 1.6, forkMax: 0.17, link: 0.42, tyre: { ar: 0.040, br: 0.0885, af: 0.0365, bf: 0.0632 }, plate: [0.5026, 0.9993, 0.125], side: [-0.275, 0.818, 0.1295, 0.082], ex: [[-0.757, 0.8175, 0.188], [-0.886, 0.464, 0.022], 0.0215],
       bar: [0.286, 1.174, 0.367], fit: { hip: [-0.15, 0.985], sh: [0.045, 1.467, 0.185, 1.385], foot: [-0.20, 0.40, 0.172], leanVis: 1.14, pov: [-0.15, 1.66, 0.36], chest: [0.125, 0.55, 0.42] } }
   };
   function buildBike(spec, rider, opts) {
@@ -560,7 +562,7 @@
         // brake hoses from the splitter on the lower clamp down to the calipers: the top is clamped, the bottom rides with the fork
         const HP = MD.hose, hoses = MD.hoseSides.map((sd) => {
           const m = hoseMesh(mats.metal, 0x3c3e43, 22, 6); m.userData.pts = HP.map((q) => V3(q[0] * sx, q[1], q[2] * sd).applyMatrix4(inv)); m.userData.cur = m.userData.pts.map((q) => q.clone()); steerG.add(m); return m; });
-        susp = { forkG, swingG, shU, shL, spring, chain, hoses, PIV, S0, SPR, r1: MD.chain[0], r2: MD.chain[1], cz: MD.chain[2], s1r: S1.clone().sub(PIV), sl, L: Math.hypot(-hx - PIV.x, Rr - PIV.y), psi0: Math.atan2(Rr - PIV.y, -hx - PIV.x), axle0: wfHolder.position.clone(), NL, pitch, d: 1, th: 0, ph: 0, top: 0 };
+        susp = { forkG, swingG, shU, shL, spring, chain, hoses, PIV, S0, SPR, k: MD.travel || 1, dmax: MD.forkMax || 0.13, link: MD.link || 0, r1: MD.chain[0], r2: MD.chain[1], cz: MD.chain[2], s1r: S1.clone().sub(PIV), sl, L: Math.hypot(-hx - PIV.x, Rr - PIV.y), psi0: Math.atan2(Rr - PIV.y, -hx - PIV.x), axle0: wfHolder.position.clone(), NL, pitch, d: 1, th: 0, ph: 0, top: 0 };
         // number and name on the tank side panels
         for (const [dn, tex] of [['decalR', panelTexture(rider.num)], ['decalL', panelTexture(null)]]) {
           if (!AX.Assets.has(nm + dn)) continue;
@@ -796,6 +798,7 @@
   /* st: {lean [-1..1 normalised hang-off], tuck 0..1, sit 0..1 (upright under braking), steer} ; k = smoothing blend 0..1 */
   function poseRider(rig, st, k) {
     rig.hang = lerp(rig.hang, st.lean, k); rig.tuck = lerp(rig.tuck, st.tuck, k); rig.sit = lerp(rig.sit, st.sit, k); rig.dangle = lerp(rig.dangle || 0, st.dangle || 0, k * 0.6);
+    if (rig.dangle * rig.hang < 0 && Math.abs(rig.hang) > 0.15) rig.dangle *= 0.7;      // his weight has gone to the other side: the loose leg is pulled in at once, before it ends up across the bike
     const h = rig.hang, ah = Math.abs(h), tk = rig.tuck, si = rig.sit, J = rig.J, nk = rig.naked, bars = rig.bars, F = rig.fit, mt = !!F && F.style === 'motard';
     // hips slide to the inside, torso follows further, head leads into the corner
     if (mt) J.H.set(F.hip[0] + ah * 0.03, F.hip[1] - ah * 0.01, -h * 0.055);      // supermoto: he slides to the outer edge of the seat instead of hanging off
@@ -839,7 +842,7 @@
         _b.set(lerp(fx, mt ? 0.27 : 0.14, w) + Math.sin(tt * 6.3) * (mt ? 0.008 : 0.03) * w, lerp(fy, (mt ? 0.2 : 0.16) - deep * 0.08, w) + Math.sin(tt * 9.1) * (mt ? 0.004 : 0.012) * w,
           sg * (lerp(fz, mt ? 0.3 : 0.5, w) + deep * 0.06 + Math.sin(tt * 4.7 + s) * 0.025 * w));
         // leaned (or sliding) to that side, the boot reaches the asphalt and drags along it
-        rig.footDown[s] = clearGround(_b, ph, 0.03, !mt && w > 0.7 ? 0.62 : 0) && w > 0.5;      // (supermoto: the boot is not reached out to the road - it skims it only where the road comes up to it)
+        rig.footDown[s] = clearGround(_b, ph, 0.03, !mt && w > 0.7 && sg * ph > 0 ? 0.62 : 0) && w > 0.5;      // (only towards its own side: leaned the other way, the road here is out of reach; in the motard style the boot is never reached out)
       }
       J.pole.set(0.9 - dg * 0.5, 0.5 - inside * 0.5 + dg * 0.5, sg * (0.25 + inside * 1.6 + dg * 1.1));
       ik(_a, _b, 0.44, 0.44, J.pole, J.c); rig.kneeDown[s] = clearGround(J.c, ph, Lg.puck ? 0.084 : 0.075, dg < 0.15 && inside > 0.5 && inLean > 0.7 ? 0.7 : 0) && inside > 0.3;      // the slider, not the knee, is what touches
@@ -906,7 +909,7 @@
     const S = vis.susp;
     vis.pitchG.rotation.z = p.pitch - (S && p.pitch >= 0 ? dFront / (2 * hx) : 0);   // the narrower front tyre lets the nose down a touch when leaned over
     // sprung body: dive under braking, squat under power
-    const target = p.crashed ? 0 : S ? clamp(-p.aLong * 0.0054, -0.05, 0.076) : clamp(-p.aLong * 0.0042, -0.05, 0.055);
+    const target = p.crashed ? 0 : S ? clamp(-p.aLong * 0.0054 * S.k, -0.05 * S.k, 0.076 * S.k) : clamp(-p.aLong * 0.0042, -0.05, 0.055);
     vis.diveV += ((target - vis.dive) * 190 - vis.diveV * 17) * dt; vis.dive += vis.diveV * dt;
     const sa = -vis.dive + jit * 0.5, sy = -Math.abs(vis.dive) * 0.25 + Math.abs(jit) * 0.4;
     vis.susG.rotation.z = sa; vis.susG.position.y = sy;
@@ -917,7 +920,10 @@
       const sp = clamp((vis.Rr - sy - py) / S.L, -0.5, 0.3), psi = Math.atan2(sp, -Math.sqrt(1 - sp * sp)), th = AX.wrapAngle(psi - sa - S.psi0);
       vis.susG.position.x = -hx - px - S.L * Math.cos(psi); S.swingG.rotation.z = th; S.th = th;
       // shock: top eye on the frame, bottom eye on the swingarm; the spring is squeezed between its two collars
-      const ct = Math.cos(th), st2 = Math.sin(th), s1x = S.PIV.x + S.s1r.x * ct - S.s1r.y * st2, s1y = S.PIV.y + S.s1r.x * st2 + S.s1r.y * ct, vx = s1x - S.S0.x, vy = s1y - S.S0.y, ls = Math.hypot(vx, vy), ph = Math.atan2(vy, vx);
+      const ct = Math.cos(th), st2 = Math.sin(th); let s1x = S.PIV.x + S.s1r.x * ct - S.s1r.y * st2, s1y = S.PIV.y + S.s1r.x * st2 + S.s1r.y * ct;
+      if (S.link) {   // through a linkage: the lower eye is pushed up the shock's own line by its share of the wheel's travel
+        const c = clamp(-th * S.L * S.link, -0.03, 0.065), ux = S.S0.x - s1x, uy = S.S0.y - s1y, ul = Math.hypot(ux, uy); s1x += ux / ul * c; s1y += uy / ul * c; }
+      const vx = s1x - S.S0.x, vy = s1y - S.S0.y, ls = Math.hypot(vx, vy), ph = Math.atan2(vy, vx);
       S.shU.rotation.z = ph; S.shL.rotation.z = ph; S.shL.position.set(s1x, s1y, 0);
       const ks = (ls - 0.3 * S.sl) / (0.7 * S.sl); for (const m of S.spring) { m.scale.x = ks; m.position.x = 0.15 * S.sl * (1 - ks); }
       // chain: round the rear sprocket, along the top run to the gearbox sprocket, round it and back along the bottom
@@ -951,7 +957,7 @@
       // the lowers slide along the fork until the tyre stands on the road; with the wheel in the air the fork tops out
       _m1.copy(vis.bodyG.matrixWorld).invert().multiply(vis.steerG.matrixWorld); const e = _m1.elements, a0 = S.axle0;
       S.top = damp(S.top, p.pitch > 0.015 && !p.crashed ? 1 : 0, 10, dt);
-      const d = clamp((vis.Rf - (e[1] * a0.x + e[5] * a0.y + e[9] * a0.z + e[13])) / e[5] - 0.034 * S.top, -0.04, 0.13);
+      const d = clamp((vis.Rf - (e[1] * a0.x + e[5] * a0.y + e[9] * a0.z + e[13])) / e[5] - 0.034 * S.top, -0.04 * S.k, S.dmax);
       if (Math.abs(d - S.d) > 2e-4) {
         S.d = d; S.forkG.position.y = d;
         for (const h of S.hoses) { const P = h.userData.pts, C = h.userData.cur; C[3].copy(P[3]); C[3].y += d * 0.55; C[4].copy(P[4]); C[4].y += d; hoseUpdate(h, C, 0.0045); }
@@ -991,6 +997,8 @@
       if (p.brake > 0.45 && p.speed > 15 && !vis.dgRolled) { vis.dgRolled = true; vis.dgOn = Math.random() < 0.25 + 0.45 * decel + 0.4 * slideA; vis.dgAmt = 0.7 + 0.4 * decel * Math.random(); }
       if (!vis.dgOn && slideA > 0.6 && p.brake > 0.3 && p.speed > 9) { vis.dgOn = true; vis.dgAmt = 0.9; }      // backing it in: leg out
       if (p.brake < 0.25 && (p.rearBrake || 0) < 0.25) { vis.dgRolled = false; vis.dgOn = false; }
+      // flicked over to the other side while the leg is out: it comes back to the peg (it would otherwise be left hanging across the bike)
+      if (vis.dgOn && vis.dgSide && ((Math.abs(p.lean) > 0.1 && Math.sign(p.lean) !== vis.dgSide) || (Math.abs(hang) > 0.18 && Math.sign(hang) !== vis.dgSide))) vis.dgOn = false;
       if (vis.dgOn && !vis.dgSide && dSide) vis.dgSide = dSide; if (!vis.dgOn) vis.dgSide = 0;
       const dangle = vis.dgOn ? (vis.dgSide || dSide) * vis.dgAmt * (1 + 0.35 * slideA) * smoothstep(7, 14, p.speed) * (1 - smoothstep(0.5, 0.8, Math.abs(p.lean))) : 0;
       let legs = null;
