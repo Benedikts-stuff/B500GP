@@ -353,9 +353,18 @@ if 'body' in STAGES:
     loft('airbox', [dict(x=-0.06, y=0.77, w=0.07, ht=0.06, hb=0.07, e=3.4), dict(x=-0.16, y=0.765, w=0.086, ht=0.066, hb=0.09, e=3.6), dict(x=-0.30, y=0.772, w=0.088, ht=0.058, hb=0.075, e=3.6),
                     dict(x=-0.37, y=0.785, w=0.07, ht=0.045, hb=0.05, e=3.2)], M_dark, 'body', ring=16, subsurf=1)
     # seat: long, flat and narrow, so the rider can slide all the way forward onto the tank
-    loft('seat', [dict(x=0.165, y=0.948, w=0.05, ht=0.02, hb=0.022, e=2.6), dict(x=0.05, y=0.93, w=0.076, ht=0.03, hb=0.032, e=3.0), dict(x=-0.1, y=0.899, w=0.093, ht=0.034, hb=0.04, e=3.2),
+    SEAT = loft('seat', [dict(x=0.165, y=0.948, w=0.05, ht=0.02, hb=0.022, e=2.6), dict(x=0.05, y=0.93, w=0.076, ht=0.03, hb=0.032, e=3.0), dict(x=-0.1, y=0.899, w=0.093, ht=0.034, hb=0.04, e=3.2),
                   dict(x=-0.28, y=0.872, w=0.1, ht=0.034, hb=0.04, e=3.2), dict(x=-0.45, y=0.877, w=0.096, ht=0.034, hb=0.036, e=3.2), dict(x=-0.6, y=0.901, w=0.08, ht=0.03, hb=0.03, e=3.0),
                   dict(x=-0.675, y=0.908, w=0.054, ht=0.02, hb=0.02, e=2.6)], M_seat, 'body', ring=18, subsurf=2)
+    # gripper cover: raised ribs across the seat, each one laid onto the seat's own surface
+    def seatribs(bm):
+        for k in range(27):
+            x = 0.135 - 0.03 * k; pts = []
+            for j in range(17):
+                z = -0.112 + 0.014 * j; ok, loc, nrm, idx = SEAT.ray_cast(V(x, 1.3, z), Vector((0, 0, -1)))
+                if ok and nrm.z > 0.3: pts.append((loc.x - nrm.x * 0.0008, loc.z - nrm.z * 0.0008, -loc.y + nrm.y * 0.0008))
+            for a2, b2 in zip(pts, pts[1:]): bm_tube(bm, a2, b2, 0.0034, 5)
+    many('seatribs', mat('M_smseatrib', '2b2d33'), 'body', seatribs, 50)
     # The bodywork follows the layout every bike of this class has. One long line runs from the tail along the seat to a wing beside the fork; under it
     # hang two triangles: the radiator shroud, with a blade reaching down in front of the engine, and the side panel, pointing down at the swingarm
     # pivot. They run into each other in one arch above the cylinder head. Sharp at the tips, flowing in between.
