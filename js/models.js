@@ -181,13 +181,6 @@
     gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.5, '#9a9a9a'); gr.addColorStop(1, '#161616'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
     _heatTex = new THREE.CanvasTexture(c); return _heatTex;
   }
-  let _glowTex = null;
-  function glowTexture() {   // a flash of light: bright heart, long soft fall-off to nothing
-    if (_glowTex) return _glowTex;
-    const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), gr = g.createRadialGradient(32, 32, 0, 32, 32, 32);
-    gr.addColorStop(0, '#ffffff'); gr.addColorStop(0.18, '#b4b4b4'); gr.addColorStop(0.45, '#3c3c3c'); gr.addColorStop(0.75, '#0d0d0d'); gr.addColorStop(1, '#000000'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64);
-    _glowTex = new THREE.CanvasTexture(c); return _glowTex;
-  }
   function numberTexture(num, bg, fg) {
     const key = num + bg + fg; if (numTexCache[key]) return numTexCache[key];
     const c = document.createElement('canvas'); c.width = 128; c.height = 128; const g = c.getContext('2d');
@@ -586,13 +579,10 @@
     // where the pipe ends, which way it points and how wide it is (in the sprung body's own frame)
     const EX = CORSA ? [V3(-0.87 * wb / 1.42, 0.876, 0), V3(-1, 0.12, 0), 0.028] : SUP ? [V3(-0.73 * wb / 1.42, 0.55, 0.205), V3(-0.9, 0.42, 0.04), 0.034] : st.exhaust === 'under' ? [V3(-0.78, 0.82, 0), V3(-1, 0.12, 0), 0.028]
       : naked && BMOD ? [V3(-0.795, 0.532, 0.232), V3(-0.866, 0.483, 0.129), 0.036] : [V3(-0.5, 0.6, 0.16), V3(-0.9, 0.4, 0), 0.04];
-    const flame = { mat: flameMaterial(), meshes: [], glows: [], I: 0, len: 0.2, seed: Math.random() * 9 }; flame.mat.uniforms.uRad.value = EX[2]; EX[1].normalize();
+    const flame = { mat: flameMaterial(), meshes: [], I: 0, len: 0.2 }; flame.mat.uniforms.uRad.value = EX[2]; EX[1].normalize();
     for (const z of (CORSA || (!BMOD && st.exhaust === 'under') ? [-0.055, 0.055] : [0])) {      // twin pipes under the seat: one tongue each
       const m = new THREE.Mesh(flameGeometry(), flame.mat); m.position.copy(EX[0]).addScaledVector(EX[1], -0.012); m.position.z += z; m.quaternion.setFromUnitVectors(V3(0, 1, 0), EX[1]);
       m.visible = false; m.castShadow = false; m.frustumCulled = false; m.renderOrder = 4; susG.add(m); flame.meshes.push(m);
-      // seen from straight behind one looks down the length of the flame and sees next to nothing of it: a soft flash of light at the mouth shows the pop from every side
-      const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTexture(), color: 0x000000, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false, toneMapped: false, fog: false }));
-      gl.position.copy(EX[0]).addScaledVector(EX[1], 0.045); gl.position.z += z; gl.visible = false; gl.renderOrder = 4; susG.add(gl); flame.meshes.push(gl); flame.glows.push(gl);
     }
     const batched = opts.batch !== false;
     const sc = (st.scale || 1) * AX.BIKE_SCALE; rootG.scale.setScalar(sc);
@@ -603,7 +593,7 @@
       /* contact patches in world space (for skid marks / smoke) */
       rearContact(out) { return out.set(-hx, 0.02, 0).applyMatrix4(leanG.matrixWorld); },
       frontContact(out) { return out.set(hx, 0.02, 0).applyMatrix4(leanG.matrixWorld); },
-      pop(k) { if (flame.meshes[0].parent) { flame.I = Math.max(flame.I, k); flame.len = (0.2 + 0.13 * Math.random()) * (0.7 + 0.5 * k); flame.seed = Math.random() * 9; } },      // afterfire: k = how hard (0..1)
+      pop(k) { if (flame.meshes[0].parent) { flame.I = Math.max(flame.I, k); flame.len = (0.13 + 0.12 * Math.random()) * (0.7 + 0.5 * k); } },      // afterfire: k = how hard (0..1)
       exhaustPos(out) { return (CORSA ? out.set(-0.87 * wb / 1.42, 0.876, 0) : SUP ? out.set(-0.73 * wb / 1.42, 0.55, 0.205) : st.exhaust === 'under' ? out.set(-0.78, 0.82, 0) : naked && BMOD ? out.set(-0.795, 0.532, 0.232) : out.set(-0.5, 0.6, 0.16)).applyMatrix4(susG.matrixWorld); }
     };
     if (batched) riderRig.group.traverse((o) => { if (o.isMesh && o.userData.rb) RB.add(o, bike); });
@@ -920,12 +910,8 @@
     const bl = br ? (p.brake > 0.8 && p.speed > 12 && Math.sin(time * 37.7) < 0 ? 0.3 : 1) : 0;      // hard on the brakes: it flashes, six times a second
     vis.brakeMat.color.setRGB(br ? 0.5 + 2.7 * bl : 0.3, br ? 0.04 + 0.18 * bl : 0.03, br ? 0.02 + 0.1 * bl : 0.02);
     if (vis.flame) {
-      const F = vis.flame; F.I *= Math.exp(-8.5 * dt); const on = F.I > 0.03 && !p.crashed; for (const m of F.meshes) m.visible = on;
-      if (on) {
-        const u = F.mat.uniforms, fl = 0.72 + 0.28 * Math.sin(time * 71 + F.seed) * Math.sin(time * 43 + F.seed * 2.1), k = Math.min(1, F.I * 1.5) * fl;      // it crackles rather than fades evenly
-        u.uI.value = k; u.uLen.value = F.len * (0.4 + 0.6 * Math.min(1, F.I * 1.6)); u.uT.value = time;
-        for (const g of F.glows) { g.scale.setScalar(0.16 + 0.2 * k); g.material.color.setRGB(1.5 * k, 0.72 * k, 0.26 * k); }
-      }
+      const F = vis.flame; F.I *= Math.exp(-15 * dt); const on = F.I > 0.03 && !p.crashed; for (const m of F.meshes) m.visible = on;
+      if (on) { const u = F.mat.uniforms; u.uI.value = Math.min(1, F.I * 1.4); u.uLen.value = F.len * (0.45 + 0.55 * Math.min(1, F.I * 1.6)); u.uT.value = time; }
     }
     if (vis.heat && p.spec) {
       const H = vis.heat, sp = p.speed || 0, bk = p.crashed ? 0 : p.brake || 0, rb = p.crashed ? 0 : p.rearBrake || 0, air = 0.07 + sp * 0.004, work = clamp(sp / 40, 0, 1.2);

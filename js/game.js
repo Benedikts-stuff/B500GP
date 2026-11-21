@@ -282,20 +282,18 @@
       }
       return;
     }
-    // footpeg feeler touching down at full lean: a few sparks from the inside
-    if (Math.abs(b.lean) > 1.0 && b.speed > 8 && b.surf <= SURF.KERB && r() < (Math.abs(b.lean) - 1.0) * 6) {
-      const sgn = -Math.sign(b.lean), px = b.x - cx * 0.2 * sc + sz * sgn * 0.42 * sc, pz = b.z - sz * 0.2 * sc - cx * sgn * 0.42 * sc;
-      G.sparks.spawn(px, 0.06 + ys, pz, -b.vx * 0.25 + (r() - 0.5) * 3, 0.6 + r() * 1.6, -b.vz * 0.25 + (r() - 0.5) * 3, 0.18 + r() * 0.15, 0.08, 1, 0.8, 0.35, 1, 0, 1, 10);
-    }
     if ((b.surf === SURF.GRASS || b.surf === SURF.GRAVEL) && b.speed > 5 && r() < 0.7) {
       const g = b.surf === SURF.GRAVEL;
       sm.spawn(rx, 0.2 + ys, rz, b.vx * 0.3 + (r() - 0.5) * 3, 0.8 + r() * 1.8, b.vz * 0.3 + (r() - 0.5) * 3, 0.8 + r() * 0.6, 0.6, g ? 0.74 : 0.42, g ? 0.66 : 0.5, g ? 0.48 : 0.26, g ? 0.5 : 0.32, 2.6, 1.4, 0);
       if (r() < 0.5) sm.spawn(rx, 0.15 + ys, rz, b.vx * 0.5 + (r() - 0.5) * 5, 2 + r() * 3, b.vz * 0.5 + (r() - 0.5) * 5, 0.5, 0.11, g ? 0.6 : 0.3, g ? 0.54 : 0.44, g ? 0.4 : 0.18, 0.95, 0, 0.6, 14);
     }
     if (f.scrape && r() < 0.7) G.sparks.spawn(b.x, 0.5 + ys, b.z, -b.vx * 0.2 + (r() - 0.5) * 5, 1 + r() * 2, -b.vz * 0.2 + (r() - 0.5) * 5, 0.22, 0.1, 1, 0.8, 0.35, 1, 0, 1, 10);
-    // the engine pops on the overrun, now and then on a downshift or held on the limiter: a short tongue of flame out of the pipe
-    if ((f.shift === -1 && r() < 0.6) || (b.limiter && r() < 0.03)) vis.pop(0.6 + r() * 0.3);
-    if (f.backfire > 0 && r() < 0.05) { vis.pop(0.8 + r() * 0.2); if (b === G.player) G.pop = 0.55; }
+    // the engine pops on the overrun, now and then on a downshift or held on the limiter: a lick of flame at the pipe and three or four small sparks thrown out behind
+    if ((f.shift === -1 && r() < 0.5) || (b.limiter && r() < 0.03) || (f.backfire > 0 && r() < 0.05)) {
+      vis.pop(0.6 + r() * 0.3); vis.exhaustPos(_v);
+      for (let k = 0, n = 3 + (r() < 0.5 ? 1 : 0); k < n; k++) { const sp = 2.5 + r() * 4.5; G.sparks.spawn(_v.x, _v.y, _v.z, b.vx * 0.8 - cx * sp + (r() - 0.5) * 1.8, 0.5 + r() * 1.6, b.vz * 0.8 - sz * sp + (r() - 0.5) * 1.8, 0.22 + r() * 0.26, 0.036 + r() * 0.022, 1, 0.68 + r() * 0.18, 0.26, 1, 0, 2.2, 5.5); }
+      if (f.backfire > 0 && b === G.player) G.pop = 0.55;
+    }
   }
   function burst(b) {
     const ys = b.y || 0;
