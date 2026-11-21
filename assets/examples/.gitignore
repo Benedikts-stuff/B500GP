@@ -1,0 +1,4 @@
+# Reference models stay local (too big for the repo) - only this folder is tracked.
+# tools/blender_sport.py needs BreakDisk/ from here to rebuild the sport bikes' brake discs.
+*
+!.gitignore
