@@ -733,6 +733,9 @@ if SHOTS:
 
 # ------------------------------------------------------------------ bake AO into vertex colours and export the game assemblies
 if EXPORT:
+    # the hand levers are assemblies of their own (leverR: front brake, leverL: clutch): the game swings them about their pivot bolts (js/models.js, SPRUNG.leverPiv)
+    for o in [o for o in ASM['front'] if o.name.endswith('_lever')]:
+        a2 = 'leverL' if o.name.endswith('-1_lever') else 'leverR'; ASM['front'].remove(o); ASM.setdefault(a2, []).append(o); o['asm'] = a2
     GAME = {k: [k] for k in ASM}
     DEC = ASM['decalR'] + ASM['decalL']
     for o in DEC: o.hide_render = True                   # lettering casts no shade on the panel under it

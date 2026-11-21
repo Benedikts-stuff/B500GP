@@ -839,6 +839,9 @@ if all(k in STAGES for k in ('chassis', 'engine', 'controls', 'body')):
     open(OUT + 'renders/sport_%s_export.json' % VARIANT, 'w').write(json.dumps(res['sprung'], indent=1))
 # ------------------------------------------------------------------ bake AO into vertex colours and export the game assemblies
 if EXPORT:
+    # the hand levers are assemblies of their own (leverR: front brake, leverL: clutch): the game swings them about their pivot bolts (js/models.js, SPRUNG.leverPiv)
+    for o in [o for o in ASM['front'] if o.name.endswith('_lever')]:
+        a2 = 'leverL' if o.name.endswith('-1_lever') else 'leverR'; ASM['front'].remove(o); ASM.setdefault(a2, []).append(o); o['asm'] = a2
     EXP = {'strada': 'stradav4', 'corsa': 'corsa600'}[VARIANT]
     for k in ASM: ASM[k] = [o for o in ASM[k] if not o.get('noexport')]
     for o in [o for o in scene.objects if o.get('noexport')]: o.hide_render = True
