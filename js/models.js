@@ -376,7 +376,7 @@
     supermoto: { wb: 1.47, Rr: 0.315, Rf: 0.30, rake: 26.5, head: [0.387, 0.953], PIV: [-0.145, 0.445], S0: [-0.05, 0.795], S1: [-0.165, 0.375], SPR: [-0.055, 0.425], chain: [0.0365, 0.121, -0.097, 114],
       hose: [[0.5206, 0.8468, 0.055], [0.5477, 0.7206, 0.06], [0.5386, 0.6044, 0.084], [0.5993, 0.4558, 0.092], [0.5588, 0.3712, 0.09]], hoseSides: [-1],
       tyre: { ar: 0.040, br: 0.0885, af: 0.0365, bf: 0.0632 }, plate: [0.5026, 0.9993, 0.125], side: [-0.275, 0.818, 0.1295, 0.082], ex: [[-0.757, 0.8175, 0.188], [-0.886, 0.464, 0.022], 0.0215],
-      bar: [0.286, 1.174, 0.367], fit: { hip: [-0.15, 0.985], sh: [0.045, 1.467, 0.185, 1.385], foot: [-0.20, 0.40, 0.172], style: 'motard', leanVis: 1.08, pov: [-0.15, 1.66, 0.36], chest: [0.125, 0.55, 0.42] } }
+      bar: [0.286, 1.174, 0.367], fit: { hip: [-0.15, 0.985], sh: [0.045, 1.467, 0.185, 1.385], foot: [-0.20, 0.40, 0.172], style: 'motard', leanVis: 1.14, pov: [-0.15, 1.66, 0.36], chest: [0.125, 0.55, 0.42] } }
   };
   function buildBike(spec, rider, opts) {
     opts = opts || {}; const env = opts.env || null; const st = spec.style; const naked = st.fairing === 'naked', mdl = naked ? st.model || 'duetto' : null, MD = mdl ? SPRUNG[mdl] : null;
@@ -827,7 +827,7 @@
       const fx = F ? F.foot[0] : -0.25, fy = F ? F.foot[1] : 0.48, fz = F ? F.foot[2] : 0.18;
       _b.set(fx, fy, sg * fz);
       let dg = sg * rig.dangle > 0 ? Math.abs(rig.dangle) : 0;           // MotoGP leg dangle on the brakes
-      const out = mt ? smoothstep(0.16, 0.55, inside) : 0; if (out > dg) dg = out;      // supermoto: the inside boot comes off the peg in every corner
+      const out = mt && st.legs ? st.legs[s] : 0; if (out > dg) dg = out;      // supermoto: the inside boot comes off the peg for the whole corner (syncBike decides when, so it cannot flap)
       rig.footDown[s] = false;
       if (dg > 0.01) {
         // the boot leaves the peg, swings forward and out beside the front of the engine, toe down, hovering just off the
@@ -836,10 +836,10 @@
         _b.set(lerp(fx, mt ? 0.27 : 0.14, w) + Math.sin(tt * 6.3) * (mt ? 0.008 : 0.03) * w, lerp(fy, (mt ? 0.2 : 0.16) - deep * 0.08, w) + Math.sin(tt * 9.1) * (mt ? 0.004 : 0.012) * w,
           sg * (lerp(fz, mt ? 0.3 : 0.5, w) + deep * 0.06 + Math.sin(tt * 4.7 + s) * 0.025 * w));
         // leaned (or sliding) to that side, the boot reaches the asphalt and drags along it
-        rig.footDown[s] = clearGround(_b, ph, 0.03, w > 0.7 ? 0.62 : 0) && w > 0.5;
+        rig.footDown[s] = clearGround(_b, ph, 0.03, !mt && w > 0.7 ? 0.62 : 0) && w > 0.5;      // (supermoto: the boot is not reached out to the road - it skims it only where the road comes up to it)
       }
       J.pole.set(0.9 - dg * 0.5, 0.5 - inside * 0.5 + dg * 0.5, sg * (0.25 + inside * 1.6 + dg * 1.1));
-      ik(_a, _b, 0.44, 0.44, J.pole, J.c); rig.kneeDown[s] = clearGround(J.c, ph, Lg.puck ? 0.084 : 0.075, inside > 0.5 && inLean > 0.7 ? 0.7 : 0) && inside > 0.3;      // the slider, not the knee, is what touches
+      ik(_a, _b, 0.44, 0.44, J.pole, J.c); rig.kneeDown[s] = clearGround(J.c, ph, Lg.puck ? 0.084 : 0.075, dg < 0.15 && inside > 0.5 && inLean > 0.7 ? 0.7 : 0) && inside > 0.3;      // the slider, not the knee, is what touches
       setLimb(Lg.up, _a, J.c); setLimb(Lg.lo, J.c, _b); setKnee(Lg, _a, J.c, _b, sg); Lg.hip.position.copy(_a); Lg.kn.position.copy(J.c); Lg.foot.position.set(_b.x + 0.03, _b.y - 0.01, _b.z);
       Lg.foot.rotation.set(0, 0, (mt ? 0.1 : -0.75) * Math.min(1, dg));     // toe down when the leg is out (supermoto: the sole skims the road, toe up)
     }
@@ -880,7 +880,7 @@
     const jit = vis.shake ? Math.sin(time * 61.3 + p.x) * vis.shake : 0;
     const hangIn = p.crashed ? 0 : Math.max(0, p.hangIn || 0);
     const mfit = vis.rider.fit, lv = mfit && mfit.leanVis ? mfit.leanVis : 9;
-    const phi = clamp(p.lean * (1 + (mfit && mfit.style === 'motard' ? 0.04 : -0.13) * hangIn), -lv, lv) + jit * 0.6;     // hanging off lets the bike itself stay more upright; pushed down supermoto-style it leans a little further than its rider - but never so far that the bars reach the road
+    const phi = clamp(p.lean * (1 + (mfit && mfit.style === 'motard' ? 0.06 : -0.13) * hangIn), -lv, lv) + jit * 0.6;     // hanging off lets the bike itself stay more upright; pushed down supermoto-style it leans a little further than its rider - but never so far that the bars reach the road
     vis.leanG.rotation.x = phi;
     let dFront = 0;
     if (vis.tyre) {   // modelled tyres: roll on the real (elliptical) section of the rear tyre, and let the narrower front one down onto the road too
@@ -990,7 +990,15 @@
       if (p.brake < 0.25 && (p.rearBrake || 0) < 0.25) { vis.dgRolled = false; vis.dgOn = false; }
       if (vis.dgOn && !vis.dgSide && dSide) vis.dgSide = dSide; if (!vis.dgOn) vis.dgSide = 0;
       const dangle = vis.dgOn ? (vis.dgSide || dSide) * vis.dgAmt * (1 + 0.35 * slideA) * smoothstep(7, 14, p.speed) * (1 - smoothstep(0.5, 0.8, Math.abs(p.lean))) : 0;
-      poseRider(vis.rider, { lean: hang, tuck, sit, steer: p.steer, dangle }, 1 - Math.exp(-9 * dt));
+      let legs = null;
+      if (mfit && mfit.style === 'motard') {
+        // supermoto: the inside leg goes out as the bike is laid into a corner and stays out until it is nearly upright again -
+        // one decision per corner (with a wide gap between "out" and "back"), eased in and out, so it never flaps with the steering
+        const L = vis.leg || (vis.leg = [0, 0, 0]), al = Math.abs(p.lean), sd = Math.sign(p.lean);
+        if (!L[2] && al > 0.22 && p.speed > 5) L[2] = sd; else if (L[2] && (al < 0.07 || sd !== L[2] || p.speed < 3)) L[2] = 0;
+        L[0] = damp(L[0], L[2] < 0 ? 1 : 0, L[2] < 0 ? 5 : 3.5, dt); L[1] = damp(L[1], L[2] > 0 ? 1 : 0, L[2] > 0 ? 5 : 3.5, dt); legs = L;
+      }
+      poseRider(vis.rider, { lean: hang, tuck, sit, steer: p.steer, dangle, legs }, 1 - Math.exp(-9 * dt));
     } else {
       if (!vis.crashedVis) { vis.crashedVis = true; vis.root.parent.add(rg); rg.scale.setScalar(vis.scale); }
       poseCrash(vis.rider, p.crashT);
