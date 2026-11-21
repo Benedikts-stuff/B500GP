@@ -77,7 +77,7 @@
     <div class="row" style="margin-top:6px"><button id="copy">Werte kopieren</button><button id="reset">Zurücksetzen</button></div>
     <textarea id="out" readonly aria-label="Werte für js/core.js"></textarea>
     <div id="note"></div>
-    <p class="hint" style="margin-left:0;margin-top:6px">Gefällt dir eine Einstellung, ersetze in <code>js/core.js</code> die <code>tune</code>-Zeile dieses Motors (beim Einzylinder <code>AX.ENGINES.single450</code>, sonst der <code>multi</code>-Block des Motorrads). „Alter Klang“ spielt Corsa, Strada und Duetto mit dem ursprünglichen Synthesizer zum Vergleich.</p>
+    <p class="hint" style="margin-left:0;margin-top:6px">Gefällt dir eine Einstellung, ersetze in <code>js/core.js</code> die <code>tune</code>-Zeile im <code>multi</code>-Block dieses Motors (beim Einzylinder unter <code>AX.ENGINES.single450</code>). „Alter Klang“ spielt jeden Motor mit seiner ursprünglichen Stimme zum Vergleich; beim Einzylinder ist das seine erste Fassung.</p>
   </div>
 </div>
 
@@ -93,8 +93,9 @@
   // stand-in bike for the single: rev range and gearing of a 450 supermoto (5 gears, speed in m/s at the redline)
   const SM = { id: 'sm450', name: 'SM 450 · Einzylinder', redline: 11500, idle: 1900, power: 46, mass: 185, gears: [14.5, 20.5, 27, 33.5, 40.5], dragTop: 41,
     torqueShape: [[0, 0.62], [0.2, 0.855], [0.4, 0.98], [0.52, 1], [0.7, 0.954], [0.85, 0.85], [1, 0.676]],
-    engine: Object.assign({}, AX.ENGINES.single450, { tune: Object.assign({}, AX.ENGINES.single450.tune) }) };
-  const BIKES = [SM].concat(AX.BIKE_ORDER.map((id) => AX.BIKES[id]));
+    engine: JSON.parse(JSON.stringify(AX.ENGINES.single450)) };
+  // once a bike in the game uses the single, that bike is the test subject and the stand-in is not needed
+  const GAME = AX.BIKE_ORDER.map((id) => AX.BIKES[id]), BIKES = GAME.some((b) => b.engine === AX.ENGINES.single450) ? GAME : [SM].concat(GAME);
 
   // [key, label, min, max, step, default, hint, multi only]; the defaults mirror Thumper.config / Multi.config in js/audio.js
   const TUNE = [
@@ -119,37 +120,39 @@
   ];
 
   const sound = new AX.Sound();
-  let spec = SM, running = false, rpm = SM.idle, v = 0, gear = -1, thr = 0, shiftT = 0, cutT = 0, cut = false;
+  let spec = null, running = false, rpm = SM.idle, v = 0, gear = -1, thr = 0, shiftT = 0, cutT = 0, cut = false;
   let keyT = 0, keyB = 0, padT = 0, demoT = -1, last = 0;
 
   // ---- UI
-  const bikeSel = $('bike');
+  const bikeSel = $('bike'); spec = BIKES[0]; rpm = spec.idle;
   BIKES.forEach((b, i) => { const o = document.createElement('option'); o.value = i; o.textContent = b.name + (b.engineLabel ? ' · ' + b.engineLabel : ''); bikeSel.appendChild(o); });
   const fs = $('tune'), inputs = {};
   // the tune object the sliders work on: the single's own, or the bike's multi block. SHIP keeps what core.js delivered, for the reset.
-  const tuneOf = (b) => (b === SM ? SM.engine.tune : b.engine.multi ? b.engine.multi.tune : null);
-  const SHIP = new Map(BIKES.map((b) => [b, JSON.stringify(tuneOf(b) || {})]));
+  // an engine with a multi block is tuned there; the single's first version (its original voice) has its own small tune object
+  const first = (b) => b.engine.kind === 'single' && (!b.engine.multi || sound.classic);
+  const tuneOf = (b) => (b.engine.multi && !sound.classic ? b.engine.multi.tune : b.engine.kind === 'single' ? (b.engine.tune = b.engine.tune || {}) : null);
+  const SHIP = new Map(BIKES.map((b) => [b, JSON.stringify(b.engine.multi ? b.engine.multi.tune : b.engine.tune || {})]));
   const fmt = (val, step) => (step < 0.0001 ? (val * 1000).toFixed(2) + ' ms' : step < 0.01 ? val.toFixed(3) : step >= 1 ? String(Math.round(val)) : val.toFixed(2));
   TUNE.forEach(([key, label, min, max, step, def, hint, multiOnly]) => {
     const l = document.createElement('label'); l.className = 's';
     const name = document.createElement('span'); name.textContent = label;
     const inp = document.createElement('input'); inp.type = 'range'; inp.min = min; inp.max = max; inp.step = step; inp.value = def;
     const val = document.createElement('span'); val.className = 'v'; val.textContent = fmt(def, step);
-    inp.addEventListener('input', () => { const x = +inp.value, t = tuneOf(spec); if (!t) return; val.textContent = fmt(x, step); if (spec === SM && Math.abs(x - def) < step / 2) delete t[key]; else t[key] = x; retune(); });
+    inp.addEventListener('input', () => { const x = +inp.value, t = tuneOf(spec); if (!t) return; val.textContent = fmt(x, step); if (first(spec) && Math.abs(x - def) < step / 2) delete t[key]; else t[key] = x; retune(); });
     l.append(name, inp, val); const h = document.createElement('p'); h.className = 'hint'; h.textContent = hint; fs.append(l, h); inputs[key] = { inp, val, def, step, row: [l, h], multiOnly: !!multiOnly };
   });
-  const lit = (x) => (Array.isArray(x) ? '[' + x.join(', ') + ']' : String(x));
+  const lit = (x) => (Array.isArray(x) ? '[' + x.map(lit).join(', ') + ']' : String(x));
   function showTune() {
     const t = tuneOf(spec), keys = t ? Object.keys(t) : [];
     $('out').value = !t ? '' : 'tune: { ' + keys.map((k) => k + ': ' + lit(t[k])).join(', ') + ' }' + (keys.length ? '' : '   // Standardwerte, nichts geändert');
   }
   function syncSliders() {   // show the current bike's values; a key the bike does not set sits on the synth's default
     const t = tuneOf(spec) || {};
-    for (const k in inputs) { const i = inputs[k], x = t[k] == null ? i.def : t[k]; i.inp.value = x; i.val.textContent = fmt(+i.inp.value, i.step); i.row.forEach((el) => { el.style.display = i.multiOnly && spec === SM ? 'none' : ''; }); }
-    $('tuneTitle').textContent = 'Abstimmung · ' + spec.name; fs.disabled = !tuneOf(spec) || sound.classic; $('classic').disabled = !spec.engine.multi; showTune();
+    for (const k in inputs) { const i = inputs[k], x = t[k] == null ? i.def : t[k]; i.inp.value = x; i.val.textContent = fmt(+i.inp.value, i.step); i.row.forEach((el) => { el.style.display = i.multiOnly && first(spec) ? 'none' : ''; }); }
+    $('tuneTitle').textContent = 'Abstimmung · ' + spec.name; fs.disabled = !tuneOf(spec); $('classic').disabled = !spec.engine.multi; showTune();
   }
   function retune() { sound.voiceSpec[0] = null; if (sound.ctx) sound.configVoice(0, spec); showTune(); }
-  $('reset').onclick = () => { const t = tuneOf(spec); if (!t) return; for (const k of Object.keys(t)) delete t[k]; Object.assign(t, JSON.parse(SHIP.get(spec))); syncSliders(); retune(); note('Zurückgesetzt.'); };
+  $('reset').onclick = () => { const t = tuneOf(spec); if (!t) return; for (const k of Object.keys(t)) delete t[k]; if (!first(spec)) Object.assign(t, JSON.parse(SHIP.get(spec))); syncSliders(); retune(); note('Zurückgesetzt.'); };
   $('classic').onchange = () => { sound.classic = $('classic').checked; syncSliders(); retune(); };
   $('copy').onclick = () => {
     const ta = $('out'), done = () => note('Kopiert.'), manual = () => { ta.focus(); ta.select(); note('Text ist markiert: mit Cmd/Strg + C kopieren.'); };

@@ -103,11 +103,14 @@
   };
   AX.BIKE_ORDER = ['corsa', 'strada', 'duetto'];
 
-  /* Engine sounds that no bike uses yet. A bike picks one up with `engine: AX.ENGINES.single450`.
-     single450: 450 cm³ supermoto single, tuned for redline 11500 and idle 1900. kind 'single' selects the single-cylinder
-     voice in audio.js; `tune` overrides its defaults (soundlab.html has a slider for each key and prints the values). */
+  /* Engine sounds that a bike picks up with `engine: AX.ENGINES.single450`.
+     single450: 450 cm³ supermoto single, for redline 11500 and idle 1900 (the Motard 450 below uses it). Its `multi` block runs
+     it on the per-cylinder voice with one cylinder, tuned against a recording of a motocross single at full throttle; eqRev keeps
+     the idle thump free of that colouring. The top-level values (kind 'single') are the first version and stay its original voice. */
   AX.ENGINES = {
-    single450: { cyl: 1, kind: 'single', fire: [0], rough: 0.14, pipe: 0.004, bright: 1, body: 1, tune: {} }
+    single450: { cyl: 1, kind: 'single', fire: [0], rough: 0.14, pipe: 0.004, bright: 1, body: 1, tune: {},
+      multi: { fire: [0], rough: 0.14,
+        tune: { aa: 1, valve: 0.85, norm: 1, eq: [[255, 8, 2.2], [90, -6, 1.4], [520, -8, 1.4], [1150, -4, 1], [4500, -4, 1]], motor: 0.3, motorF: 0.6, ceil: 1, eqRev: [0.22, 0.5, 0] } } }
   };
 
   /* The supermoto: a light 450 single on 17-inch slicks. Its model has no instruments (style.dash) and brings its own colours. */

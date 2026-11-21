@@ -235,7 +235,9 @@
         // tune.cliff: [HzLowRevs, HzHighRevs, Q] a resonant low-pass that follows the edgeRev ramp: little above ~1.5 kHz at mid revs, wide open near the redline
         this.cliff = t.cliff || null; if (this.k0 == null) { this.k0 = 1; this.k1 = 0; this.k2 = 0; this.ka1 = 0; this.ka2 = 0; this.kx1 = 0; this.kx2 = 0; this.ky1 = 0; this.ky2 = 0; }
         // tune.eq: [[Hz, dB, Q], ...] peaking bands after the soft clip: the fixed colour of pipe, bodywork and listening position
-        this.eq = (t.eq || []).map(([f, db, q]) => { const A = Math.pow(10, db / 40), w = 6.2832 * Math.min(f, sr * 0.45) / sr, al = Math.sin(w) / (2 * q), a0 = 1 + al / A; return { b0: (1 + al * A) / a0, b1: -2 * Math.cos(w) / a0, b2: (1 - al * A) / a0, a2: (1 - al / A) / a0, x1: 0, x2: 0, y1: 0, y2: 0 }; });
+        // tune.eqRev: [from, to, floor] fades those bands in over that rev span (fractions of the redline), so the idle keeps its own voice
+        const old = this.eq || []; this.eqRev = t.eqRev || null;
+        this.eq = (t.eq || []).map(([f, db, q], n) => { const o = old[n] || {}, b = { f, db, q, b0: 1, b1: 0, b2: 0, a2: 0, x1: o.x1 || 0, x2: o.x2 || 0, y1: o.y1 || 0, y2: o.y2 || 0 }; this.eqSet(b, 1); return b; });
         // tune.cgRev / tune.edgeRev: [from, to, floor] as fractions of the redline. Cylinder differences and top-end bite grow from `floor`
         // at `from` to full at `to`: a four gets rougher and sharper the harder it revs.
         // tune.midDip: [Hz, dB, Q] a peaking band that is fully applied below the edgeRev range and fades out towards its top:
@@ -251,13 +253,13 @@
         if (t.popMs != null) this.kPop = Math.exp(-1 / (t.popMs * 0.001 * sr)); this.popBig = t.popBig == null ? 1 : t.popBig;   // popMs: length of the pressure step into the pipe (longer = deeper); popBig: its size for a real bang
         this.dull = t.dullHz == null ? 0 : t.dullHz; this.topHz = t.top == null ? 6000 : t.top; if (this.d1 == null) { this.d1 = 0; this.d2 = 0; }   // muffled off the throttle, opening up with load
         if (t.raspHz != null) this.raspF.set(t.raspHz, 0.6, sr); this.thW = t.throat == null ? 0.9 : t.throat;
-        this.soft = t.soft == null ? 0 : t.soft; this.softRev = t.softRev == null ? 0 : t.softRev; this.motor = t.motor == null ? 0 : t.motor; this.cgLoad = !!t.cgLoad;   // longer, rounder pulses at light load (a hum at idle); cylinder differences only under load
+        this.soft = t.soft == null ? 0 : t.soft; this.softRev = t.softRev == null ? 0 : t.softRev; this.motor = t.motor == null ? 0 : t.motor; this.motorF = t.motorF == null ? 0 : t.motorF; this.cgLoad = !!t.cgLoad;   // longer, rounder pulses at light load (a hum at idle); cylinder differences only under load
         this.lope = t.lope == null ? 0 : t.lope; this.kLope = (t.lopeHz == null ? 1.5 : t.lopeHz) / sr; if (this.lph == null) { this.lph = 0; this.wl = 0; }   // idle that rises and falls in a steady rhythm (hot cam)
         this.aa = !!t.aa; this.c4 = t.crackRise == null ? 47500 : 7500 + t.crackRise; this.m4 = Math.exp(-this.c4 / sr); if (this.x1 == null) { this.x1 = 0; this.F1 = 0; this.o1 = 0; this.G1 = 0; }
         this.edge = t.edge == null ? 0 : t.edge; this.kE = 1 - Math.exp(-6.2832 * (t.edgeHz == null ? 1800 : t.edgeHz) / sr); if (this.eLP == null) this.eLP = 0;   // lifts the upper harmonics of the pulses themselves: bite without hiss
       }
       ignite(k, fill, rn) {
-        if (k === 0) { const ramp = (r) => { const x = (rn - r[0]) / (r[1] - r[0]); return r[2] + (1 - r[2]) * (x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x)); }; if (this.cgRev) this.rw = ramp(this.cgRev); if (this.edgeRev) this.ew = ramp(this.edgeRev);
+        if (k === 0) { const ramp = (r) => { const x = (rn - r[0]) / (r[1] - r[0]); return r[2] + (1 - r[2]) * (x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x)); }; if (this.cgRev) this.rw = ramp(this.cgRev); if (this.edgeRev) this.ew = ramp(this.edgeRev); if (this.eqRev) { const wt = ramp(this.eqRev); for (let b = 0; b < this.eq.length; b++) this.eqSet(this.eq[b], wt); }
           if (this.dip) { const d = this.dip, A = Math.pow(10, d[1] * (1 - this.ew) / 40), w = 6.2832 * Math.min(d[0], this.sr * 0.45) / this.sr, al = Math.sin(w) / (2 * d[2]), a0 = 1 + al / A, q = this.dp; q.b0 = (1 + al * A) / a0; q.b1 = -2 * Math.cos(w) / a0; q.b2 = (1 - al * A) / a0; q.a2 = (1 - al / A) / a0; }
           if (this.cliff) { const c = this.cliff, fc = c[0] * Math.pow(c[1] / c[0], this.ew), w = 6.2832 * Math.min(fc, this.sr * 0.45) / this.sr, cs = Math.cos(w), al = Math.sin(w) / (2 * c[2]), a0 = 1 + al; this.k0 = (1 - cs) / 2 / a0; this.k1 = (1 - cs) / a0; this.k2 = this.k0; this.ka1 = -2 * cs / a0; this.ka2 = (1 - al) / a0; } }
         if (k === 0) { let im = 1 - (this.rpm - this.idle) / (this.idle * 0.7); im = this.thr > 0.1 || im < 0 ? 0 : im > 1 ? 1 : im; this.im = im; this.wv = this.wv * 0.75 + (this.rnd() - 0.5) * 0.06 * this.lump * im; }
@@ -275,7 +277,8 @@
         this.knE += A * (0.2 + 0.8 * fill) * this.sq;
       }
       evo(k, frac, rn) {
-        const A0 = this.cN[k], f = this.cF[k], sr = this.sr, te = frac * this.dt - this.rnd() * this.jit - this.hd[k];
+        const A0 = this.cN[k], sr = this.sr, f = A0 === 0 && this.motorF > this.cF[k] ? this.motorF : this.cF[k],   // tune.motorF: how sharp an unfired pulse is (0 = soft, 1 = like a full-load bang)
+              te = frac * this.dt - this.rnd() * this.jit - this.hd[k];
         const A = A0 === 0 && this.motor > 0 ? this.motor * (0.4 + 0.6 * rn) : A0;   // tune.motor: an unfired cylinder still blows its compressed air out (engine-braking howl)
         let sw = 1; if (this.softRev > 0) { sw = 1 - (rn - this.idle / this.redline) / this.softRev; sw = sw < 0 ? 0 : sw > 1 ? 1 : sw; }   // tune.softRev: the long idle pulses shorten again over this rev span
         const g = 1 - f, sf = 1 + this.soft * g * g * g * sw, idec = 1 / (this.tau * (1.25 - 0.45 * f) * sf), irise = 1 / ((0.00042 - 0.00032 * Math.min(1, f * 1.2)) * this.rise * sf * (1 + this.riseRev * (1 - this.ew)));
@@ -290,6 +293,7 @@
         }
         if (this.pop > 0) { this.popA = Math.max(this.popA, this.pop * 1.2); this.popT = 0; this.pop = 0; }
       }
+      eqSet(b, wt) { const A = Math.pow(10, b.db * wt / 40), w = 6.2832 * Math.min(b.f, this.sr * 0.45) / this.sr, al = Math.sin(w) / (2 * b.q), a0 = 1 + al / A; b.b0 = (1 + al * A) / a0; b.b1 = -2 * Math.cos(w) / a0; b.b2 = (1 - al * A) / a0; b.a2 = (1 - al / A) / a0; }
       fireUp(k, te, idec, irise) { if (this.hasLf) { this.e5[k] = Math.exp(-te * this.l5); this.e6[k] = Math.exp(-te * this.l6); } this.e1[k] = Math.exp(-te * idec); this.e2[k] = Math.exp(-te * (idec + irise)); this.e3[k] = Math.exp(-te * 7500); this.e4[k] = Math.exp(-te * this.c4); }
       sample() {
         const dt = this.dt, sr = this.sr, n = this.n;
