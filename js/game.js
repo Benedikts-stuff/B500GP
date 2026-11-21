@@ -309,8 +309,9 @@
   const _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _e = new THREE.Euler(), _hp = new THREE.Vector3();
   let povOn = false;
   function setPov(on) {
-    if (on === povOn) return; povOn = on; const v = G.vis[0]; if (!v) return;
-    const rig = v.rider; if (on) G.povReset = true; rig.pov = on; rig.torso.visible = !on; rig.helmet.visible = !on;   // on: false, 'pov' (cockpit) or 'chest'
+    const v = G.vis[0]; if (!v) return; const rig = v.rider;
+    if (on === povOn && rig.pov === on) return; povOn = on;      // also checked against the rider itself: after a restart the bike is a new one and still shows everything
+    if (on) G.povReset = true; rig.pov = on; rig.torso.visible = !on; rig.helmet.visible = !on;   // on: false, 'pov' (cockpit) or 'chest'
     if (on && !v.dash) makeDash(v); if (v.dash) v.dash.visible = !!on;
     camera.near = on ? 0.05 : 0.3; camera.updateProjectionMatrix();
   }
@@ -782,6 +783,6 @@
       toMenu(); show('loading', false); requestAnimationFrame(frame);
     }, 40);
   }
-  G._step = (n) => { for (let i = 0; i < n; i++) stepSim(); }; G._settings = S; G._ui = { showResults, togglePause, startFromMenu }; G._r = { renderer, post, camera, frame: (t) => frame(t), resetClock: () => { last = performance.now(); } };
+  G._step = (n) => { for (let i = 0; i < n; i++) stepSim(); }; G._settings = S; G._ui = { showResults, togglePause, startFromMenu, restart }; G._r = { renderer, post, camera, frame: (t) => frame(t), resetClock: () => { last = performance.now(); } };
   boot();
 })();
