@@ -648,9 +648,11 @@
     geo(key, make) { return this.geos[key] || (this.geos[key] = make()); },
     add(mesh, owner) { mesh.visible = false; this.entries.push({ mesh, owner, key: mesh.userData.rb.key, col: mesh.userData.rb.col.isColor ? mesh.userData.rb.col.clone() : lin(mesh.userData.rb.col), scale: mesh.userData.rb.scale || null }); },
     remove(owner) { this.entries = this.entries.filter((e) => e.owner !== owner); },
+    /* a camera that sits behind the rider's arms looks into their open ends: with both faces drawn it sees the inside of the sleeve instead of the road through it */
+    setTwoSided(on) { this.twoSided = !!on; const sd = on ? THREE.DoubleSide : THREE.FrontSide; if (this.mat && this.mat.side !== sd) { this.mat.side = sd; this.mat.needsUpdate = true; } },
     im(key) {
       let im = this.ims[key]; if (im) return im;
-      if (!this.mat) this.mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0, envMap: SHARED.env || null, envMapIntensity: 0.3 });
+      if (!this.mat) this.mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.62, metalness: 0, envMap: SHARED.env || null, envMapIntensity: 0.3, side: this.twoSided ? THREE.DoubleSide : THREE.FrontSide });
       im = new THREE.InstancedMesh(this.geos[key], this.mat, this.cap * 4); im.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(this.cap * 4 * 3), 3); im.count = 0; im.castShadow = true; im.frustumCulled = false;
       return (this.ims[key] = im);

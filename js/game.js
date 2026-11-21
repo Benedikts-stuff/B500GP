@@ -311,7 +311,7 @@
   function setPov(on) {
     const v = G.vis[0]; if (!v) return; const rig = v.rider;
     if (on === povOn && rig.pov === on) return; povOn = on;      // also checked against the rider itself: after a restart the bike is a new one and still shows everything
-    if (on) G.povReset = true; rig.pov = on; rig.torso.visible = !on; rig.helmet.visible = !on;   // on: false, 'pov' (cockpit) or 'chest'
+    if (on) G.povReset = true; rig.pov = on; rig.torso.visible = !on; rig.helmet.visible = !on; AX.RiderBatch.setTwoSided(on === 'pov' && !!(rig.fit && rig.fit.pov));   // on: false, 'pov' (cockpit) or 'chest'
     if (on && !v.dash && v.spec.style.dash !== false) makeDash(v); if (v.dash) v.dash.visible = !!on;
     camera.near = on ? 0.05 : 0.3; camera.updateProjectionMatrix();
   }
