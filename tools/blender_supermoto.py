@@ -2,7 +2,7 @@
 like the Duetto, so that every step can be checked on its own. No real make's bodywork, colours or lettering are copied.
 
   STAGES   list of stages to build: 'chassis' (frame, subframe, swingarm with linkage, shock, fork, wire wheels, brakes)
-           -> 'engine' (engine, cooling, exhaust, final drive) -> 'body' -> 'controls'   ('body' and 'controls' are still to come)
+           -> 'engine' (engine, cooling, exhaust, final drive) -> 'body' (tank, airbox, seat, plastics) -> 'controls'   ('controls' is still to come)
   SHOTS    list of preview views to render into blender/renders/<PREFIX>_<view>.png
   EXPORT   not yet: the game assemblies are exported once the bike is complete
 
@@ -39,8 +39,32 @@ def side(q, s): return (q[0], q[1], q[2] * s)
 # ------------------------------------------------------------------ materials (names of their own where the colour is this bike's)
 FRAME = mat('G_smframe', '15161a'); X_alu = mat('X_alu', 'b9bdc2'); X_steel = mat('X_steel', 'd6d8db'); X_cast = mat('X_cast', '7d8188'); X_dark = mat('X_smdark', '2a2c31')
 X_swing = mat('X_smswing', 'c3c6ca'); C_chrome = mat('C_chrome', 'e4e7ea'); M_dark = mat('M_dark', '1c1e22'); M_tyre = mat('M_tyre', '1a1a1c'); M_tyre.diffuse_color = (0.006, 0.006, 0.007, 1); M_disc = mat('M_disc', 'a9adb2')
-G_rim = mat('G_smrim', '1b1d22'); M_hub = mat('M_smhub', '17181b'); X_spoke = mat('X_smspoke', 'c9ccd0'); M_cal = mat('M_smcaliper', '25272b'); M_spring = mat('M_smspring', 'e9eaec')
+G_rim = mat('G_smrim', '1b1d22'); M_hub = mat('X_smhub', 'b8161b'); X_gold = mat('X_smgold', 'c99b32'); X_spoke = mat('X_smspoke', 'c9ccd0'); M_cal = mat('M_smcaliper', '25272b'); M_spring = mat('M_smspring', 'e9eaec')
 X_shock = mat('X_smshock', '8e9299'); X_sprocket = mat('X_smsprocket', '3b3e44'); X_chain = mat('X_chain', '55585e')
+
+def label(name, text, target, c, h, sd, m, asm, tilt=0.0, shear=0.26, bold=0.012, lift=0.0016, track=1.02):
+    """sponsor lettering as real geometry: the word is set in Blender's own typeface, slanted and emboldened, then every point of it is dropped
+    onto `target` from the side `sd` (+1 right, -1 left) and lifted a hair. c = centre in the side view, h = letter height, tilt = angle of the base line."""
+    cu = bpy.data.curves.new(OBJPRE + 'txt', 'FONT'); cu.body = text; cu.size = 1.0; cu.shear = shear; cu.align_x = 'CENTER'; cu.align_y = 'CENTER'; cu.resolution_u = 3; cu.offset = bold; cu.space_character = track
+    ob = bpy.data.objects.new(OBJPRE + 'txt', cu); scene.collection.objects.link(ob)
+    me = bpy.data.meshes.new_from_object(ob.evaluated_get(bpy.context.evaluated_depsgraph_get())); bpy.data.objects.remove(ob); bpy.data.curves.remove(cu)
+    bm = bmesh.new(); bm.from_mesh(me); bpy.data.meshes.remove(me); ct, st = math.cos(tilt), math.sin(tilt); bad = []; k = h / 0.72            # 0.72: cap height of the face at size 1
+    for v in bm.verts:
+        u, w = v.co.x * k * sd, v.co.y * k
+        ok, loc, nrm, idx = target.ray_cast(V(c[0] + u * ct - w * st * sd, c[1] + u * st * sd + w * ct, sd * 0.8), Vector((0, sd, 0)))
+        if ok: v.co = loc + nrm * lift
+        else: bad.append(v)
+    if bad: bmesh.ops.delete(bm, geom=bad, context='VERTS')
+    out = V(0, 0, sd); bm.normal_update()
+    for f in bm.faces:
+        if f.normal.dot(out) < 0: f.normal_flip()
+    return obj_from_bm(bm, name, m, asm, 80)
+
+def tight(G, f=0.16):
+    """repeat a control grid's outer rows and columns a little way in: after smoothing, the panel's edges and corners stay crisp instead of going round"""
+    def mix(a, b, t): return tuple(a[k] + (b[k] - a[k]) * t for k in range(3))
+    G = [[row[0], mix(row[0], row[1], f)] + list(row[1:-1]) + [mix(row[-1], row[-2], f), row[-1]] for row in G]
+    return [G[0], [mix(a, b, f) for a, b in zip(G[0], G[1])]] + G[1:-1] + [[mix(a, b, f) for a, b in zip(G[-1], G[-2])], G[-1]]
 
 def many(name, m, asm, build, smooth=50):
     """several small parts in one object: build(bm) adds them to a fresh mesh"""
@@ -96,8 +120,9 @@ if 'chassis' in STAGES:
     rod('sub_x', (-0.33, 0.87, -0.096), (-0.33, 0.87, 0.096), 0.009, FRAME, 'body', seg=10)
 
     # ---- swingarm: cast aluminium, left raw. Deep in the middle, slim at the axle; a bridge ahead of the tyre
+    ARM = {}
     for s in (-1, 1):
-        sweep('arm%d' % s, [(PIV[0] + 0.006, PIV[1], s * 0.128), (-0.30, 0.428, s * 0.131), (-0.52, 0.378, s * 0.137), (-0.70, 0.328, s * 0.137), (-0.782, 0.312, s * 0.137)],
+        ARM[s] = sweep('arm%d' % s, [(PIV[0] + 0.006, PIV[1], s * 0.128), (-0.30, 0.428, s * 0.131), (-0.52, 0.378, s * 0.137), (-0.70, 0.328, s * 0.137), (-0.782, 0.312, s * 0.137)],
               [0.019, 0.0185, 0.0165, 0.015, 0.015], [0.04, 0.054, 0.049, 0.037, 0.03], X_swing, 'swing', e=6.5, ring=20, smooth=5)
         cyl('pivboss%d' % s, 0.036, 0.046, (PIV[0], PIV[1], s * 0.128), X_swing, 'swing', seg=22, bevel=0.004)
         box('axleblock%d' % s, (0.062, 0.044, 0.008), (A[0] - 0.006, A[1], s * 0.156), X_cast, 'swing', bevel=0.003)
@@ -127,10 +152,11 @@ if 'chassis' in STAGES:
     rod('shk_res', (S0[0] - 0.055, S0[1] + 0.004, 0.05), (S0[0] - 0.108, S0[1] - 0.118, 0.05), 0.02, X_shock, 'shockU', seg=16)
     rod('shk_resneck', (S0[0] - 0.01, S0[1] - 0.012, 0.012), (S0[0] - 0.06, S0[1] - 0.012, 0.05), 0.01, X_shock, 'shockU', seg=10)
 
-    # ---- fork: long-travel upside-down. Black outer tubes in two machined clamps, chrome stanchions, cast axle lugs
+    # ---- fork: long-travel upside-down. Gold-anodised outer tubes in two machined clamps, chrome stanchions, cast axle lugs
+    FORKO = {}
     for s in (-1, 1):
         z = s * FZ
-        tube('forkO%d' % s, [fp(0.50, z), fp(0.535, z), fp(0.575, z), fp(0.905, z)], [0.0335, 0.0335, 0.0298, 0.0298], X_dark, 'front', seg=22)
+        FORKO[s] = tube('forkO%d' % s, [fp(0.50, z), fp(0.535, z), fp(0.575, z), fp(0.905, z)], [0.0335, 0.0335, 0.0298, 0.0298], X_gold, 'front', seg=22)
         rod('forkseal%d' % s, fp(0.49, z), fp(0.502, z), 0.031, M_dark, 'front', seg=22)
         rod('forkcap%d' % s, fp(0.905, z), fp(0.916, z), [0.026, 0.023], X_alu, 'front', seg=18); rod('forkadj%d' % s, fp(0.916, z), fp(0.925, z), 0.008, X_steel, 'front', seg=8)
         rod('forkS%d' % s, fp(0.10, z), fp(0.72, z), 0.024, C_chrome, 'fork', seg=28)
@@ -187,20 +213,21 @@ if 'chassis' in STAGES:
             for k in range(nb):
                 a0 = k / nb * 6.2832
                 star += [pol(c2, rc1, a0 - 0.085)[:2], pol(c2, rc1, a0 + 0.085)[:2], pol(c2, rc0 + 0.02, a0 + 0.5 / nb * 6.2832 - 0.16)[:2], pol(c2, rc0 + 0.02, a0 + 0.5 / nb * 6.2832 + 0.16)[:2]]
-            cutplate(asm + '_carrier', star, [circ(cx, cy, rc0 - 0.01, 28)], 0.0055, M_hub, asm, off=z + math.copysign(0.0045, -z))
+            cutplate(asm + '_carrier', star, [circ(cx, cy, rc0 - 0.01, 28)], 0.0055, X_dark, asm, off=z + math.copysign(0.0045, -z))
             many(asm + '_buttons', X_alu, asm, lambda bm: [bm_tube(bm, pol(c2, ri + 0.002, k / nb * 6.2832, z - 0.005), pol(c2, ri + 0.002, k / nb * 6.2832, z + 0.005), 0.0062, 8) for k in range(nb)], 50)
-            lathe(asm + '_dcone', [(0.03, math.copysign(hh + 0.004, z)), (rc0 - 0.008, z + math.copysign(0.004, -z)), (rc0 - 0.008, z + math.copysign(0.009, -z)), (0.03, math.copysign(hh - 0.002, z))], M_hub, asm, 28, c, 40)
+            lathe(asm + '_dcone', [(0.03, math.copysign(hh + 0.004, z)), (rc0 - 0.008, z + math.copysign(0.004, -z)), (rc0 - 0.008, z + math.copysign(0.009, -z)), (0.03, math.copysign(hh - 0.002, z))], X_dark, asm, 28, c, 40)
         if sprocket:
             z, nt, rp = sprocket; teeth = [pol(c2, rp + (0.0052 if k % 2 else -0.0035), k / (2 * nt) * 6.2832)[:2] for k in range(2 * nt)]
             cutplate(asm + '_sprocket', teeth, [circ(cx, cy, 0.058, 28)] + [circ(*pol(c2, 0.088, (k + 0.5) / 8 * 6.2832)[:2], 0.011, 10) for k in range(8)], 0.007, X_sprocket, asm, off=z)
-            lathe(asm + '_scone', [(0.03, math.copysign(hh + 0.004, z)), (0.066, z + math.copysign(0.005, -z)), (0.066, z + math.copysign(0.01, -z)), (0.03, math.copysign(hh - 0.002, z))], M_hub, asm, 28, c, 40)
+            lathe(asm + '_scone', [(0.03, math.copysign(hh + 0.004, z)), (0.066, z + math.copysign(0.005, -z)), (0.066, z + math.copysign(0.01, -z)), (0.03, math.copysign(hh - 0.002, z))], X_dark, asm, 28, c, 40)
             many(asm + '_spb', X_steel, asm, lambda bm: [bm_tube(bm, pol(c2, 0.063, k / 6 * 6.2832, z - 0.006), pol(c2, 0.063, k / 6 * 6.2832, z + 0.006), 0.0055, 6) for k in range(6)], 40)
     wheel('wheelF', RF, WF, RIMF, 0.046, F, 0.034, 0.041, disc=(0.155, 0.122, -0.07, 6))
     wheel('wheelR', RR, WR, RIMR, 0.066, A, 0.05, 0.047, disc=(0.11, 0.084, 0.085, 4), sprocket=(-0.092, 48, 0.121))
 
 # ================================================================== STAGE 2: engine, cooling, exhaust, final drive
 if 'engine' in STAGES:
-    X_case = mat('X_smcase', '9a9ea5'); G_cover = mat('G_smcover', '16171a'); X_cyl = mat('X_smcyl', 'aeb2b8'); X_pipe = mat('X_smpipe', 'a89f90'); X_can = mat('X_smcan', 'bfc3c8')
+    X_case = mat('X_smcase', '9a9ea5'); G_cover = mat('G_smcover', '16171a'); X_cyl = mat('X_smcyl', 'aeb2b8'); X_pipe = mat('X_smpipe', 'a89f90'); X_can = mat('X_smcan', '1d55c8')
+    X_case2 = mat('X_smcase2', '82868d'); M_seam = mat('M_smseam', '0c0c0d')
     M_rubber = mat('M_smrubber', '121214'); M_core = mat('M_smcore', '101113'); M_bore = mat('M_bore', '050506'); M_plug = mat('M_smplug', 'd0381f')
     # liquid-cooled four-stroke single, cylinder leaning 8 degrees forward. Crank ahead, gearbox behind it, output shaft just in front of the swingarm pivot.
     EC = (0.105, 0.42); TILT = math.radians(8); ED = (math.sin(TILT), math.cos(TILT)); EP = (math.cos(TILT), -math.sin(TILT))      # crank centre, cylinder axis, forward normal
@@ -209,25 +236,33 @@ if 'engine' in STAGES:
     # crankcase: one casting, narrow enough to sit between the cradle rails
     plate('crankcase', hull(circ(EC[0], EC[1], 0.104) + circ(-0.045, 0.43, 0.086) + circ(0.0, 0.338, 0.052) + circ(0.165, 0.34, 0.046)), 0.168, X_case, 'body', bevel=0.012, seg=3)
     plate('sump', hull(circ(0.02, 0.325, 0.03, 12) + circ(0.14, 0.325, 0.03, 12)), 0.12, X_case, 'body', bevel=0.008)
-    many('casebolts', X_steel, 'body', lambda bm: [bm_tube(bm, (x, y, sg * 0.084), (x, y, sg * 0.091), 0.0055, 6) for sg in (-1, 1) for (x, y) in
-          [pol(EC, 0.094, math.radians(a))[:2] for a in (20, 75, 130)] + [(-0.105, 0.475), (-0.118, 0.40), (-0.06, 0.352), (0.04, 0.295), (0.19, 0.31)]], 40)
+    # the two case halves meet on the centre line: a seam all the way round. Each side carries a bolted cover with its own joint to the case
+    plate('caseseam', hull(circ(EC[0], EC[1], 0.1052) + circ(-0.045, 0.43, 0.0872) + circ(0.0, 0.338, 0.0532) + circ(0.165, 0.34, 0.0472)), 0.0028, M_seam, 'body', bevel=0)
+    plate('coverR', hull(circ(CL[0], CL[1], 0.107) + circ(WP[0], WP[1], 0.052) + circ(0.105, 0.33, 0.04)), 0.013, X_case2, 'body', off=0.0885, bevel=0.004)
+    plate('coverR_seam', hull(circ(CL[0], CL[1], 0.1082) + circ(WP[0], WP[1], 0.0532) + circ(0.105, 0.33, 0.0412)), 0.002, M_seam, 'body', off=0.083, bevel=0)
+    plate('coverL', hull(circ(EC[0], EC[1], 0.093) + circ(0.03, 0.352, 0.042)), 0.013, X_case2, 'body', off=-0.0885, bevel=0.004)
+    plate('coverL_seam', hull(circ(EC[0], EC[1], 0.0942) + circ(0.03, 0.352, 0.0432)), 0.002, M_seam, 'body', off=-0.083, bevel=0)
+    many('coverbolts', X_steel, 'body', lambda bm: [bm_tube(bm, (x, y, sg * 0.093), (x, y, sg * 0.099), 0.0048, 6) for (sg, pts) in
+          ((1, [pol(CL, 0.1, math.radians(a))[:2] for a in (95, 140, 185, 230, 275)] + [pol(WP, 0.046, math.radians(a))[:2] for a in (-60, 10, 70)] + [(0.105, 0.297), (0.07, 0.31)]),
+           (-1, [pol(EC, 0.0865, math.radians(a))[:2] for a in (10, 60, 110, 160, 215)] + [(0.01, 0.32), (0.06, 0.318)])) for (x, y) in pts], 40)
     # right side: clutch under a big round cover with a machined rim, water pump ahead of it, oil filter cap below
-    lathe('clutchcover', [(0.098, 0.082), (0.098, 0.094), (0.09, 0.098), (0.082, 0.117), (0.05, 0.125), (0.0, 0.126)], G_cover, 'body', 36, (CL[0], CL[1], 0), 40)
-    lathe('clutchrim', [(0.101, 0.08), (0.101, 0.09), (0.098, 0.0935)], X_alu, 'body', 36, (CL[0], CL[1], 0), 40)
-    many('clutchbolts', X_steel, 'body', lambda bm: [bm_tube(bm, pol(CL, 0.0905, (k + 0.5) / 7 * 6.2832, 0.094), pol(CL, 0.0905, (k + 0.5) / 7 * 6.2832, 0.103), 0.0052, 6) for k in range(7)], 40)
-    lathe('clutchboss', [(0.03, 0.124), (0.03, 0.131), (0.022, 0.134), (0.0, 0.134)], X_alu, 'body', 20, (CL[0], CL[1], 0), 40)
-    lathe('waterpump', [(0.041, 0.082), (0.041, 0.106), (0.033, 0.114), (0.0, 0.115)], X_case, 'body', 24, (WP[0], WP[1], 0), 40)
-    many('pumpbolts', X_steel, 'body', lambda bm: [bm_tube(bm, pol(WP, 0.034, (k + 0.3) / 4 * 6.2832, 0.106), pol(WP, 0.034, (k + 0.3) / 4 * 6.2832, 0.113), 0.0045, 6) for k in range(4)], 40)
-    lathe('oilfilter', [(0.026, 0.082), (0.026, 0.097), (0.02, 0.101), (0.0, 0.101)], X_alu, 'body', 18, (0.105, 0.312, 0), 40)
+    lathe('clutchcover', [(0.09, 0.093), (0.09, 0.103), (0.083, 0.107), (0.076, 0.123), (0.047, 0.131), (0.0, 0.132)], G_cover, 'body', 36, (CL[0], CL[1], 0), 40)
+    lathe('clutchrim', [(0.094, 0.093), (0.094, 0.0995), (0.09, 0.103)], X_alu, 'body', 36, (CL[0], CL[1], 0), 40)
+    many('clutchbolts', X_steel, 'body', lambda bm: [bm_tube(bm, pol(CL, 0.085, (k + 0.5) / 7 * 6.2832, 0.103), pol(CL, 0.085, (k + 0.5) / 7 * 6.2832, 0.111), 0.0046, 6) for k in range(7)], 40)
+    lathe('clutchboss', [(0.028, 0.13), (0.028, 0.137), (0.021, 0.14), (0.0, 0.14)], X_alu, 'body', 20, (CL[0], CL[1], 0), 40)
+    lathe('waterpump', [(0.041, 0.093), (0.041, 0.112), (0.033, 0.12), (0.0, 0.121)], X_case, 'body', 24, (WP[0], WP[1], 0), 40)
+    many('pumpbolts', X_steel, 'body', lambda bm: [bm_tube(bm, pol(WP, 0.034, (k + 0.3) / 4 * 6.2832, 0.112), pol(WP, 0.034, (k + 0.3) / 4 * 6.2832, 0.119), 0.0045, 6) for k in range(4)], 40)
+    lathe('oilfilter', [(0.026, 0.093), (0.026, 0.104), (0.02, 0.108), (0.0, 0.108)], X_alu, 'body', 18, (0.105, 0.326, 0), 40)
     # left side: generator cover on the crank, the output sprocket behind it under a guard
-    lathe('gencover', [(0.08, -0.082), (0.08, -0.098), (0.068, -0.116), (0.034, -0.123), (0.0, -0.123)], G_cover, 'body', 32, (EC[0], EC[1], 0), 40)
-    lathe('genrim', [(0.083, -0.08), (0.083, -0.09), (0.08, -0.093)], X_alu, 'body', 32, (EC[0], EC[1], 0), 40)
-    many('genbolts', X_steel, 'body', lambda bm: [bm_tube(bm, pol(EC, 0.073, k / 5 * 6.2832, -0.097), pol(EC, 0.073, k / 5 * 6.2832, -0.106), 0.0048, 6) for k in range(5)], 40)
+    lathe('gencover', [(0.076, -0.093), (0.076, -0.104), (0.065, -0.12), (0.032, -0.127), (0.0, -0.127)], G_cover, 'body', 32, (EC[0], EC[1], 0), 40)
+    lathe('genrim', [(0.08, -0.093), (0.08, -0.0995), (0.076, -0.103)], X_alu, 'body', 32, (EC[0], EC[1], 0), 40)
+    many('genbolts', X_steel, 'body', lambda bm: [bm_tube(bm, pol(EC, 0.07, k / 5 * 6.2832, -0.103), pol(EC, 0.07, k / 5 * 6.2832, -0.111), 0.0045, 6) for k in range(5)], 40)
     lathe('sprocketF', [(0.012, -0.0975), (0.0335, -0.0965), (0.0335, -0.0885), (0.012, -0.0875)], X_steel, 'body', 20, (SPR[0], SPR[1], 0), 30)
     plate('sprocketguard', hull(circ(SPR[0], SPR[1], 0.056) + circ(SPR[0] + 0.045, SPR[1] + 0.03, 0.03)), 0.01, M_dark, 'body', off=-0.111, bevel=0.004)
     # cylinder, head and cam cover, stacked up the cylinder axis; the cam chain runs up a tunnel on the left
     sweep('cylinder', [ept(0.085), ept(0.20)], 0.064, 0.063, X_cyl, 'body', e=4.5, ring=20)
-    for u in (0.105, 0.135, 0.165): sweep('cylrib%.3f' % u, [ept(u - 0.004), ept(u + 0.004)], 0.067, 0.066, X_cyl, 'body', e=4.5, ring=20)
+    # joint lines: base gasket, head gasket, cam cover seal - thin dark lines standing a hair proud of the castings
+    for (u, w, h) in ((0.0925, 0.0738, 0.0718), (0.2, 0.0672, 0.0672), (0.297, 0.0705, 0.0745)): sweep('joint%.3f' % u, [ept(u - 0.0014), ept(u + 0.0014)], w, h, M_seam, 'body', e=4.6, ring=20)
     sweep('cylbase', [ept(0.078), ept(0.092)], 0.073, 0.071, X_case, 'body', e=5.0, ring=20)
     sweep('head', [ept(0.20), ept(0.214), ept(0.285), ept(0.297)], [0.066, 0.074, 0.074, 0.068], [0.066, 0.079, 0.079, 0.072], X_cyl, 'body', e=4.5, ring=20)
     sweep('camcover', [ept(0.297), ept(0.305), ept(0.332), ept(0.342)], [0.064, 0.066, 0.063, 0.05], [0.07, 0.073, 0.068, 0.05], G_cover, 'body', e=4.0, ring=20)
@@ -259,26 +294,26 @@ if 'engine' in STAGES:
         for k, ly in enumerate((0.117, -0.117)): box('rad_tank%d_%d' % (sg, k), (0.034, 0.024, 0.108), rpt(o, 0, ly), X_alu, 'body', rot=(0, 0, RZ), bevel=0.006)
         many('rad_fins%d' % sg, X_alu, 'body', lambda bm: [bm_tube(bm, rpt(o, fx, -0.095 + 0.0173 * k, -0.048), rpt(o, fx, -0.095 + 0.0173 * k, 0.048), 0.0016, 4) for fx in (0.0145, -0.0145) for k in range(12)], 80)
     cyl('rad_cap', 0.016, 0.018, rpt((0.318, 0.75, 0.108), 0.0, 0.14), X_alu, 'body', axis='y', seg=14, bevel=0.003)
-    tube('hose_pump', [(WP[0] + 0.02, WP[1] + 0.03, 0.105), (0.25, 0.47, 0.12), (0.292, 0.56, 0.13), (0.296, 0.63, 0.125)], 0.0125, M_rubber, 'body', seg=10, smooth=6)
+    tube('hose_pump', [(WP[0] + 0.02, WP[1] + 0.03, 0.108), (0.25, 0.47, 0.12), (0.292, 0.56, 0.13), (0.296, 0.63, 0.125)], 0.0125, M_rubber, 'body', seg=10, smooth=6)
     tube('hose_head', [ept(0.275, 0.03, -0.074), (0.22, 0.75, -0.09), (0.275, 0.83, -0.105), (0.30, 0.86, -0.108)], 0.0125, M_rubber, 'body', seg=10, smooth=6)
     tube('hose_cross', [(0.30, 0.64, -0.10), (0.325, 0.61, -0.05), (0.33, 0.605, 0.0), (0.325, 0.61, 0.05), (0.30, 0.64, 0.10)], 0.011, M_rubber, 'body', seg=10, smooth=6)
 
     # ---- exhaust: the header leaves the front of the head, swings round the right of the cylinder and climbs past the frame to a silencer under the seat
     E0 = ept(0.256, 0.09)
-    HDR = [E0, (0.277, 0.652, 0.014), (0.302, 0.59, 0.052), (0.282, 0.525, 0.1), (0.20, 0.494, 0.13), (0.07, 0.505, 0.142), (-0.06, 0.56, 0.146), (-0.18, 0.655, 0.148), (-0.275, 0.737, 0.156)]
+    HDR = [E0, (0.277, 0.652, 0.014), (0.302, 0.59, 0.052), (0.282, 0.525, 0.1), (0.20, 0.494, 0.13), (0.07, 0.505, 0.142), (-0.06, 0.56, 0.147), (-0.18, 0.655, 0.153), (-0.275, 0.737, 0.166)]
     tube('header', HDR, [0.0205, 0.0205, 0.0205, 0.021, 0.0215, 0.022, 0.0225, 0.0235, 0.0245], X_pipe, 'body', seg=18, smooth=8)
     rod('hdr_flange', E0, (E0[0] + EP[0] * 0.012, E0[1] + EP[1] * 0.012, 0), 0.03, X_steel, 'body', seg=16)
-    C0, C1 = (-0.29, 0.752, 0.16), (-0.71, 0.905, 0.168); cd = Vector(C1) - Vector(C0); cl = cd.length; cd.normalize()
+    C0, C1 = (-0.29, 0.752, 0.172), (-0.71, 0.905, 0.182); cd = Vector(C1) - Vector(C0); cl = cd.length; cd.normalize()
     def cpt(f): return tuple(Vector(C0) + cd * (cl * f))
-    rod('can_joint', (-0.262, 0.727, 0.154), cpt(0.03), [0.0255, 0.027, 0.03], X_steel, 'body', seg=18)
+    rod('can_joint', (-0.262, 0.727, 0.163), cpt(0.03), [0.0255, 0.027, 0.03], X_steel, 'body', seg=18)
     sweep('can_cone', [cpt(0.02), cpt(0.1)], [0.03, 0.05], [0.032, 0.06], X_can, 'body', e=[2.0, 3.2], ring=24)
-    sweep('can', [cpt(0.1), cpt(0.9)], 0.05, 0.06, X_can, 'body', e=3.2, ring=24)
+    CAN = sweep('can', [cpt(0.1), cpt(0.9)], 0.05, 0.06, X_can, 'body', e=3.2, ring=24)
     sweep('can_band0', [cpt(0.105), cpt(0.135)], 0.0515, 0.0615, X_steel, 'body', e=3.2, ring=24); sweep('can_band1', [cpt(0.84), cpt(0.87)], 0.0515, 0.0615, X_steel, 'body', e=3.2, ring=24)
     sweep('can_end', [cpt(0.9), cpt(0.955), cpt(1.0)], [0.051, 0.048, 0.036], [0.061, 0.057, 0.042], G_cover, 'body', e=[3.2, 3.0, 2.4], ring=24, caps=False)
     spin('can_outlet', cpt(0.93), cpt(1.012), [(0.0, 0.0), (0.0, 0.021), (1.0, 0.021), (1.0, 0.0245), (0.86, 0.0245)], M_bore, 'body', seg=18, flip=False)
     spin('can_tip', cpt(0.985), cpt(1.015), [(0.0, 0.03), (1.0, 0.027), (1.0, 0.0215), (0.0, 0.0215)], X_steel, 'body', seg=18)
-    plate('can_bracket', hull(circ(-0.50, 0.90, 0.014, 10) + circ(*cpt(0.5)[:2], 0.014, 10)), 0.005, FRAME, 'body', off=0.108, bevel=0.0015)
-    rod('can_stay', (-0.50, 0.90, 0.09), (-0.50, 0.90, 0.125), 0.007, X_steel, 'body', seg=8)
+    plate('can_bracket', hull(circ(-0.50, 0.90, 0.014, 10) + circ(*cpt(0.5)[:2], 0.014, 10)), 0.005, FRAME, 'body', off=0.122, bevel=0.0015)
+    rod('can_stay', (-0.50, 0.90, 0.09), (-0.50, 0.90, 0.135), 0.007, X_steel, 'body', seg=8)
 
     # ---- final drive: chain round both sprockets (a stand-in here, the game draws it link by link), slider and guide on the swingarm
     r1, r2 = 0.0365, 0.121; dx, dy = SPR[0] - A[0], SPR[1] - A[1]; Dc = math.hypot(dx, dy); phi = math.atan2(dy, dx); al = math.acos((r2 - r1) / Dc); loop = []
@@ -289,6 +324,69 @@ if 'engine' in STAGES:
     sweep('chainslider', [(-0.165, 0.49, -0.128), (-0.25, 0.488, -0.13), (-0.34, 0.468, -0.132)], 0.014, 0.007, M_dark, 'swing', e=3.0, ring=10, smooth=3)
     plate('chainguide', [(-0.60, 0.292), (-0.545, 0.292), (-0.535, 0.252), (-0.605, 0.238)], 0.03, M_dark, 'swing', off=-0.095, bevel=0.005)
     plate('guidemount', [(-0.585, 0.345), (-0.555, 0.345), (-0.552, 0.288), (-0.59, 0.288)], 0.006, X_swing, 'swing', off=-0.118, bevel=0.0015)
+
+# ================================================================== STAGE 3: bodywork
+# Colours: black and red with white accents (the fork is gold, the silencer blue). Sponsor lettering all over, as on any race bike -
+# every name on it is made up.
+if 'body' in STAGES:
+    G_red = mat('G_smred', 'c2141a'); G_black = mat('G_smplastic', '15161a'); G_white = mat('G_smwhite', 'f1f1ec'); M_seat = mat('M_smseat', '141518'); M_dark = mat('M_dark', '1c1e22')
+    T_white = mat('G_smtxtwhite', 'f4f4f0'); T_black = mat('G_smtxtblack', '101114'); T_red = mat('G_smtxtred', 'c2141a')
+    # tank: sits between the spars under the front of the seat, black; only its top and the filler show once the shrouds are on
+    loft('tank', [dict(x=0.305, y=0.93, w=0.045, ht=0.05, hb=0.06, e=2.6), dict(x=0.24, y=0.935, w=0.086, ht=0.064, hb=0.09, e=2.8), dict(x=0.12, y=0.92, w=0.1, ht=0.068, hb=0.1, e=2.9),
+                  dict(x=0.0, y=0.895, w=0.096, ht=0.052, hb=0.09, e=2.8), dict(x=-0.075, y=0.875, w=0.07, ht=0.038, hb=0.07, e=2.6)], G_black, 'body', ring=20, subsurf=2)
+    cyl('fuelcap', 0.03, 0.016, (0.222, 1.004, 0), M_dark, 'body', axis='y', seg=20, bevel=0.004); cyl('fuelcap_top', 0.02, 0.006, (0.222, 1.014, 0), X_alu, 'body', axis='y', seg=16, bevel=0.002)
+    # airbox under the seat, between the subframe rails; the intake boot runs into its front
+    loft('airbox', [dict(x=-0.06, y=0.775, w=0.07, ht=0.06, hb=0.07, e=3.4), dict(x=-0.16, y=0.775, w=0.086, ht=0.075, hb=0.09, e=3.6), dict(x=-0.30, y=0.80, w=0.088, ht=0.07, hb=0.075, e=3.6),
+                    dict(x=-0.37, y=0.82, w=0.07, ht=0.05, hb=0.05, e=3.2)], M_dark, 'body', ring=16, subsurf=1)
+    # seat: long, flat and narrow, so the rider can slide all the way forward onto the tank
+    loft('seat', [dict(x=0.165, y=0.985, w=0.05, ht=0.02, hb=0.022, e=2.6), dict(x=0.05, y=0.956, w=0.076, ht=0.03, hb=0.032, e=3.0), dict(x=-0.1, y=0.922, w=0.093, ht=0.034, hb=0.04, e=3.2),
+                  dict(x=-0.28, y=0.906, w=0.1, ht=0.034, hb=0.04, e=3.2), dict(x=-0.45, y=0.926, w=0.096, ht=0.034, hb=0.036, e=3.2), dict(x=-0.6, y=0.956, w=0.08, ht=0.03, hb=0.03, e=3.0),
+                  dict(x=-0.675, y=0.97, w=0.054, ht=0.02, hb=0.02, e=2.6)], M_seat, 'body', ring=18, subsurf=2)
+    for sg in (-1, 1):
+        k = 1.0 if sg < 0 else 0.93                        # the right-hand panels sit a little closer in: the silencer runs outside them
+        # radiator shroud: red, a wedge reaching from the seat forward over the radiator to a point beside the fork. A white slash across it, the lower edge black.
+        rows = [[(-0.07, 0.94, 0.104), (0.06, 0.972, 0.114), (0.20, 0.992, 0.124), (0.34, 0.992, 0.132), (0.455, 0.972, 0.138)],
+                [(-0.06, 0.915, 0.118), (0.075, 0.925, 0.136), (0.215, 0.935, 0.152), (0.36, 0.935, 0.162), (0.505, 0.925, 0.168)],
+                [(-0.045, 0.89, 0.126), (0.095, 0.87, 0.148), (0.235, 0.865, 0.166), (0.385, 0.87, 0.176), (0.548, 0.865, 0.18)],
+                [(-0.03, 0.865, 0.128), (0.115, 0.81, 0.15), (0.25, 0.775, 0.168), (0.38, 0.765, 0.177), (0.50, 0.775, 0.18)],
+                [(-0.01, 0.84, 0.124), (0.13, 0.765, 0.146), (0.26, 0.695, 0.164), (0.365, 0.64, 0.172), (0.43, 0.645, 0.174)]]
+        shr = panel('shroud%d' % sg, tight([[side(q, sg) for q in row] for row in rows]), 0.006, G_red, 'body')
+        # (lettering first, while the panel is still whole; tilt is the slope of the base line as the reader sees it, hence the sign)
+        label('ad_apex%d' % sg, 'APEX', shr, (0.235, 0.88), 0.066, sg, T_white, 'body', tilt=0.07 * sg)
+        label('ad_korvex%d' % sg, 'KORVEX', shr, (0.40, 0.838), 0.02, sg, T_white, 'body', tilt=0.16 * sg)
+        label('ad_oktan%d' % sg, 'OKTAN 98', shr, (0.36, 0.708), 0.017, sg, T_white, 'body', tilt=0.19 * sg)
+        band([shr], 'shroud_low%d' % sg, (0.1, 0.635), (0.5, 0.715), 0.07, 0.9, G_black, 'body')
+        band([shr], 'shroud_slash%d' % sg, (0.1, 0.725), (0.5, 0.805), 0.011, 0.9, G_white, 'body')
+        # side panel under the seat: black, covers airbox and subframe, carries the start number (the game prints it)
+        rows = [[(-0.085, 0.902, 0.108), (-0.25, 0.894, 0.113), (-0.42, 0.912, 0.106), (-0.565, 0.944, 0.088)],
+                [(-0.07, 0.80, 0.123), (-0.25, 0.80, 0.129), (-0.42, 0.832, 0.121), (-0.565, 0.888, 0.098)],
+                [(-0.10, 0.70, 0.119), (-0.24, 0.70, 0.125), (-0.385, 0.757, 0.119), (-0.505, 0.842, 0.1)]]
+        sp_ = panel('sidepanel%d' % sg, tight([[(q[0], q[1], q[2] * sg * k) for q in row] for row in rows]), 0.006, G_black, 'body')
+        label('ad_zynto%d' % sg, 'ZYNTO', sp_, (-0.175, 0.838), 0.024, sg, T_white, 'body', tilt=0.0)
+        band([sp_], 'sidepanel_line%d' % sg, (-0.6, 0.905), (0.0, 0.872), 0.006, 0.9, G_red, 'body')
+        label('ad_grip%d' % sg, 'GRIPWERK', ARM[sg], (-0.5, 0.381), 0.03, sg, T_black, 'swing', tilt=0.208 * sg)
+        label('ad_vyro_f%d' % sg, 'VYRO', FORKO[sg], fp(0.74)[:2], 0.02, sg, T_black, 'front', tilt=math.pi / 2 + RAKE * sg)
+    # rear fender: red, runs out from under the seat, kicked up over the wheel
+    FR = [(-0.50, 0.918, 0.086, 0.012), (-0.66, 0.957, 0.076, 0.015), (-0.82, 0.988, 0.062, 0.013), (-0.955, 1.008, 0.044, 0.008)]
+    panel('fender_rear', tight([[(x, y, -w), (x, y + c, 0.0), (x, y, w)] for (x, y, w, c) in FR], 0.2), 0.006, G_red, 'body')
+    # heat shield where the rider's leg passes the pipe
+    sweep('heatshield', [(-0.05, 0.567, 0.173), (-0.15, 0.632, 0.178), (-0.245, 0.712, 0.187)], 0.004, 0.03, G_black, 'body', e=3.0, ring=10, smooth=4)
+    if 'engine' in STAGES: label('ad_can', 'DRIFTWERK', CAN, cpt(0.5)[:2], 0.034, 1, T_white, 'body', tilt=math.atan2(C0[1] - C1[1], C0[0] - C1[0]))
+    # front fender: a red beak under the lower fork clamp, steering with the fork
+    FF = [(0.315, 0.742, 0.044, 0.012), (0.44, 0.777, 0.07, 0.022), (0.60, 0.778, 0.078, 0.024), (0.76, 0.752, 0.066, 0.02), (0.885, 0.716, 0.04, 0.012)]
+    panel('fender_front', tight([[(x, y, -w), (x, y + c, 0.0), (x, y, w)] for (x, y, w, c) in FF], 0.2), 0.006, G_red, 'front')
+    for sg in (-1, 1): rod('fender_stay%d' % sg, (0.455, 0.80, sg * 0.05), (sp(0.61)[0] + N[0] * 0.03, sp(0.61)[1] + N[1] * 0.03 - 0.016, sg * 0.05), 0.007, M_dark, 'front', seg=8)
+    # start-number plate in front of the clamps: white
+    NPC = (fp(0.74)[0] + N[0] * 0.064, fp(0.74)[1] + N[1] * 0.064, 0.0)
+    def npp(h, z, b): return (NPC[0] + U[0] * h + N[0] * b, NPC[1] + U[1] * h + N[1] * b, z)
+    rows = [[npp(0.106, -0.082, 0.0), npp(0.114, 0.0, 0.016), npp(0.106, 0.082, 0.0)], [npp(0.02, -0.102, 0.0), npp(0.02, 0.0, 0.026), npp(0.02, 0.102, 0.0)],
+            [npp(-0.075, -0.084, 0.0), npp(-0.075, 0.0, 0.022), npp(-0.075, 0.084, 0.0)], [npp(-0.136, -0.048, -0.004), npp(-0.142, 0.0, 0.008), npp(-0.136, 0.048, -0.004)]]
+    panel('numberplate', tight(rows, 0.2), 0.006, G_white, 'front')
+    for sg in (-1, 1): rod('plate_stay%d' % sg, npp(0.0, sg * 0.07, 0.004), fp(0.74, sg * FZ * 0.92), 0.006, M_dark, 'front', seg=8)
+    # fork guards: white plastic shells in front of the stanchions, moving with the wheel
+    for sg in (-1, 1):
+        z = sg * FZ
+        sweep('forkguard%d' % sg, [(fp(s2)[0] + N[0] * 0.022, fp(s2)[1] + N[1] * 0.022, z) for s2 in (0.035, 0.12, 0.3, 0.44)], [0.031, 0.037, 0.036, 0.031], 0.011, G_white, 'fork', e=3.0, ring=14, smooth=3)
 
 res = {k: sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in L) for k, L in ASM.items() if L}
 
