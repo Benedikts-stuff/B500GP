@@ -3,7 +3,8 @@ Pieces (each its own GLB, placed by the game's rider rig):
   torso  - hips at the origin, shoulders 0.52 m up the +y axis, chest faces +x, back -x; the spine between them is a gentle curve (BEND degrees), not a plank
   helmet - centred at the origin, face towards +x
   limbs  - unit length along +y (0 = joint at the body side), real radii; rotationally symmetric so the rig can roll them freely
-Material prefixes: T_suit / T_accent / T_dark / H_shell / H_accent / H_dark / H_visor, L_suit / L_dark.
+  glove, boot - in bike axes on the hand / ankle point; kneepuck - knee joint at the origin, +x the way the kneecap points, y along the leg, +z the outside of the knee
+Material prefixes: T_suit / T_accent / T_dark / H_shell / H_accent / H_dark / H_visor, L_suit / L_accent / L_dark / L_slider (hard protectors: soles, knee pucks).
 The game recolours by prefix; the vertex colours carry baked ambient occlusion (limbs: 1 for suit, dark parts pre-darkened)."""
 import bpy, bmesh, math
 from mathutils import Vector, Matrix
@@ -119,25 +120,43 @@ torso = loft_y('torso', [
 YOKE = 0.415
 repaint(torso, [((0, YOKE, 0), (0.0, 1, 0))], lambda x, y, z: y > YOKE, 'yoke', T_accent, 'torso')
 # speed hump: grows out of the back, same leather
-hump = loft_y('hump', [dict(y=0.245, x=-0.086, w=0.02, df=0.01, db=0.01), dict(y=0.33, x=-0.088, w=0.058, df=0.02, db=0.03, e=2.4), dict(y=0.44, x=-0.088, w=0.064, df=0.02, db=0.042, e=2.4),
-                       dict(y=0.52, x=-0.082, w=0.05, df=0.02, db=0.032, e=2.4), dict(y=0.565, x=-0.072, w=0.02, df=0.01, db=0.01)], T_suit, 'torso', ring=16, subsurf=2)
+hump = loft_y('hump', [dict(y=0.215, x=-0.084, w=0.012, df=0.008, db=0.008), dict(y=0.31, x=-0.088, w=0.05, df=0.02, db=0.03, e=2.3), dict(y=0.43, x=-0.088, w=0.07, df=0.02, db=0.05, e=2.3),
+                       dict(y=0.52, x=-0.082, w=0.062, df=0.02, db=0.044, e=2.3), dict(y=0.575, x=-0.07, w=0.03, df=0.012, db=0.016)], T_suit, 'torso', ring=16, subsurf=2)
 repaint(hump, [((0, YOKE, 0), (0.0, 1, 0))], lambda x, y, z: y > YOKE, 'hump_yoke', T_accent, 'torso')
 # the neck: runs on well up into the helmet, so that there is always a body under it from wherever one looks
-loft_y('collar', [dict(y=0.575, x=0.014, w=0.07, df=0.058, db=0.06), dict(y=0.64, x=0.017, w=0.058, df=0.051, db=0.052), dict(y=0.705, x=0.02, w=0.052, df=0.047, db=0.048)], T_dark, 'torso', ring=20, subsurf=1)
+loft_y('collar', [dict(y=0.575, x=0.014, w=0.07, df=0.058, db=0.06), dict(y=0.64, x=0.017, w=0.058, df=0.051, db=0.052), dict(y=0.705, x=0.02, w=0.052, df=0.047, db=0.048)], T_suit, 'torso', ring=20, subsurf=1)
 
 # ------------------------------------------------------------------ helmet: a race full-face at true size - 26 cm wide, 28 high, 35 long - so it is longer than it is
 # wide, with the chin bar reaching forward. The visor is part of the same surface, tapering back to its pivots.
 shell = loft_y('shell', [
     dict(y=-0.136, x=0.004, w=0.084, df=0.118, db=0.098, e=2.3), dict(y=-0.102, x=0.008, w=0.114, df=0.164, db=0.134, e=2.5),
-    dict(y=-0.05, x=0.006, w=0.128, df=0.176, db=0.158, e=2.5), dict(y=0.0, x=0.0, w=0.132, df=0.168, db=0.172, e=2.4),
-    dict(y=0.052, x=-0.006, w=0.127, df=0.15, db=0.176, e=2.3), dict(y=0.098, x=-0.014, w=0.106, df=0.116, db=0.154, e=2.2),
+    dict(y=-0.05, x=0.006, w=0.128, df=0.176, db=0.156, e=2.5), dict(y=-0.022, x=0.003, w=0.131, df=0.173, db=0.166, e=2.5),
+    # the back of the shell runs out into a ducktail at the height of the eyes: the top flows down into it, underneath it is cut back hard
+    dict(y=-0.004, x=0.0, w=0.132, df=0.169, db=0.19, e=2.5), dict(y=0.014, x=-0.002, w=0.1315, df=0.165, db=0.205, e=2.5),
+    dict(y=0.04, x=-0.005, w=0.129, df=0.156, db=0.195, e=2.4), dict(y=0.07, x=-0.009, w=0.121, df=0.139, db=0.174, e=2.3),
+    dict(y=0.098, x=-0.014, w=0.106, df=0.116, db=0.152, e=2.2),
     dict(y=0.13, x=-0.02, w=0.07, df=0.074, db=0.104, e=2.1), dict(y=0.143, x=-0.02, w=0.018, df=0.018, db=0.026, e=2.0)], H_shell, 'helmet', ring=32, angle=55, subsurf=2)
 repaint(shell, [((0, 0.02, 0), (-0.25, 1, 0)), ((0, -0.02, 0), (0.2, 1, 0)), ((-0.03, 0, 0), (1, 0, 0))],
         lambda x, y, z: y - 0.25 * x < 0.02 and y + 0.2 * x > -0.02 and x > -0.03, 'visor', H_visor, 'helmet')
 # two stripes over the crown, front to back
 ZS = (0.012, 0.043)
 repaint(shell, [((0, 0, zc), (0, 0, 1)) for zc in (ZS[0], ZS[1], -ZS[0], -ZS[1])], lambda x, y, z: ZS[0] < abs(z) < ZS[1] and (y > 0.028 or x < -0.035), 'stripes', H_dark, 'helmet')
-loft_y('neckroll', [dict(y=-0.149, x=0.004, w=0.078, df=0.11, db=0.092, e=2.3), dict(y=-0.126, x=0.006, w=0.094, df=0.132, db=0.106, e=2.4)], H_dark, 'helmet', ring=24, subsurf=1)
+# vents: one in the chin bar, two above the visor (flush, dark)
+repaint(shell, [((0, -0.09, 0), (0, 1, 0)), ((0, -0.068, 0), (0, 1, 0)), ((0, 0, 0.034), (0, 0, 1)), ((0, 0, -0.034), (0, 0, 1))], lambda x, y, z: x > 0.1 and -0.09 < y < -0.068 and abs(z) < 0.034, 'vent_chin', H_dark, 'helmet')
+repaint(shell, [((0, 0.086, 0), (0.45, 1, 0)), ((0, 0.099, 0), (0.45, 1, 0))] + [((0, 0, zc), (0, 0, 1)) for zc in (0.054, 0.092, -0.054, -0.092)],
+        lambda x, y, z: x > 0.03 and 0.086 < y + 0.45 * x < 0.099 and 0.054 < abs(z) < 0.092, 'vent_brow', H_dark, 'helmet')
+# visor pivots
+def disc_z(name, c, r, t, m, piece, seg=16, bev=0.003):
+    bm = bmesh.new(); rings = []
+    for (dz, rr) in ((0.0, r), (t - bev, r), (t, r - bev)):
+        for sgn in (1,):
+            rings.append([bm.verts.new(V(c[0] + rr * math.cos(k / seg * 6.2832), c[1] + rr * math.sin(k / seg * 6.2832), c[2] + dz * (1 if c[2] >= 0 else -1))) for k in range(seg)])
+    for i in range(len(rings) - 1):
+        for k in range(seg): bm.faces.new([rings[i][k], rings[i][(k + 1) % seg], rings[i + 1][(k + 1) % seg], rings[i + 1][k]])
+    bm.faces.new(rings[-1]); bm.faces.new(list(reversed(rings[0])))
+    return finish(bm, name, m, piece, 50)
+for sgn in (-1, 1): disc_z('pivot%d' % sgn, (-0.024, 0.002, sgn * 0.124), 0.0145, 0.0075, H_dark, 'helmet', bev=0.002)
+# no neck roll: the shell closes round the neck, and the neck (the suit's collar) runs up into it
 
 # ------------------------------------------------------------------ limbs (unit length along +y; the rig stretches them to arm / leg length and rolls them freely)
 # Each has the shape of the limb it is - a shoulder cap, a forearm that swells below the elbow, a thigh, a calf - and ends at exactly the radius of the
@@ -162,6 +181,30 @@ loft_x('boot', [dict(x=-0.115, y=0.02, w=0.028, ht=0.03, hb=0.03), dict(x=-0.09,
                 dict(x=0.05, y=0.012, w=0.049, ht=0.036, hb=0.032, e=3.0), dict(x=0.11, y=0.003, w=0.045, ht=0.024, hb=0.023, e=3.0), dict(x=0.15, y=0.0, w=0.03, ht=0.014, hb=0.018)],
        L_dark, 'boot', ring=14, subsurf=1)
 
+# knuckle guard on the back of the fist (second colour), heel counter and sole on the boot (hard grey): the things that make gloves and boots read as race kit
+L_slider = mat('L_slider', (0.2, 0.2, 0.22))
+loft_x('glove_knuckle', [dict(x=-0.006, y=0.031, w=0.028, ht=0.006, hb=0.008, e=2.6), dict(x=0.01, y=0.033, w=0.044, ht=0.0105, hb=0.01, e=3.0), dict(x=0.03, y=0.029, w=0.043, ht=0.01, hb=0.012, e=3.0),
+                         dict(x=0.046, y=0.02, w=0.03, ht=0.006, hb=0.008, e=2.6)], L_accent, 'glove', ring=14, subsurf=1)
+loft_x('boot_heel', [dict(x=-0.122, y=0.006, w=0.03, ht=0.018, hb=0.02), dict(x=-0.098, y=0.006, w=0.0475, ht=0.03, hb=0.024, e=3.2), dict(x=-0.066, y=0.006, w=0.0505, ht=0.026, hb=0.024, e=3.2),
+                     dict(x=-0.05, y=0.004, w=0.044, ht=0.014, hb=0.016, e=3.0)], L_slider, 'boot', ring=14, subsurf=1)
+loft_x('boot_sole', [dict(x=-0.118, y=-0.022, w=0.03, ht=0.005, hb=0.007, e=3.0), dict(x=-0.09, y=-0.022, w=0.0465, ht=0.006, hb=0.008, e=3.4), dict(x=-0.02, y=-0.022, w=0.05, ht=0.006, hb=0.008, e=3.4),
+                     dict(x=0.06, y=-0.022, w=0.0505, ht=0.006, hb=0.008, e=3.4), dict(x=0.115, y=-0.021, w=0.0465, ht=0.006, hb=0.007, e=3.4), dict(x=0.153, y=-0.019, w=0.03, ht=0.005, hb=0.006, e=3.0)],
+       L_slider, 'boot', ring=14, subsurf=1)
+# knee slider: an oval puck on the outside of the knee, standing a centimetre proud of it - the part that touches the road
+def puck(name, c, n, u, a, b2, layers, m, piece, seg=20, e=2.6):
+    n = Vector(n).normalized(); u = Vector(u).normalized(); v = n.cross(u); c = Vector(c); bm = bmesh.new(); rings = []
+    for (d, sc) in layers:
+        r = []
+        for k in range(seg):
+            an = k / seg * math.pi * 2; cs, sn = math.cos(an), math.sin(an)
+            q = c + n * d + u * (a * sc * math.copysign(abs(cs) ** (2 / e), cs)) + v * (b2 * sc * math.copysign(abs(sn) ** (2 / e), sn)); r.append(bm.verts.new(V(q.x, q.y, q.z)))
+        rings.append(r)
+    for i in range(len(rings) - 1):
+        for k in range(seg): bm.faces.new([rings[i][k], rings[i][(k + 1) % seg], rings[i + 1][(k + 1) % seg], rings[i + 1][k]])
+    bm.faces.new(rings[-1]); bm.faces.new(list(reversed(rings[0])))
+    return finish(bm, name, m, piece, 45)
+puck('kneepuck', (0, 0, 0), (0.44, 0, 0.9), (0, 1, 0), 0.046, 0.03, [(0.05, 0.9), (0.079, 1.0), (0.085, 0.94), (0.088, 0.78)], L_slider, 'kneepuck')
+
 # ------------------------------------------------------------------ a rider's back is not a plank: bow the whole torso into one even curve
 # The spine bends forward by BEND degrees between the hips and just above the shoulder line; the result is turned back so the
 # shoulders still stand straight above the hips at y = TL, which is what the game's rig expects. Seen against that line the small of the
@@ -182,7 +225,7 @@ if BEND > 1e-4:
         o.data.update()
 
 # lay the pieces apart for the AO bake
-offs = {'torso': (0, 0, 0), 'helmet': (1.0, 0, 0), 'uparm': (2, 0, 0), 'foarm': (2.5, 0, 0), 'thigh': (3, 0, 0), 'shin': (3.5, 0, 0), 'glove': (4, 0, 0), 'boot': (4.5, 0, 0)}
+offs = {'torso': (0, 0, 0), 'helmet': (1.0, 0, 0), 'uparm': (2, 0, 0), 'foarm': (2.5, 0, 0), 'thigh': (3, 0, 0), 'shin': (3.5, 0, 0), 'glove': (4, 0, 0), 'boot': (4.5, 0, 0), 'kneepuck': (5, 0, 0)}
 allo = [o for L in PIECES.values() for o in L]
 for p, L in PIECES.items():
     for o in L: o.location = V(*offs[p])

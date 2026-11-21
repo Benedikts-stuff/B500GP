@@ -711,16 +711,23 @@
       if (lm && (lm === 'shin' || lm === 'foarm')) { const dk = 'rider:' + lm + ':dark', c = new THREE.Mesh(RB.geo(dk, () => mergeAsset('rider/' + lm, null, (n) => /dark/.test(n))), mats.suit); c.userData.rb = { key: dk, col: lm === 'shin' ? 0x1b1c20 : 0x222327 }; m.add(c); }
       return m; };
     // gloves and boots: modelled, sitting in bike axes on the hand / ankle point
-    const part = (name, col, fb) => { if (!(RM && AX.Assets.has('rider/' + name))) return fb(); const key = 'rider:' + name, m = new THREE.Mesh(RB.geo(key, () => mergeAsset('rider/' + name, null)), mats.suit); m.userData.rb = { key, col }; g.add(m); return m; };
+    // main part in `col`; protectors ride along as children: panels in the rider's second colour (knuckles, heel cup), hard sliders in grey (sole, knee puck)
+    const SLIDER = 0x3d3f45;
+    const part = (name, col, fb) => {
+      if (!(RM && AX.Assets.has('rider/' + name))) return fb();
+      const names = AX.Assets.get('rider/' + name).parts.map((q) => q.material.name || ''), has = (re) => names.some((n) => re.test(n)), plain = (n) => !/accent|slider/.test(n);
+      const key = 'rider:' + name, m = has({ test: plain }) ? new THREE.Mesh(RB.geo(key, () => mergeAsset('rider/' + name, null, plain)), mats.suit) : new THREE.Group(); if (m.isMesh) m.userData.rb = { key, col }; g.add(m);
+      for (const [re, tag, c2] of [[/accent/, ':accent', accent], [/slider/, ':slider', SLIDER]]) if (has(re)) { const c = new THREE.Mesh(RB.geo(key + tag, () => mergeAsset('rider/' + name, null, (n) => re.test(n))), mats.suit); c.userData.rb = { key: key + tag, col: c2 }; m.add(c); }
+      return m; };
     const ball = (r, col, sx, sy, sz) => { const m = new THREE.Mesh(RB.geo('sph', sphGeo), mats.suit); m.userData.rb = { key: 'sph', col, scale: new THREE.Matrix4().makeScale(r * (sx || 1), r * (sy || 1), r * (sz || 1)) }; g.add(m); return m; };
     const parts = { arms: [], legs: [] };
     for (let s = 0; s < 2; s++) {
       parts.arms.push({ up: limb(0.074, 0.062, suit), lo: limb(0.062, 0.05, suit), sh: ball(RM ? 0.074 : 0.084, accent), el: ball(RM ? 0.058 : 0.064, suit), hand: part('glove', 0x1b1c20, () => ball(0.06, dark, 1.3, 0.85, 1)) });
-      parts.legs.push({ up: limb(0.104, 0.08, suit), lo: limb(0.078, 0.06, suit), hip: ball(0.104, suit), kn: ball(RM ? 0.076 : 0.084, accent), foot: part('boot', 0x1b1c20, () => ball(0.064, dark, 2.0, 0.85, 1)) });
+      parts.legs.push({ up: limb(0.104, 0.08, suit), lo: limb(0.078, 0.06, suit), hip: ball(0.104, suit), kn: ball(RM ? 0.076 : 0.084, accent), puck: part('kneepuck', SLIDER, () => null), foot: part('boot', 0x1b1c20, () => ball(0.064, dark, 2.0, 0.85, 1)) });
     }
     // in the helmet cam the forearms and gloves stay visible
     const hideIn = (o) => { o.userData.povHide = true; o.children.forEach(hideIn); };
-    for (const L of parts.legs) [L.up, L.lo, L.hip, L.kn, L.foot].forEach(hideIn);
+    for (const L of parts.legs) [L.up, L.lo, L.hip, L.kn, L.foot, L.puck].forEach((o) => o && hideIn(o));
     for (const A of parts.arms) [A.up, A.sh].forEach(hideIn);   // the forearms stay in view, whole, from the elbow to the glove; upper arms and shoulders sit beside the camera
     for (const A of parts.arms) A.sh.userData.chestHide = true; for (const L of parts.legs) L.hip.userData.chestHide = true;   // right beside / behind the chest cam
     const rig = {
@@ -741,6 +748,16 @@
     if (h >= margin + 0.012) return false;
     if (h < margin) p.z = (p.y * c - margin) / s;
     return true;                          // the slider / elbow is on the asphalt
+  }
+  // the knee slider sits on the outside of the knee: +x the way the kneecap points (away from the bend), y along the leg, z out
+  const _kf = new THREE.Vector3(), _ku = new THREE.Vector3(), _ko = new THREE.Vector3(), _km = new THREE.Matrix4();
+  function setKnee(Lg, hip, knee, foot, sg) {
+    if (!Lg.puck) return;
+    _kf.subVectors(hip, knee).normalize(); _ko.subVectors(foot, knee).normalize(); _ku.subVectors(_kf, _ko).normalize();      // towards the hip
+    _kf.add(_ko).negate(); if (_kf.lengthSq() < 1e-6) _kf.set(1, 0, 0); _kf.normalize();
+    if (sg < 0) _ku.negate();                                              // left leg: the same puck turned over, so its outside is the rider's left
+    _ko.crossVectors(_kf, _ku).normalize(); _kf.crossVectors(_ku, _ko).normalize();
+    _km.makeBasis(_kf, _ku, _ko); Lg.puck.quaternion.setFromRotationMatrix(_km); Lg.puck.position.copy(knee);
   }
   function setLimb(mesh, a, b) {
     _d.subVectors(b, a); const len = _d.length() || 1e-4; mesh.position.copy(a); mesh.quaternion.setFromUnitVectors(_up, _d.multiplyScalar(1 / len)); mesh.scale.set(1, len, 1);
@@ -797,8 +814,8 @@
         rig.footDown[s] = clearGround(_b, ph, 0.03, w > 0.7 ? 0.62 : 0) && w > 0.5;
       }
       J.pole.set(0.9 - dg * 0.5, 0.5 - inside * 0.5 + dg * 0.5, sg * (0.25 + inside * 1.6 + dg * 1.1));
-      ik(_a, _b, 0.44, 0.44, J.pole, J.c); rig.kneeDown[s] = clearGround(J.c, ph, 0.075, inside > 0.5 && inLean > 0.7 ? 0.7 : 0) && inside > 0.3;
-      setLimb(Lg.up, _a, J.c); setLimb(Lg.lo, J.c, _b); Lg.hip.position.copy(_a); Lg.kn.position.copy(J.c); Lg.foot.position.set(_b.x + 0.03, _b.y - 0.01, _b.z);
+      ik(_a, _b, 0.44, 0.44, J.pole, J.c); rig.kneeDown[s] = clearGround(J.c, ph, Lg.puck ? 0.084 : 0.075, inside > 0.5 && inLean > 0.7 ? 0.7 : 0) && inside > 0.3;      // the slider, not the knee, is what touches
+      setLimb(Lg.up, _a, J.c); setLimb(Lg.lo, J.c, _b); setKnee(Lg, _a, J.c, _b, sg); Lg.hip.position.copy(_a); Lg.kn.position.copy(J.c); Lg.foot.position.set(_b.x + 0.03, _b.y - 0.01, _b.z);
       Lg.foot.rotation.set(0, 0, -0.75 * Math.min(1, dg));     // toe down when the leg is out
     }
   }
@@ -814,7 +831,7 @@
       _a.set(0.14, 0.9, sg * 0.2); _b.set(0.3 + w * sg, 0.86, sg * (0.62 + w)); J.pole.set(0.2, 0.3, sg);
       ik(_a, _b, 0.31, 0.3, J.pole, J.c); setLimb(A.up, _a, J.c); setLimb(A.lo, J.c, _b); A.sh.position.copy(_a); A.el.position.copy(J.c); A.hand.position.copy(_b);
       _a.set(-0.3, 0.84, sg * 0.1); _b.set(-1.02, 0.86, sg * (0.34 - w * sg)); J.pole.set(0, 1, sg * 0.3);
-      ik(_a, _b, 0.44, 0.44, J.pole, J.c); setLimb(Lg.up, _a, J.c); setLimb(Lg.lo, J.c, _b); Lg.hip.position.copy(_a); Lg.kn.position.copy(J.c); Lg.foot.position.copy(_b);
+      ik(_a, _b, 0.44, 0.44, J.pole, J.c); setLimb(Lg.up, _a, J.c); setLimb(Lg.lo, J.c, _b); setKnee(Lg, _a, J.c, _b, sg); Lg.hip.position.copy(_a); Lg.kn.position.copy(J.c); Lg.foot.position.copy(_b);
     }
   }
 

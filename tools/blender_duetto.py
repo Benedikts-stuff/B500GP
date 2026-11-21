@@ -341,7 +341,7 @@ def coil(name, a, b, R, wire, turns, m, asm, n=14):
 # ------------------------------------------------------------------ materials
 P_body = mat('P_body', 'ffffff')
 M_dark = mat('M_dark', '1c1e22'); M_tyre = mat('M_tyre', '1a1a1c'); M_red = mat('M_red', 'c8281e'); M_disc = mat('M_disc', 'a9adb2'); M_cal = mat('M_caliper', 'b28a2c')
-M_spring = mat('M_spring', 'd8d9dc'); M_seat = mat('M_seat', '18191c'); M_groove = mat('M_groove', '070708'); M_resv = mat('M_resv', 'c9c6b4'); G_tail = mat('G_tail', 'ff2a1a'); G_lens = mat('G_lens', '0b0b0d'); C_chrome = mat('C_chrome', 'e4e7ea'); L_tail = mat('L_tail', 'e0261a'); D_decal = mat('D_decal', '111214')
+M_spring = mat('M_spring', 'f0bf16'); X_gold = mat('X_gold', 'c79a34'); M_seat = mat('M_seat', '18191c'); M_groove = mat('M_groove', '070708'); M_resv = mat('M_resv', 'c9c6b4'); G_tail = mat('G_tail', 'ff2a1a'); G_lens = mat('G_lens', '0b0b0d'); C_chrome = mat('C_chrome', 'e4e7ea'); L_tail = mat('L_tail', 'e0261a'); D_decal = mat('D_decal', '111214')
 X_header = mat('X_header', '8a6c48'); X_ti = mat('X_ti', '9a958c'); X_chain = mat('X_chain', '55585e'); M_engine = mat('M_engine', '2e3136')
 X_brushed = mat('X_brushed', '9ea3aa'); FRAME = mat('G_frame', '141518'); G_stripe = mat('G_stripe', '0c0d0f'); M_bore = mat('M_bore', '050506'); M_lead = mat('M_lead', 'b3261c')
 X_alu = mat('X_alu', 'b9bdc2'); X_steel = mat('X_steel', 'd6d8db'); X_frame = mat('X_frame', '41454c'); X_rim = mat('X_rimdark', '34373d'); X_cast = mat('X_cast', '7d8188')
@@ -398,11 +398,11 @@ if 'chassis' in STAGES:
         plate('shk_lugT%d' % s, hull(circ(S0[0], S0[1], 0.016) + circ(T[3][0], T[3][1], 0.014)), 0.006, FRAME, 'body', off=s * 0.02, bevel=0.0015)
         plate('shk_lugB%d' % s, hull(circ(S1[0], S1[1], 0.015) + circ(-0.305, 0.43, 0.02)), 0.006, X_alu, 'swing', off=s * 0.02, bevel=0.0015)
     cyl('shk_eyeT', 0.014, 0.034, S0, X_steel, 'body', seg=14, bevel=0.002); cyl('shk_eyeB', 0.013, 0.034, S1, X_steel, 'swing', seg=14, bevel=0.002)
-    rod('shk_body', shp(0.06), shp(0.52), [0.021, 0.024, 0.024, 0.024], X_frame, 'shockU', seg=16)
+    rod('shk_body', shp(0.06), shp(0.52), [0.021, 0.024, 0.024, 0.024], X_gold, 'shockU', seg=16)      # race shock: gold-anodised body and reservoir, yellow spring
     rod('shk_shaft', shp(0.28), shp(0.94), 0.0075, C_chrome, 'shockL', seg=14)           # runs well up inside the body: the game slides it in and out
     rod('shk_collarT', shp(0.115), shp(0.15), 0.039, X_alu, 'shockU', seg=20); rod('shk_collarB', shp(0.85), shp(0.885), 0.037, X_alu, 'shockL', seg=20)
     coil('shk_spring', shp(0.15), shp(0.85), 0.031, 0.0068, 7.5, M_spring, 'spring')
-    rod('shk_res', (S0[0] - 0.05, S0[1] - 0.015, 0.046), (S0[0] - 0.105, S0[1] - 0.125, 0.046), 0.019, X_alu, 'shockU', seg=14)
+    rod('shk_res', (S0[0] - 0.05, S0[1] - 0.015, 0.046), (S0[0] - 0.105, S0[1] - 0.125, 0.046), 0.019, X_gold, 'shockU', seg=14)
 
     # ---- fork: upside-down. Dark outer tubes held by the two clamps, chrome stanchions sliding in them, cast feet carrying axle and calipers
     for s in (-1, 1):
