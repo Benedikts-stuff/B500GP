@@ -805,7 +805,7 @@
     mb.needsUpdate = true;
   }
   function update(world, cam) {
-    const rb = AX.RiderBatch && AX.RiderBatch.mat; if (rb && !rb.userData.psTame) { rb.userData.psTame = true; rb.roughness = 0.92; rb.envMapIntensity = 0.1; rb.needsUpdate = true; }
+    const rb = AX.RiderBatch && AX.RiderBatch.mat; if (rb && !rb.userData.psTame) { rb.userData.psTame = true; rb.roughness = 0.92; rb.envMapIntensity = 0.1; rimLight(rb); rb.needsUpdate = true; }
     const L = world.styleChunks; if (!L) return;
     for (let k = 0; k < L.length; k++) {
       const c = L[k], d = Math.max(0, Math.hypot(c.x - cam.x, c.z - cam.z) - 17);
@@ -814,8 +814,24 @@
       if (c.fim) { c.fim.visible = d < 110; c.fim.count = Math.max(1, Math.round(c.fcap * Math.min(1, f * 1.4))); }
     }
   }
+  // edge light on bike and rider: where a surface turns away from the camera on the sun's side, it catches a rim of the sun's
+  // colour. That lifts the dark leathers and tyres off the road. It depends only on the viewing angle, never on distance
+  function rimLight(m) {
+    if (m.userData.psRim || m.transparent) return; m.userData.psRim = true;
+    const prev = m.onBeforeCompile, key = m.customProgramCacheKey();
+    m.onBeforeCompile = function (sh, r) {
+      if (prev) prev.call(this, sh, r);
+      sh.fragmentShader = sh.fragmentShader.replace('#include <tonemapping_fragment>', `#if NUM_DIR_LIGHTS > 0
+        { float rimF = pow(1.0 - clamp(dot(normal, normalize(vViewPosition)), 0.0, 1.0), 3.0);
+          float rimL = smoothstep(-0.3, 0.55, dot(normal, directionalLights[0].direction));
+          gl_FragColor.rgb += directionalLights[0].color * (rimF * rimL * 0.15); }
+        #endif
+        #include <tonemapping_fragment>`);
+    };
+    m.customProgramCacheKey = () => key + '|ps-rim'; m.needsUpdate = true;
+  }
   function tameBike(root) {
-    root.traverse((o) => { if (!o.material) return; for (const m of [].concat(o.material)) { if (!m.isMeshStandardMaterial || m.userData.psTame) continue; m.userData.psTame = true; m.envMapIntensity = 0.25; if (!m.transparent && m.roughness > 0.1) m.roughness = Math.max(m.roughness, 0.6); m.metalness *= 0.5; } });
+    root.traverse((o) => { if (!o.material) return; for (const m of [].concat(o.material)) { if (!m.isMeshStandardMaterial || m.userData.psTame) continue; m.userData.psTame = true; m.envMapIntensity = 0.25; if (!m.transparent && m.roughness > 0.1) m.roughness = Math.max(m.roughness, 0.6); m.metalness *= 0.5; rimLight(m); } });
   }
   AX.PassStyle = { applyRenderer, update, tameBike, SUN, P, SKIES };
 })();
