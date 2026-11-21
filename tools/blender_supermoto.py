@@ -6,7 +6,7 @@ like the Duetto, so that every step can be checked on its own. No real make's bo
   SHOTS    list of preview views to render into blender/renders/<PREFIX>_<view>.png
   EXPORT   True: bake AO into vertex colours and export the game assemblies to blender/bike_supermoto_<assembly>.glb (needs all four stages)
 
-Assemblies (the same set the game already animates on the Duetto): body (frame, subframe) · swing (swingarm, linkage, pivots at PIV)
+Assemblies (the Duetto's set, plus the shock linkage): body (frame, subframe) · swing (swingarm, pivots at PIV) · link (rocker, turns on the frame) · rod (dog bones)
   front (steered: clamps, outer fork tubes) · fork (steered + slides along the fork: stanchions, axle lugs, caliper, axle)
   wheelF / wheelR · shockU (damper body, turns about its top eye S0) · shockL (shaft, lower collar) · spring
 Coordinates and material prefixes: see tools/blender_kit.py."""
@@ -123,7 +123,7 @@ if 'chassis' in STAGES:
     rod('xcradle', (0.225, 0.296, -0.097), (0.225, 0.296, 0.097), 0.011, FRAME, 'body', seg=10)
     for s in (-1, 1):
         plate('shk_lugT%d' % s, hull(circ(S0[0], S0[1], 0.02, 14) + circ(S0[0] - 0.012, S0[1] - 0.032, 0.014, 12)), 0.006, FRAME, 'body', off=s * 0.021, bevel=0.0015)
-        plate('link_lugF%d' % s, hull(circ(-0.085, 0.298, 0.018, 12) + circ(-0.108, 0.292, 0.013, 12)), 0.006, FRAME, 'body', off=s * 0.034, bevel=0.0015)
+        plate('link_lugF%d' % s, hull(circ(-0.085, 0.298, 0.018, 12) + circ(-0.09, 0.31, 0.015, 12)), 0.006, FRAME, 'body', off=s * 0.034, bevel=0.0015)
 
     # ---- subframe: bolted on behind the spars, carries seat, tail and silencer
     for s in (-1, 1):
@@ -149,13 +149,18 @@ if 'chassis' in STAGES:
     plate('rcarrier', hull(circ(A[0], A[1], 0.03) + circ(*pol(A, 0.095, math.radians(205))[:2], 0.02)), 0.008, X_cast, 'swing', off=0.109, bevel=0.002)
     plate('rcaliper', hull(circ(*pol(A, 0.104, math.radians(190))[:2], 0.026) + circ(*pol(A, 0.104, math.radians(218))[:2], 0.026)), 0.044, M_cal, 'swing', off=0.093, bevel=0.008)
 
-    # ---- rear suspension: one shock on the centre line, driven through a rocker and two pull rods (rising rate)
-    RK0, RK2, LF = (-0.33, 0.372), (-0.245, 0.316), (-0.108, 0.292)            # rocker pivot under the bridge, pull-rod eye on the rocker, pull-rod eye on the frame
+    # ---- rear suspension: one shock on the centre line, worked through a linkage (rising rate). The rocker turns on the frame's lower cross
+    # member (LF) and carries the shock's lower eye (S1); two dog bones tie its other eye (RK2) to the swingarm under the bridge (RK0). As the
+    # wheel comes up, the swingarm lifts the dog bones, they swing the rocker round and the rocker pushes the shock up. Rocker and dog bones are
+    # assemblies of their own ('link', 'rod'): the game solves the four-bar every frame (js/models.js, SPRUNG.linkage - same four points).
+    RK0, RK2, LF = (-0.34, 0.36), (-0.144, 0.265), (-0.09, 0.31)               # dog-bone eye on the swingarm, dog-bone eye on the rocker, rocker pivot on the frame
+    # (these three and S1 give a shock travel of about a third of the wheel's, and the linkage stays well clear of its dead points over the whole travel)
+    ASM.setdefault('link', []); ASM.setdefault('rod', [])
     for s in (-1, 1):
-        plate('rocker%d' % s, hull(circ(RK0[0], RK0[1], 0.019, 14) + circ(S1[0], S1[1], 0.018, 14) + circ(RK2[0], RK2[1], 0.016, 14)), 0.007, X_cast, 'swing', off=s * 0.021, bevel=0.002)
-        rod('pullrod%d' % s, (RK2[0], RK2[1], s * 0.034), (LF[0], LF[1], s * 0.034), [0.011, 0.0085, 0.0085, 0.011], X_alu, 'swing', seg=10)
+        plate('rocker%d' % s, hull(circ(LF[0], LF[1], 0.019, 14) + circ(S1[0], S1[1], 0.018, 14) + circ(RK2[0], RK2[1], 0.016, 14)), 0.007, X_cast, 'link', off=s * 0.021, bevel=0.002)
+        rod('dogbone%d' % s, (RK2[0], RK2[1], s * 0.041), (RK0[0], RK0[1], s * 0.041), [0.011, 0.0085, 0.0085, 0.011], X_alu, 'rod', seg=10)
         plate('rk_lug%d' % s, hull(circ(RK0[0], RK0[1], 0.017, 12) + circ(-0.345, 0.40, 0.02, 12)), 0.006, X_swing, 'swing', off=s * 0.032, bevel=0.0015)
-    for (c, r, w) in ((RK0, 0.009, 0.08), (S1[:2], 0.009, 0.06), (RK2, 0.008, 0.085)): cyl('rk_pin%.2f' % c[0], r, w, (c[0], c[1], 0), X_steel, 'swing', seg=10, bevel=0.0015)
+    for (c, r, w, asm) in ((LF, 0.009, 0.082, 'link'), (S1[:2], 0.009, 0.06, 'link'), (RK2, 0.008, 0.098, 'link'), (RK0, 0.008, 0.098, 'swing')): cyl('rk_pin%.2f' % c[0], r, w, (c[0], c[1], 0), X_steel, asm, seg=10, bevel=0.0015)
     sd = (S1[0] - S0[0], S1[1] - S0[1]); sl = math.hypot(*sd)
     def shp(f): return (S0[0] + sd[0] * f, S0[1] + sd[1] * f, 0.0)
     cyl('shk_eyeT', 0.015, 0.036, S0, X_steel, 'body', seg=14, bevel=0.002); cyl('shk_eyeB', 0.014, 0.036, S1, X_steel, 'swing', seg=14, bevel=0.002)

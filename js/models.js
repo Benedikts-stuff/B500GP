@@ -364,7 +364,9 @@
      (tools/blender_duetto.py, tools/blender_supermoto.py).
      head/rake: a point on the steering axis and its angle · PIV: swingarm pivot · S0/S1: shock eyes on frame and swingarm · SPR: gearbox sprocket
      travel: how much further than the Duetto it dives and squats (long-travel suspension) · forkMax: the most the fork may close up
-     link: the shock is worked through a linkage - its lower eye moves this share of the wheel's travel (0: it sits on the swingarm itself)
+     linkage: the shock is worked through a linkage - a rocker turning on the frame (F0) that carries the shock's lower eye (S1), and dog bones
+     from the rocker (R2) to the swingarm (R0); both are parts of their own and the four-bar is solved every frame. link: the share of the wheel's
+     travel the shock's eye moves if those parts are missing (0: the eye sits on the swingarm itself)
      chain: [gearbox sprocket radius, wheel sprocket radius, z, number of links] · hose: front brake line, top to caliper, and the sides that have one
      tyre: half axes of the tyres' cross-sections (rear a/b, front a/b) · plate: number on the front plate [x, y, size] · side: number on the side panels
      ex: where the pipe ends, which way it points, how wide it is · bar: the grips [x, y, z] · fit: where the rider sits (hips, shoulders upright and tucked, boots)
@@ -378,7 +380,7 @@
       tyre: { ar: 0.0525, br: 0.1034, af: 0.0475, bf: 0.061 }, plate: [0.5395, 0.8957, 0.2], heat: true, ex: [[-0.795, 0.532, 0.232], [-0.866, 0.483, 0.129], 0.036] },
     supermoto: { wb: 1.47, Rr: 0.315, Rf: 0.30, rake: 26.5, head: [0.387, 0.953], PIV: [-0.145, 0.445], S0: [-0.05, 0.795], S1: [-0.165, 0.375], SPR: [-0.055, 0.425], chain: [0.0365, 0.121, -0.097, 114],
       hose: [[0.5206, 0.8468, 0.055], [0.5477, 0.7206, 0.06], [0.5386, 0.6044, 0.084], [0.5993, 0.4558, 0.092], [0.5588, 0.3712, 0.09]], hoseSides: [-1],
-      travel: 1.6, forkMax: 0.17, link: 0.42, tyre: { ar: 0.040, br: 0.0885, af: 0.0365, bf: 0.0632 }, plate: [0.5026, 0.9993, 0.125], side: [-0.275, 0.818, 0.1295, 0.082], ex: [[-0.757, 0.8175, 0.188], [-0.886, 0.464, 0.022], 0.0215],
+      travel: 1.6, forkMax: 0.17, link: 0.36, linkage: { F0: [-0.09, 0.31], R0: [-0.34, 0.36], R2: [-0.144, 0.265] }, tyre: { ar: 0.040, br: 0.0885, af: 0.0365, bf: 0.0632 }, plate: [0.5026, 0.9993, 0.125], side: [-0.275, 0.818, 0.1295, 0.082], ex: [[-0.757, 0.8175, 0.188], [-0.886, 0.464, 0.022], 0.0215],
       bar: [0.286, 1.174, 0.367], fit: { hip: [-0.15, 0.985], sh: [0.045, 1.467, 0.185, 1.385], foot: [-0.20, 0.40, 0.172], leanVis: 1.14, pov: [-0.15, 1.66, 0.36], chest: [0.125, 0.55, 0.42] } }
   };
   function buildBike(spec, rider, opts) {
@@ -557,12 +559,22 @@
         const shU = new THREE.Group(); shU.position.copy(S0); susG.add(shU); merged(nm + 'shockU', Rm.clone().multiply(Tm(S0))).forEach((m) => shU.add(m));
         const spring = merged(nm + 'spring', Rm.clone().multiply(Tm(S0))); spring.forEach((m) => shU.add(m));
         const shL = new THREE.Group(); susG.add(shL); merged(nm + 'shockL', Rm.clone().multiply(Tm(S1))).forEach((m) => shL.add(m));
+        // shock linkage: the rocker turns about its pivot on the frame, the dog bones about their eye on the swingarm
+        let lk = null;
+        if (MD.linkage && AX.Assets.has(nm + 'link') && AX.Assets.has(nm + 'rod')) {
+          const q = MD.linkage, F0 = V3(q.F0[0], q.F0[1], 0), R0 = V3(q.R0[0], q.R0[1], 0), R2 = V3(q.R2[0], q.R2[1], 0);
+          const linkG = new THREE.Group(); linkG.position.copy(F0); susG.add(linkG); merged(nm + 'link', Tm(F0)).forEach((m) => linkG.add(m));
+          const rodG = new THREE.Group(); rodG.position.copy(R0); susG.add(rodG); merged(nm + 'rod', Tm(R0)).forEach((m) => rodG.add(m));
+          const a = R2.distanceTo(F0), b = R2.distanceTo(R0), dx = R0.x - F0.x, dy = R0.y - F0.y;
+          lk = { linkG, rodG, F0, r0: R0.clone().sub(PIV), s1: S1.clone().sub(F0), a, b, a0: Math.atan2(R2.y - F0.y, R2.x - F0.x), b0: Math.atan2(R2.y - R0.y, R2.x - R0.x),
+            sg: (R2.x - F0.x) * -dy + (R2.y - F0.y) * dx > 0 ? 1 : -1 };      // sg: which side of the line pivot - swingarm eye the rocker's eye lies on (it stays there)
+        }
         // chain: outer and inner links by turns, laid round the two sprockets every frame
         const NL = MD.chain[3], pitch = 0.01634, chain = [0, 1].map((k) => { const im = new THREE.InstancedMesh(linkGeometry(!k, pitch), mats.metal, NL / 2); im.frustumCulled = false; susG.add(im); return im; });
         // brake hoses from the splitter on the lower clamp down to the calipers: the top is clamped, the bottom rides with the fork
         const HP = MD.hose, hoses = MD.hoseSides.map((sd) => {
           const m = hoseMesh(mats.metal, 0x3c3e43, 22, 6); m.userData.pts = HP.map((q) => V3(q[0] * sx, q[1], q[2] * sd).applyMatrix4(inv)); m.userData.cur = m.userData.pts.map((q) => q.clone()); steerG.add(m); return m; });
-        susp = { forkG, swingG, shU, shL, spring, chain, hoses, PIV, S0, SPR, k: MD.travel || 1, dmax: MD.forkMax || 0.13, link: MD.link || 0, r1: MD.chain[0], r2: MD.chain[1], cz: MD.chain[2], s1r: S1.clone().sub(PIV), sl, L: Math.hypot(-hx - PIV.x, Rr - PIV.y), psi0: Math.atan2(Rr - PIV.y, -hx - PIV.x), axle0: wfHolder.position.clone(), NL, pitch, d: 1, th: 0, ph: 0, top: 0 };
+        susp = { forkG, swingG, shU, shL, spring, chain, hoses, PIV, S0, SPR, k: MD.travel || 1, dmax: MD.forkMax || 0.13, link: MD.link || 0, lk, r1: MD.chain[0], r2: MD.chain[1], cz: MD.chain[2], s1r: S1.clone().sub(PIV), sl, L: Math.hypot(-hx - PIV.x, Rr - PIV.y), psi0: Math.atan2(Rr - PIV.y, -hx - PIV.x), axle0: wfHolder.position.clone(), NL, pitch, d: 1, th: 0, ph: 0, top: 0 };
         // number and name on the tank side panels
         for (const [dn, tex] of [['decalR', panelTexture(rider.num)], ['decalL', panelTexture(null)]]) {
           if (!AX.Assets.has(nm + dn)) continue;
@@ -921,7 +933,15 @@
       vis.susG.position.x = -hx - px - S.L * Math.cos(psi); S.swingG.rotation.z = th; S.th = th;
       // shock: top eye on the frame, bottom eye on the swingarm; the spring is squeezed between its two collars
       const ct = Math.cos(th), st2 = Math.sin(th); let s1x = S.PIV.x + S.s1r.x * ct - S.s1r.y * st2, s1y = S.PIV.y + S.s1r.x * st2 + S.s1r.y * ct;
-      if (S.link) {   // through a linkage: the lower eye is pushed up the shock's own line by its share of the wheel's travel
+      if (S.lk) {
+        // the linkage: the swingarm carries the dog bones' rear eye round its pivot; the rocker's eye is where the dog bones (length b) and the
+        // rocker's arm (length a, about its pivot on the frame) meet; the rocker's turn carries the shock's lower eye with it
+        const K = S.lk, tq = clamp(th, -0.24, 0.11), c2 = Math.cos(tq), s2 = Math.sin(tq), rx = S.PIV.x + K.r0.x * c2 - K.r0.y * s2, ry = S.PIV.y + K.r0.x * s2 + K.r0.y * c2;
+        const dx = rx - K.F0.x, dy = ry - K.F0.y, d = Math.hypot(dx, dy), x = (K.a * K.a - K.b * K.b + d * d) / (2 * d), h = Math.sqrt(Math.max(0, K.a * K.a - x * x));
+        const qx = K.F0.x + dx / d * x - dy / d * h * K.sg, qy = K.F0.y + dy / d * x + dx / d * h * K.sg, dl = AX.wrapAngle(Math.atan2(qy - K.F0.y, qx - K.F0.x) - K.a0), cd = Math.cos(dl), sd = Math.sin(dl);
+        K.linkG.rotation.z = dl; K.rodG.position.set(rx, ry, 0); K.rodG.rotation.z = AX.wrapAngle(Math.atan2(qy - ry, qx - rx) - K.b0);
+        s1x = K.F0.x + K.s1.x * cd - K.s1.y * sd; s1y = K.F0.y + K.s1.x * sd + K.s1.y * cd;
+      } else if (S.link) {   // a linkage whose parts are not there: the lower eye is pushed up the shock's own line by its share of the wheel's travel
         const c = clamp(-th * S.L * S.link, -0.03, 0.065), ux = S.S0.x - s1x, uy = S.S0.y - s1y, ul = Math.hypot(ux, uy); s1x += ux / ul * c; s1y += uy / ul * c; }
       const vx = s1x - S.S0.x, vy = s1y - S.S0.y, ls = Math.hypot(vx, vy), ph = Math.atan2(vy, vx);
       S.shU.rotation.z = ph; S.shL.rotation.z = ph; S.shL.position.set(s1x, s1y, 0);

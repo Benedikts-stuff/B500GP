@@ -7,7 +7,7 @@ import base64, os, re, sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PACK = os.path.join(ROOT, 'assets', 'pack_bike.js')
 PARTS = ('body', 'front', 'wheelF', 'wheelR')
-MOVING = ('fork', 'swing', 'shockU', 'shockL', 'spring', 'decalR', 'decalL')     # only bikes with working suspension have these (tools/blender_duetto.py)
+MOVING = ('fork', 'swing', 'shockU', 'shockL', 'spring', 'decalR', 'decalL', 'link', 'rod')     # only bikes with working suspension have these (tools/blender_duetto.py); link / rod: the supermoto's shock linkage
 names = sys.argv[1:]
 if not names: raise SystemExit('usage: python3 tools/pack_bikes.py <variant> [<variant> ...]')
 
