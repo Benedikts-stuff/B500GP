@@ -315,7 +315,7 @@
   function setPov(on) {
     const v = G.vis[0]; if (!v) return; const rig = v.rider;
     if (on === povOn && rig.pov === on) return; povOn = on;      // also checked against the rider itself: after a restart the bike is a new one and still shows everything
-    if (on) G.povReset = true; rig.pov = on; rig.torso.visible = !on; rig.helmet.visible = !on; AX.RiderBatch.setTwoSided(on === 'pov' && !!(rig.fit && rig.fit.pov));   // on: false, 'pov' (cockpit) or 'chest'
+    if (on) G.povReset = true; rig.pov = on; rig.torso.visible = !on; rig.helmet.visible = !on; AX.RiderBatch.setTwoSided(on === 'pov' && !!((rig.fit && rig.fit.pov) || v.povMove));   // on: false, 'pov' (cockpit) or 'chest'
     if (on && !v.dash && v.spec.style.dash !== false) makeDash(v); if (v.dash) v.dash.visible = !!on;
     camera.near = on ? 0.05 : 0.3; camera.updateProjectionMatrix();
   }
@@ -328,6 +328,9 @@
     const frame = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.105, 0.03), new THREE.MeshBasicMaterial({ color: 0x0b0c0e }));
     const g = new THREE.Group(); g.add(frame); m.position.z = 0.016; g.add(m);
     g.position.set(naked ? 0.462 : 0.45, naked ? 1.005 : 1.035, 0); /* Duetto: tucked behind the top of the number plate */ g.scale.setScalar(0.8); g.rotation.set(0, -Math.PI / 2, 0); g.rotateX(-0.55);
+    const da = v.dashAt;      // the model has a dash of its own: the live display lies on its glass, no housing of ours round it
+    if (da) { frame.visible = false; m.position.z = 0; g.scale.setScalar(0.7); g.rotation.set(0, -Math.PI / 2, 0); g.rotateX(-da[2]);
+      g.position.set(da[0] - 0.0025 * Math.sin(da[2]) - 0.003 * Math.cos(da[2]), da[1] - 0.0025 * Math.cos(da[2]) + 0.003 * Math.sin(da[2]), 0); }
     v.susG.add(g); v.dash = g; v.dashCtx = c.getContext('2d'); v.dashCtx.setTransform(4, 0, 0, 4, 0, 0); v.dashTex = tx; v.dashT = 0;
   }
   function drawDash(v, p, dt) {
@@ -383,7 +386,13 @@
     G.povPitch = damp(G.povPitch, Math.max(-0.2, p.pitch) * 0.3, 3, dt);
     G.povSlope = damp(G.povSlope, Math.atan(p.slope || 0), 2, dt);
     G.povLook = damp(G.povLook, clamp(p.lean * 0.15, -0.2, 0.2), 1.5, dt);
-    _hp.set(G.povB.x, G.povB.y, 0); v.susG.localToWorld(_hp);        // the eye rides on the bike's centre line
+    _hp.set(G.povB.x, G.povB.y, 0);                                    // the eye rides on the bike's centre line ...
+    const pm = v.povMove;                            // ... unless the model lets it go with the rider: sideways as he hangs off, down and forward as he tucks in, up as he sits up
+    if (pm) {
+      const h = rig.hang || 0, tk = rig.tuck || 0, si = rig.sit || 0, o = G.povOff || (G.povOff = new THREE.Vector3());
+      o.x = damp(o.x, tk * pm[2] - si * 0.03, 6, dt); o.y = damp(o.y, -tk * pm[1] + si * 0.03 - Math.abs(h) * 0.025, 6, dt); o.z = damp(o.z, h * pm[0], 6, dt); _hp.add(o);
+    }
+    v.susG.localToWorld(_hp);
     _e.set(0, -G.povYaw, G.povSlope + G.povPitch - (pf ? pf[2] : nk ? 0.31 : 0.18), 'YZX'); _q.setFromEuler(_e);
     _q2.setFromAxisAngle(V3Y, -Math.PI / 2 - G.povLook); _q.multiply(_q2);
     _q2.setFromAxisAngle(V3Z, -G.povRoll); _q.multiply(_q2);

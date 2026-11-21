@@ -633,8 +633,9 @@ if 'body' in STAGES:
 
 # ================================================================== STAGE 4: controls
 if 'controls' in STAGES:
+    PARTS = globals().get('PARTS', '/Users/benedikt/Desktop/Apex/tools/blender_parts.py'); exec(compile(open(PARTS).read(), PARTS, 'exec'), globals())
     BC = sp(0.776)                                         # centre of the handlebar, above the top clamp
-    HB = [(0.0, 0.0, 0.0), (0.0, 0.0, 0.09), (-0.006, 0.02, 0.16), (-0.04, 0.045, 0.26), (-0.075, 0.047, 0.385)]      # one half of the bar, relative to its centre
+    HB = [(0.0, 0.0, 0.0), (0.0, 0.0, 0.09), (-0.004, 0.028, 0.145), (-0.0198, 0.0438, 0.188), (-0.075, 0.047, 0.385)]      # one half of the bar, relative to its centre: the rise is done by 19 cm, from there it runs straight - room for the lever clamp, the switch and the grip
     def bar(z, dx=0.0, dy=0.0):                            # point on the bar at lateral position z (either side)
         a = abs(z); sg = 1 if z >= 0 else -1
         for k in range(len(HB) - 1):
@@ -643,6 +644,7 @@ if 'controls' in STAGES:
         d = (HB[-1][0] - HB[-2][0]) / (HB[-1][2] - HB[-2][2]); return (BC[0] + HB[-1][0] + d * (a - HB[-1][2]) + dx, BC[1] + HB[-1][1] + dy, z)
     half = [(BC[0] + q[0], BC[1] + q[1], q[2]) for q in HB]
     tube('handlebar', [(q[0], q[1], -q[2]) for q in reversed(half[1:])] + half, [0.011, 0.011, 0.0125, 0.0143, 0.0143, 0.0143, 0.0125, 0.011, 0.011], M_dark, 'front', seg=12, smooth=5)
+    LVP = {}
     for s in (-1, 1):
         # riser clamp on the top fork clamp
         rod('riser%d' % s, sp(0.716, s * 0.052), sp(0.768, s * 0.052), [0.0165, 0.0145, 0.0155], X_frame, 'front', seg=14)
@@ -652,24 +654,16 @@ if 'controls' in STAGES:
         tube('grip%d' % s, [bar(s * 0.268), bar(s * 0.385)], 0.0168, M_tyre, 'front', seg=14)
         tube('gripflange%d' % s, [bar(s * 0.262), bar(s * 0.268)], 0.0205, M_tyre, 'front', seg=14)
         tube('barend%d' % s, [bar(s * 0.385), bar(s * 0.405)], [0.0155, 0.0135], X_alu, 'front', seg=12)
-        # switch housing, lever perch with its master cylinder, fluid reservoir, lever
-        g0 = bar(s * 0.238); px, py = g0[0], g0[1]
-        tube('switch%d' % s, [bar(s * 0.212), bar(s * 0.256)], 0.021, M_dark, 'front', seg=10)
-        rod('master%d' % s, (px + 0.012, py - 0.004, s * 0.206), (px + 0.082, py - 0.016, s * 0.2), [0.0125, 0.0115, 0.0105], X_frame, 'front', seg=12)
-        tube('perch%d' % s, [bar(s * 0.196), bar(s * 0.21)], 0.0185, X_frame, 'front', seg=12)
-        piv = (px + 0.062, py - 0.014, s * 0.207)
-        cyl('leverpivot%d' % s, 0.0075, 0.02, piv, X_steel, 'front', axis='y', seg=10, bevel=0.001)
-        sweep('lever%d' % s, [(piv[0] - 0.012, piv[1] - 0.001, s * 0.198), (piv[0] + 0.006, piv[1] - 0.002, s * 0.225), (piv[0] + 0.002, piv[1] - 0.004, s * 0.30), (piv[0] - 0.022, piv[1] - 0.004, s * 0.375), (piv[0] - 0.034, piv[1] - 0.004, s * 0.398)],
-              [0.006, 0.0055, 0.0045, 0.004, 0.0045], [0.0085, 0.0075, 0.006, 0.0052, 0.0065], X_alu, 'front', e=3.0, ring=8, smooth=4)
-        rr = 0.0195 if s > 0 else 0.016; rc = (px + 0.052, py + 0.03, s * 0.185)                 # brake reservoir right, the smaller clutch one left
-        cyl('resv%d' % s, rr, 0.03, rc, M_resv, 'front', axis='y', seg=18, bevel=0.003)
-        cyl('resvcap%d' % s, rr + 0.002, 0.009, (rc[0], rc[1] + 0.019, rc[2]), M_dark, 'front', axis='y', seg=18, bevel=0.002)
-        rod('resvarm%d' % s, (px + 0.045, py - 0.006, s * 0.202), (rc[0], rc[1] - 0.014, rc[2]), 0.0042, X_steel, 'front', seg=6)
+        # switch housing next to the grip; inboard of it the master cylinder with lever and fluid reservoir - the bought-in CAD part (tools/blender_parts.py), clamped round the straight of the bar
+        tube('switch%d' % s, [bar(s * 0.228), bar(s * 0.262)], 0.021, M_dark, 'front', seg=10)
+        LVP[s] = lever_set('ctl%d' % s, s, bar(s * 0.214), tuple(Vector(bar(s * 0.38)) - Vector(bar(s * 0.2))), (X_frame, X_alu, M_resv, M_dark), 'front', roll=-0.1)
     # hydraulics and cables: brake line to a splitter on the lower clamp and down the back of each leg to its caliper; clutch line and throttle cable into the frame
     HOSES = []
     mr, ml = bar(0.238), bar(-0.238); SPL = (sp(0.498)[0] + N[0] * 0.064, sp(0.498)[1] + N[1] * 0.064, 0.0)
     box('brakesplit', (0.02, 0.02, 0.04), SPL, X_alu, 'front', rot=(0, 0, RAKE), bevel=0.004)
-    hose('brakeline', [(mr[0] + 0.082, mr[1] - 0.016, 0.2), (0.47, 0.955, 0.168), (0.515, 0.868, 0.088), (SPL[0] + 0.004, SPL[1] + 0.014, 0.012)], 0.0048, X_chain, 'front', fit=X_alu)
+    def ff(sv, n, z): q = fp(sv, z); return (q[0] + N[0] * n, q[1] + N[1] * n, z)      # a point by the fork: sv up the tube from the axle, n ahead of it, z sideways
+    # the brake line leaves the master cylinder's port towards the middle, bends forward over the fork cap and runs down in front of the upper clamp, inboard of the fork tube, to the splitter
+    hose('brakeline', [LVP[1](*q) for q in LEVER_PORT] + [ff(0.768, 0.042, 0.103), ff(0.732, 0.064, 0.082), ff(0.60, 0.05, 0.06), (SPL[0] + 0.004, SPL[1] + 0.014, 0.012)], 0.0048, X_chain, 'front', fit=X_alu)
     for s in (-1, 1):
         q1, q2 = fp(0.44), fp(0.2)
         HP = [(SPL[0], SPL[1] - 0.006, s * 0.014), (q1[0] + N[0] * 0.02, q1[1] + N[1] * 0.02, s * 0.058), (fp(0.36)[0] - N[0] * 0.036, fp(0.36)[1] - N[1] * 0.036, s * 0.084),
@@ -679,8 +673,10 @@ if 'controls' in STAGES:
             d = Vector(b) - Vector(a); d.normalize(); rod('brakeleg%d_fit%d' % (s, k), tuple(Vector(a) - d * 0.004), tuple(Vector(a) + d * 0.016), 0.0045 * 1.7, X_alu, asm, seg=8)
         HOSES.append([list(q) for q in HP])
     J = (sp(0.60)[0] - N[0] * 0.05, sp(0.60)[1] - N[1] * 0.05)                 # just behind the steering head: lines pass from the bars into the frame here
-    hose('clutchline_a', [(ml[0] + 0.082, ml[1] - 0.016, -0.2), (0.46, 0.95, -0.15), (0.43, 0.875, -0.07), (J[0], J[1], -0.036)], 0.0045, X_chain, 'front', fit=X_alu)
-    hose('throttle_a', [(mr[0] + 0.025, mr[1] - 0.02, 0.222), (0.455, 0.965, 0.13), (0.43, 0.885, 0.07), (J[0], J[1], 0.036)], 0.0036, M_dark, 'front')
+    # clutch line: the same way round the left fork cap, then back under the upper clamp between fork tube and steering head; the throttle cable from its housing below the master cylinder, round the outside of the right tube and in the same way
+    hose('clutchline_a', [LVP[-1](*q) for q in LEVER_PORT] + [ff(0.768, 0.042, -0.103), ff(0.732, 0.064, -0.082), ff(0.648, 0.03, -0.052), ff(0.61, -0.04, -0.05), (J[0], J[1], -0.036)], 0.0045, X_chain, 'front', fit=X_alu)
+    th = bar(0.245)
+    hose('throttle_a', [(th[0] + 0.012, th[1] - 0.018, 0.245), ff(0.75, -0.03, 0.2), ff(0.725, 0.03, 0.168), ff(0.72, 0.066, 0.115), ff(0.655, 0.03, 0.052), ff(0.61, -0.04, 0.05), (J[0], J[1], 0.036)], 0.0036, M_dark, 'front')
     # race number plate where the headlight would be: carried on four stays clamped to the fork tubes, painted in the rider's colour
     NP = (fp(0.60)[0] + N[0] * 0.076, fp(0.60)[1] + N[1] * 0.076, 0.0)
     plate('numplate', [(u, v) for (u, v) in [(q[1], q[0]) for q in [(0.105 * math.copysign(abs(math.cos(a)) ** (2 / 3.6), math.cos(a)), 0.125 * math.copysign(abs(math.sin(a)) ** (2 / 3.6), math.sin(a))) for a in [(k + 0.5) / 36 * 6.2832 for k in range(36)]]]],
@@ -723,6 +719,7 @@ if SHOTS:
     DIRS = {'side': ((0, 0.0, 1), 0), 'sideL': ((0, 0.0, -1), 0), 'front': ((1, 0.03, 0), 0), 'rear': ((-1, 0.05, 0), 0), 'top': ((0.001, 1, 0), 0),
             'q1': ((0.8, 0.32, 1), 1), 'q2': ((0.8, 0.32, -1), 1), 'low': ((0.5, -0.12, 1), 1), 'q3': ((-0.85, 0.36, 1), 1), 'q4': ((-0.85, 0.36, -1), 1)}
     CLOSE = {'cock': ((-0.42, 1.42, 0.0), (0.45, 0.93, 0.0), 30), 'bars': ((1.25, 1.45, 0.75), (0.33, 1.0, 0.0), 70), 'tail': ((-1.75, 1.2, 0.8), (-0.5, 0.78, 0.0), 70), 'tailq': ((-1.7, 1.12, 0.75), (-0.63, 0.84, 0.0), 120), 'tailr': ((-2.3, 0.98, 0.0), (-0.7, 0.855, 0.0), 170), 'tails': ((-0.62, 0.86, 1.6), (-0.62, 0.84, 0.0), 150), 'panelR': ((0.19, 0.83, 1.3), (0.19, 0.81, 0.0), 120), 'panelL': ((0.19, 0.83, -1.3), (0.19, 0.81, 0.0), 120), 'tyre': ((1.55, 0.55, 0.55), (0.71, 0.33, 0.0), 80), 'pipe': ((-1.9, 0.75, 0.62), (-0.7, 0.5, 0.21), 110), 'bay': ((0.55, 0.75, -1.5), (0.1, 0.56, 0.0), 75), 'bayR': ((0.55, 0.75, 1.5), (0.1, 0.56, 0.0), 75)}
+    CLOSE.update(globals().get('VIEWS', {}))                # more close-ups from outside: name -> (eye, target, lens), game space
     for v in SHOTS:
         d, persp = DIRS.get(v, ((1, 0.3, 1), 1)); dv = V(*d).normalized(); ortho = not persp
         cam.data.type = 'ORTHO' if ortho else 'PERSP'; cam.data.ortho_scale = 2.35; cam.data.lens = 200

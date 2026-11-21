@@ -468,6 +468,7 @@ if 'body' in STAGES:
 # ================================================================== STAGE 4: controls, lines and footrests
 # No instruments: a supermoto of this kind carries none.
 if 'controls' in STAGES:
+    PARTS = globals().get('PARTS', '/Users/benedikt/Desktop/Apex/tools/blender_parts.py'); exec(compile(open(PARTS).read(), PARTS, 'exec'), globals())
     G_red = mat('G_smred', 'c2141a'); M_grip = mat('M_smgrip', '3a3d44'); M_dark = mat('M_dark', '1c1e22'); M_line = mat('M_smline', '121316'); HOSES = []
     def fwd(q, d, z=None): return (q[0] + N[0] * d, q[1] + N[1] * d, q[2] if z is None else z)
     # ---- handlebar: wide tapered bar on two risers, a pad over the clamps
@@ -484,38 +485,33 @@ if 'controls' in STAGES:
         rod('riser%d' % s, fwd(sp(0.872, s * 0.045), 0.012), (BC[0], BC[1] - 0.006, s * 0.045), [0.0175, 0.0155, 0.0165], X_dark, 'front', seg=14)
         cyl('barclamp%d' % s, 0.0245, 0.036, (BC[0], BC[1], s * 0.045), X_dark, 'front', seg=20, bevel=0.004)
     sweep('barpad', [(BC[0] - 0.002, BC[1] + 0.016, -0.072), (BC[0] - 0.002, BC[1] + 0.016, 0.072)], 0.034, 0.03, G_red, 'front', e=4.0, ring=16)
+    LVP = {}
     for s in (-1, 1):
         # grip, flange and end
         tube('grip%d' % s, [bar(s * 0.311), bar(s * 0.423)], 0.0168, M_grip, 'front', seg=14)
         tube('gripflange%d' % s, [bar(s * 0.304), bar(s * 0.311)], 0.0215, M_grip, 'front', seg=14)
         tube('barend%d' % s, [bar(s * 0.423), (bar(s * 0.423)[0] - 0.003, bar(s * 0.423)[1], s * 0.431)], 0.0155, M_dark, 'front', seg=12)
-        # lever perch with its pivot and a short lever that follows the sweep of the bar
-        g = bar(s * 0.268)
-        tube('perch%d' % s, [bar(s * 0.255), bar(s * 0.280)], 0.0185, X_cast, 'front', seg=12)
-        rod('perchbody%d' % s, (g[0] + 0.012, g[1] - 0.004, s * 0.268), (g[0] + 0.072, g[1] - 0.014, s * 0.265), [0.0125, 0.0115, 0.0105], X_cast, 'front', seg=12)
-        piv = (g[0] + 0.058, g[1] - 0.012, s * 0.270)
-        cyl('leverpivot%d' % s, 0.0075, 0.022, piv, X_steel, 'front', axis='y', seg=10, bevel=0.001)
-        LV = [(bar(s * z)[0] + f, bar(s * z)[1] - 0.013, s * z) for (z, f) in ((0.257, 0.05), (0.285, 0.068), (0.338, 0.063), (0.385, 0.052), (0.411, 0.043))]
-        sweep('lever%d' % s, LV, [0.006, 0.0055, 0.0045, 0.004, 0.0045], [0.0085, 0.0075, 0.006, 0.0052, 0.0065], X_alu, 'front', e=3.0, ring=8, smooth=4)
-        cyl('leverball%d' % s, 0.007, 0.012, LV[-1], X_alu, 'front', axis='y', seg=10, bevel=0.003)
-        # hand guard: a red shield in front of lever and hand, on an arm clamped to the bar
-        rows = [[(bar(s * z)[0] + f + b * t, bar(s * z)[1] - 0.006 + dy * t, s * z) for (z, f, t) in ((0.235, 0.07, 0.8), (0.293, 0.09, 1.0), (0.368, 0.088, 0.95), (0.437, 0.056, 0.6))] for (dy, b) in ((0.04, -0.03), (0.026, -0.004), (0.0, 0.006), (-0.028, -0.004), (-0.044, -0.03))]
+        # master cylinder and lever: the bought-in CAD part (tools/blender_parts.py), clamped round the bar inboard of the grip - without its tall remote reservoir, which would stand in the chest camera's view
+        LVP[s] = lever_set('ctl%d' % s, s, bar(s * 0.25), tuple(Vector(bar(s * 0.29)) - Vector(bar(s * 0.235))), (X_cast, X_alu, mat('M_smresv', 'c9c6b4'), M_dark), 'front', yaw=0.06, roll=-0.2, resv=False)
+        # hand guard: a red shield in front of lever and hand, on an arm clamped to the bar inboard of the master cylinder
+        rows = [[(bar(s * z)[0] + f + b * t, bar(s * z)[1] - 0.006 + dy * t, s * z) for (z, f, t) in ((0.225, 0.092, 0.8), (0.293, 0.112, 1.0), (0.368, 0.108, 0.95), (0.437, 0.066, 0.6))] for (dy, b) in ((0.04, -0.03), (0.026, -0.004), (0.0, 0.006), (-0.028, -0.004), (-0.044, -0.03))]
         panel('handguard%d' % s, tight(rows, 0.2), 0.004, G_red, 'front')
-        tube('guardarm%d' % s, [bar(s * 0.208), (bar(s * 0.213)[0] + 0.04, bar(s * 0.213)[1] - 0.004, s * 0.215), (bar(s * 0.238)[0] + 0.076, bar(s * 0.238)[1] - 0.004, s * 0.238)], 0.0065, M_dark, 'front', seg=8, smooth=4)
-        tube('guardclamp%d' % s, [bar(s * 0.199), bar(s * 0.217)], 0.0165, M_dark, 'front', seg=12)
+        tube('guardarm%d' % s, [bar(s * 0.168), (bar(s * 0.172)[0] + 0.05, bar(s * 0.172)[1] - 0.006, s * 0.176), (bar(s * 0.228)[0] + 0.096, bar(s * 0.228)[1] - 0.006, s * 0.228)], 0.0065, M_dark, 'front', seg=8, smooth=4)
+        tube('guardclamp%d' % s, [bar(s * 0.159), bar(s * 0.177)], 0.0165, M_dark, 'front', seg=12)
     mr, ml = bar(0.268), bar(-0.268)
-    # right: front brake master cylinder with its fluid reservoir, throttle housing. Left: cable clutch with its adjuster, kill switch.
-    box('brakeresv', (0.044, 0.028, 0.036), (mr[0] + 0.038, mr[1] + 0.02, 0.266), X_cast, 'front', bevel=0.005)
-    box('brakeresv_cap', (0.047, 0.007, 0.039), (mr[0] + 0.038, mr[1] + 0.037, 0.266), M_dark, 'front', bevel=0.002)
+    # the fluid reservoirs sit on top of the two master cylinders (brake right, clutch left). Right: throttle housing. Left: kill switch.
+    for sg in (-1, 1):
+        rv = LVP[sg](0.029, -0.028, 0.03)
+        box('resv%d' % sg, (0.036, 0.024, 0.04), rv, X_cast, 'front', bevel=0.005)
+        box('resvcap%d' % sg, (0.039, 0.007, 0.043), (rv[0], rv[1] + 0.0145, rv[2]), M_dark, 'front', bevel=0.002)
     tube('throttle', [bar(0.285), bar(0.304)], 0.021, M_dark, 'front', seg=12)
     rod('throttle_out', (bar(0.293)[0] + 0.012, bar(0.293)[1] - 0.016, 0.293), (bar(0.293)[0] + 0.042, bar(0.293)[1] - 0.03, 0.285), 0.0065, M_dark, 'front', seg=8)
     tube('killswitch', [bar(-0.285), bar(-0.300)], 0.019, M_dark, 'front', seg=12)
     cyl('killbutton', 0.006, 0.008, (bar(-0.293)[0] - 0.012, bar(-0.293)[1] + 0.017, -0.293), G_red, 'front', axis='y', seg=10, bevel=0.002)
-    rod('clutchadj', (ml[0] + 0.058, ml[1] - 0.013, -0.251), (ml[0] + 0.074, ml[1] - 0.017, -0.219), [0.0085, 0.0085, 0.005], X_steel, 'front', seg=10)
     # ---- lines on the bars. Brake: braided line from the master cylinder down behind the number plate to a guide on the lower clamp, then down the
     # back of the left leg to the caliper (that last piece has to flex with the fork: a stand-in here, the game draws it).
     G0 = fwd(fp(0.585), 0.052, -0.055)
-    hose('brakeline', [(mr[0] + 0.074, mr[1] - 0.016, 0.263), (BC[0] + 0.125, BC[1] - 0.03, 0.14), fwd(fp(0.80), 0.036, 0.03), fwd(fp(0.68), 0.04, -0.04), G0], 0.0046, X_chain, 'front', fit=X_alu)
+    hose('brakeline', [LVP[1](*q) for q in LEVER_PORT] + [(BC[0] + 0.125, BC[1] - 0.03, 0.11), fwd(fp(0.80), 0.036, 0.03), fwd(fp(0.68), 0.04, -0.04), G0], 0.0046, X_chain, 'front', fit=X_alu)
     box('brakeguide', (0.014, 0.022, 0.018), G0, M_dark, 'front', rot=(0, 0, RAKE), bevel=0.003)
     HP = [G0, fwd(fp(0.46), 0.02, -0.06), fwd(fp(0.36), -0.04, -0.084), fwd(fp(0.2), -0.052, -0.092), pol(F, 0.19, math.radians(158), -0.09)]
     tube('brakeleg', HP, 0.0045, X_chain, 'front', seg=8, smooth=6)['noexport'] = 1
@@ -523,7 +519,7 @@ if 'controls' in STAGES:
     HOSES.append([list(q) for q in HP])
     # clutch cable and throttle cable: in a bow over the clamps, behind the number plate and past the steering head into the frame
     JL, JR = fwd(sp(0.70), 0.046, -0.03), fwd(sp(0.70), 0.046, 0.032)
-    hose('clutchcable_a', [(ml[0] + 0.074, ml[1] - 0.017, -0.219), (BC[0] + 0.13, BC[1] - 0.02, -0.11), fwd(fp(0.82), 0.04, -0.045), JL], 0.0038, M_line, 'front')
+    hose('clutchcable_a', [LVP[-1](*q) for q in LEVER_PORT] + [(BC[0] + 0.13, BC[1] - 0.02, -0.1), fwd(fp(0.82), 0.04, -0.045), JL], 0.0042, M_line, 'front', fit=X_alu)
     hose('throttlecable_a', [(bar(0.293)[0] + 0.042, bar(0.293)[1] - 0.03, 0.285), (BC[0] + 0.12, BC[1] - 0.045, 0.15), fwd(fp(0.80), 0.04, 0.06), JR], 0.0036, M_line, 'front')
     # ---- lines round the engine
     if 'engine' in STAGES:
@@ -588,6 +584,7 @@ if SHOTS:
     CLOSE = {'head': ((1.35, 1.3, 0.85), (0.36, 0.9, 0.0), 75), 'pivot': ((-0.5, 0.75, -1.5), (-0.2, 0.47, 0.0), 80), 'pivotR': ((-0.5, 0.75, 1.5), (-0.2, 0.47, 0.0), 80),
              'wheelF': ((1.75, 0.6, -1.0), (0.73, 0.32, 0.0), 85), 'wheelR': ((-1.8, 0.65, -1.0), (-0.72, 0.33, 0.0), 85), 'link': ((-0.9, 0.12, -1.0), (-0.22, 0.38, 0.0), 80), 'bay': ((0.75, 0.75, 1.55), (0.1, 0.52, 0.0), 75), 'bayL': ((0.75, 0.75, -1.55), (0.1, 0.52, 0.0), 75), 'pipe': ((-1.7, 1.1, 1.3), (-0.4, 0.72, 0.1), 75), 'front34': ((1.6, 0.9, 0.9), (0.2, 0.6, 0.0), 60),
              'bars': ((1.25, 1.55, 0.75), (0.3, 1.12, 0.0), 70), 'cock': ((-0.55, 1.6, 0.25), (0.3, 1.1, 0.0), 50), 'pegR': ((-0.25, 0.62, 1.3), (-0.15, 0.42, 0.0), 80), 'pegL': ((-0.25, 0.62, -1.3), (-0.15, 0.42, 0.0), 80)}
+    CLOSE.update(globals().get('VIEWS', {}))                # more close-ups from outside: name -> (eye, target, lens), game space
     for v in SHOTS:
         d, persp = DIRS.get(v, ((1, 0.3, 1), 1)); dv = V(*d).normalized(); ortho = not persp
         cam.data.type = 'ORTHO' if ortho else 'PERSP'; cam.data.ortho_scale = 2.5; cam.data.lens = 200

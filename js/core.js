@@ -68,7 +68,7 @@
         // the harder it revs, an engine-braking howl, and a few deep bangs on the overrun and at the shift
         multi: { fire: [0, 0.25, 0.5, 0.75], rough: 0.02,
           tune: { cg: [1, 0.97, 0.99, 0.96], hd: [0, 0, 0, 0], pulse: 0.0007, header: 0.00075, silencer: 0.0009, boom: 2.4, bark: 0.75, barkHz: 900, crack: 0.6, rasp: 0.02, low: 0.7, intake: 1.5, boxHz: 300, runnerHz: 950, mech: 0.05, whine: 0.003, pops: 0.4, lump: 0, jitter: 0.000005, tail: 0.3, valve: 0.3, tiltHz: 180, gain: 1.3, drive: 1.6, fill: 0.2, step: 0.15, vnoise: 0.01, inoise: 0.03, hiss: 0.004, pack: 0.25, aa: 1, crackRise: 20000, top: 12000, boomHz: 220, barkQ: 0.8, edge: 0.9, tickQ: 1.5, popNoise: 0.2, ceil: 1, soft: 13, cgLoad: 1, dullHz: 1700, throat: 0.4, raspHz: 500, lf: [0.85, -0.5, 0.2, -0.6], lfBand: [350, 800], cgRev: [0.5, 0.82, 0.45], edgeRev: [0.5, 0.85, 0.1], midDip: [1900, -7, 0.9], edgeHz: 2200, motor: 0.3, softRev: 0.25, bang: 0.25, bangBig: 0.6, bangSmall: 0.25, limPop: 0.4, bangTone: 0.25, bangHz: 700, popMs: 4, popBig: 1.5, lfLoad: 1 } } },
-      style: { fairing: 'full', tail: 'slim', exhaust: 'under', bars: 'clipon', winglets: false, scale: 0.97 },
+      style: { fairing: 'full', model: 'corsa600', tail: 'slim', exhaust: 'under', bars: 'clipon', winglets: false, scale: 0.97 },
       livery: ['#1d52d6', '#f3f4f6', '#0c1428']
     },
     strada: {
@@ -84,7 +84,7 @@
         // 90° V4 with the twin-pulse firing order (0-90-290-380°), two banks with slightly different headers
         multi: { fire: [0, 0.125, 0.4028, 0.5278], rough: 0.09,
           tune: { cg: [1, 0.9, 1, 0.9], hd: [0, 0.00025, 0, 0.00025], pulse: 0.0006, header: 0.00095, silencer: 0.0008, boom: 1.6, bark: 1.3, barkHz: 900, crack: 1, rasp: 0.6, low: 0.5, intake: 0.9, boxHz: 260, runnerHz: 700, mech: 0.8, pops: 1.2, lump: 0.8, jitter: 0.00006, fill: 1, tiltHz: 300, tail: 0.6, valve: 0.6, step: 0.2, gain: 0.8 } } },
-      style: { fairing: 'full', tail: 'tall', exhaust: 'side', bars: 'clipon', winglets: true, scale: 1.0 }
+      style: { fairing: 'full', model: 'stradav4', tail: 'tall', exhaust: 'side', bars: 'clipon', winglets: true, scale: 1.0 }
     },
     duetto: {
       id: 'duetto', name: 'DUETTO 900', cls: 'Naked Twin', engineLabel: '890 cm³ · V2',

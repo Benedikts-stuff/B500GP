@@ -56,6 +56,15 @@ The retaining walls are built from real 3D stones taken from that layout. Up clo
 
 The alp huts and hay barns are modelled in Blender by `tools/blender_props.py`. `tools/bake_props.py` bakes their colour and ambient occlusion into one texture each and exports `blender/prop_hut.glb` and `blender/prop_barn.glb`. Those are packed into `assets/pack_props.js`. The Blender file is `blender/props.blend`.
 
+## Sport bikes (Strada V4, Corsa 600)
+Both are built by `tools/blender_sport.py` in Blender (`VARIANT` 'strada' or 'corsa', stages chassis → engine → controls → body, `EXPORT = True` bakes and writes `blender/bike_stradav4_*.glb` / `bike_corsa600_*.glb`). The brake discs and clip-ons are the CAD parts in `assets/examples/BreakDisk` and `assets/amaturen`. After an export, pack them with
+
+Duetto 900 and Motard 450 carry the same bought-in lever assembly on their one-piece handlebars: `tools/blender_parts.py` (`lever_set`) takes master cylinder, lever and reservoir from `assets/amaturen/Left_Clip_On_Assem1.stl`, leaves out the clip-on's fork clamp and bar stub and puts the master cylinder's clamp round the bar, on its axis - so the bar has to run straight there. The hydraulic lines start in the master cylinder's port (`LEVER_PORT`), which looks along the bar towards the middle of the bike. (The part's own bar droops 6°: its axis is not level - grips and switch housings of the sport bikes follow it, `BZ` in `tools/blender_sport.py`.) The Motard's goes without the tall remote reservoir (`resv=False`), which would stand in the chest camera's view.
+
+    python3 tools/pack_bikes.py stradav4 corsa600
+
+Everything the game's rig needs to know about them (pivots, linkage, chain, pipes, discs, dash, where the rider sits, helmet and chest camera) is in `SPRUNG.stradav4` / `SPRUNG.corsa600` in `js/models.js`; the export also writes those numbers to `blender/renders/sport_<variant>_export.json`. The livery is the model's own, the same for every rider.
+
 ## Riding (physics)
 - **S** front brake, **Space** rear brake (LB on a gamepad). The rear brake, engine braking and weight forward on the brakes make the rear step out: back the bike into the corner.
 - **↓ weight back / sit up**: more braking before the rear lifts (no stoppie), air brake, more rear brake bite; with throttle it lifts the front.
