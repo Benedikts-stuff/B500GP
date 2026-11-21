@@ -1039,7 +1039,7 @@
     const flGeo = new THREE.PlaneGeometry(0.06, 0.06), flMat = new THREE.MeshStandardMaterial({ roughness: 1, side: THREE.DoubleSide, emissive: new THREE.Color(0x2a2016) });
     // a flower is a few centimetres across: far away it would be a single bright pixel that twinkles as you move. Like the grass it is
     // drawn wider with distance, and it shrinks to nothing between 70 and 105 m, so flowers neither sparkle nor pop in
-    flMat.onBeforeCompile = (sh) => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nfloat fcd = distance(instanceMatrix[3].xyz, cameraPosition); transformed *= (1.0 + fcd / 22.0) * (1.0 - smoothstep(70.0, 105.0, fcd));'); };
+    flMat.onBeforeCompile = (sh) => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nfloat fcd = distance(instanceMatrix[3].xyz, cameraPosition); transformed *= (1.0 + fcd / 45.0) * (1.0 - smoothstep(70.0, 105.0, fcd));'); };
     flMat.customProgramCacheKey = () => 'ps-flower';
     const cellOf = new Map(); for (const g of stripGrass) { const k = Math.floor((g[0] - gx0) / CELL) + ',' + Math.floor((g[2] - gz0) / CELL); (cellOf.get(k) || cellOf.set(k, []).get(k)).push(g); }
     let total = 0;

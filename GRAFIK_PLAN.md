@@ -208,7 +208,16 @@ Ergebnis: Die Unruhe liegt auf dem alten Niveau. Sie steigt absolut leicht, weil
 
 Grenzen: Das ist eine Näherung aus einem Software-Renderer bei 1280×720. Sie ersetzt keine Probefahrt. Eine erste Messung in voller Fahrt war unbrauchbar, weil dort die Bewegung selbst alles überdeckt.
 
-4. **Noch offen, nur auf deinem Mac möglich:** Framerate auf „Hoch“, die ersten Sekunden nach dem Start, und der Eindruck in Fahrt in Verfolger- und Helmkamera.
+4. **Messung nach der Nachbesserung (Schatten):** Die erste Zitter-Messung oben hat das Flackern aus der Probefahrt nicht erfasst. Die neue Messung trennt die Ursache sauber ab: Die Kamera steht still, und nur das Schattenlicht wird so weitergerückt, als würde man je Bild 0,5 m fahren. Bei stehender Kamera ist jeder Pixel, der sich ändert, ein Schatten, der dem Fahrer folgt statt in der Welt zu stehen.
+
+| Stelle | Pixel, die pro Schritt sichtbar umspringen, vorher | nachher |
+|---|---|---|
+| Waldkurve (Schritt 1340) | 0,052 % | 0,000 % |
+| Lange Mauer (Schritt 4100) | 0,017 % | 0,002 % |
+
+Die Anteile wirken klein, sitzen aber gebündelt an Schattenkanten und auf Baumkronen, also genau dort, wo es geflackert hat. Dieselbe Probe für die Gras-Ausdünnung zeigt vorher wie nachher praktisch keine Änderung.
+
+5. **Noch offen, nur auf deinem Mac möglich:** Framerate auf „Hoch“, die ersten Sekunden nach dem Start, und der Eindruck in Fahrt in Verfolger- und Helmkamera.
 
 ## Nicht im Plan
 
