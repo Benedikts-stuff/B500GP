@@ -2,7 +2,7 @@
 like the Duetto, so that every step can be checked on its own. No real make's bodywork, colours or lettering are copied.
 
   STAGES   list of stages to build: 'chassis' (frame, subframe, swingarm with linkage, shock, fork, wire wheels, brakes)
-           -> 'engine' -> 'body' -> 'controls'   (only 'chassis' exists so far)
+           -> 'engine' (engine, cooling, exhaust, final drive) -> 'body' -> 'controls'   ('body' and 'controls' are still to come)
   SHOTS    list of preview views to render into blender/renders/<PREFIX>_<view>.png
   EXPORT   not yet: the game assemblies are exported once the bike is complete
 
@@ -198,6 +198,98 @@ if 'chassis' in STAGES:
     wheel('wheelF', RF, WF, RIMF, 0.046, F, 0.034, 0.041, disc=(0.155, 0.122, -0.07, 6))
     wheel('wheelR', RR, WR, RIMR, 0.066, A, 0.05, 0.047, disc=(0.11, 0.084, 0.085, 4), sprocket=(-0.092, 48, 0.121))
 
+# ================================================================== STAGE 2: engine, cooling, exhaust, final drive
+if 'engine' in STAGES:
+    X_case = mat('X_smcase', '9a9ea5'); G_cover = mat('G_smcover', '16171a'); X_cyl = mat('X_smcyl', 'aeb2b8'); X_pipe = mat('X_smpipe', 'a89f90'); X_can = mat('X_smcan', 'bfc3c8')
+    M_rubber = mat('M_smrubber', '121214'); M_core = mat('M_smcore', '101113'); M_bore = mat('M_bore', '050506'); M_plug = mat('M_smplug', 'd0381f')
+    # liquid-cooled four-stroke single, cylinder leaning 8 degrees forward. Crank ahead, gearbox behind it, output shaft just in front of the swingarm pivot.
+    EC = (0.105, 0.42); TILT = math.radians(8); ED = (math.sin(TILT), math.cos(TILT)); EP = (math.cos(TILT), -math.sin(TILT))      # crank centre, cylinder axis, forward normal
+    def ept(u, v=0.0, z=0.0): return (EC[0] + ED[0] * u + EP[0] * v, EC[1] + ED[1] * u + EP[1] * v, z)
+    SPR = (-0.055, 0.425); CL = (0.015, 0.412); WP = (0.172, 0.372)                                                                 # output sprocket, clutch centre, water pump
+    # crankcase: one casting, narrow enough to sit between the cradle rails
+    plate('crankcase', hull(circ(EC[0], EC[1], 0.104) + circ(-0.045, 0.43, 0.086) + circ(0.0, 0.338, 0.052) + circ(0.165, 0.34, 0.046)), 0.168, X_case, 'body', bevel=0.012, seg=3)
+    plate('sump', hull(circ(0.02, 0.325, 0.03, 12) + circ(0.14, 0.325, 0.03, 12)), 0.12, X_case, 'body', bevel=0.008)
+    many('casebolts', X_steel, 'body', lambda bm: [bm_tube(bm, (x, y, sg * 0.084), (x, y, sg * 0.091), 0.0055, 6) for sg in (-1, 1) for (x, y) in
+          [pol(EC, 0.094, math.radians(a))[:2] for a in (20, 75, 130)] + [(-0.105, 0.475), (-0.118, 0.40), (-0.06, 0.352), (0.04, 0.295), (0.19, 0.31)]], 40)
+    # right side: clutch under a big round cover with a machined rim, water pump ahead of it, oil filter cap below
+    lathe('clutchcover', [(0.098, 0.082), (0.098, 0.094), (0.09, 0.098), (0.082, 0.117), (0.05, 0.125), (0.0, 0.126)], G_cover, 'body', 36, (CL[0], CL[1], 0), 40)
+    lathe('clutchrim', [(0.101, 0.08), (0.101, 0.09), (0.098, 0.0935)], X_alu, 'body', 36, (CL[0], CL[1], 0), 40)
+    many('clutchbolts', X_steel, 'body', lambda bm: [bm_tube(bm, pol(CL, 0.0905, (k + 0.5) / 7 * 6.2832, 0.094), pol(CL, 0.0905, (k + 0.5) / 7 * 6.2832, 0.103), 0.0052, 6) for k in range(7)], 40)
+    lathe('clutchboss', [(0.03, 0.124), (0.03, 0.131), (0.022, 0.134), (0.0, 0.134)], X_alu, 'body', 20, (CL[0], CL[1], 0), 40)
+    lathe('waterpump', [(0.041, 0.082), (0.041, 0.106), (0.033, 0.114), (0.0, 0.115)], X_case, 'body', 24, (WP[0], WP[1], 0), 40)
+    many('pumpbolts', X_steel, 'body', lambda bm: [bm_tube(bm, pol(WP, 0.034, (k + 0.3) / 4 * 6.2832, 0.106), pol(WP, 0.034, (k + 0.3) / 4 * 6.2832, 0.113), 0.0045, 6) for k in range(4)], 40)
+    lathe('oilfilter', [(0.026, 0.082), (0.026, 0.097), (0.02, 0.101), (0.0, 0.101)], X_alu, 'body', 18, (0.105, 0.312, 0), 40)
+    # left side: generator cover on the crank, the output sprocket behind it under a guard
+    lathe('gencover', [(0.08, -0.082), (0.08, -0.098), (0.068, -0.116), (0.034, -0.123), (0.0, -0.123)], G_cover, 'body', 32, (EC[0], EC[1], 0), 40)
+    lathe('genrim', [(0.083, -0.08), (0.083, -0.09), (0.08, -0.093)], X_alu, 'body', 32, (EC[0], EC[1], 0), 40)
+    many('genbolts', X_steel, 'body', lambda bm: [bm_tube(bm, pol(EC, 0.073, k / 5 * 6.2832, -0.097), pol(EC, 0.073, k / 5 * 6.2832, -0.106), 0.0048, 6) for k in range(5)], 40)
+    lathe('sprocketF', [(0.012, -0.0975), (0.0335, -0.0965), (0.0335, -0.0885), (0.012, -0.0875)], X_steel, 'body', 20, (SPR[0], SPR[1], 0), 30)
+    plate('sprocketguard', hull(circ(SPR[0], SPR[1], 0.056) + circ(SPR[0] + 0.045, SPR[1] + 0.03, 0.03)), 0.01, M_dark, 'body', off=-0.111, bevel=0.004)
+    # cylinder, head and cam cover, stacked up the cylinder axis; the cam chain runs up a tunnel on the left
+    sweep('cylinder', [ept(0.085), ept(0.20)], 0.064, 0.063, X_cyl, 'body', e=4.5, ring=20)
+    for u in (0.105, 0.135, 0.165): sweep('cylrib%.3f' % u, [ept(u - 0.004), ept(u + 0.004)], 0.067, 0.066, X_cyl, 'body', e=4.5, ring=20)
+    sweep('cylbase', [ept(0.078), ept(0.092)], 0.073, 0.071, X_case, 'body', e=5.0, ring=20)
+    sweep('head', [ept(0.20), ept(0.214), ept(0.285), ept(0.297)], [0.066, 0.074, 0.074, 0.068], [0.066, 0.079, 0.079, 0.072], X_cyl, 'body', e=4.5, ring=20)
+    sweep('camcover', [ept(0.297), ept(0.305), ept(0.332), ept(0.342)], [0.064, 0.066, 0.063, 0.05], [0.07, 0.073, 0.068, 0.05], G_cover, 'body', e=4.0, ring=20)
+    sweep('camtunnel', [ept(0.06, 0.0, -0.072), ept(0.29, 0.0, -0.079)], 0.012, 0.03, X_cyl, 'body', e=5.0, ring=12)
+    many('headbolts', X_steel, 'body', lambda bm: [bm_tube(bm, ept(0.297, v, z), ept(0.306, v, z), 0.006, 6) for v in (-0.062, 0.062) for z in (-0.05, 0.05)], 40)
+    # spark plug cap and lead on top, into the frame
+    rod('plugcap', ept(0.335, 0.0, 0.0), ept(0.372, 0.0, 0.0), [0.013, 0.012, 0.01], M_plug, 'body', seg=10)
+    tube('pluglead', [ept(0.372, 0.0, 0.0), ept(0.40, -0.03, 0.01), ept(0.39, -0.10, 0.04), (-0.02, 0.80, 0.07)], 0.0042, M_rubber, 'body', seg=6, smooth=5)
+    # starter motor across the top of the gearbox
+    cyl('starter', 0.031, 0.105, (-0.012, 0.536, -0.012), X_alu, 'body', axis='z', seg=18, bevel=0.004); cyl('starter_end', 0.027, 0.02, (-0.012, 0.536, -0.07), G_cover, 'body', axis='z', seg=18, bevel=0.004)
+    # intake: throttle body out of the back of the head, a rubber boot on towards the airbox
+    rod('throttlebody', ept(0.262, -0.072), ept(0.305, -0.16), [0.03, 0.028, 0.028, 0.03], X_alu, 'body', seg=18)
+    rod('intakeboot', ept(0.305, -0.16), ept(0.34, -0.235), [0.033, 0.035, 0.037, 0.04], M_rubber, 'body', seg=18)
+    box('injector', (0.022, 0.05, 0.022), ept(0.325, -0.125), X_dark, 'body', rot=(0, 0, -0.6), bevel=0.005)
+    rod('exhport', ept(0.25, 0.066), ept(0.256, 0.09), 0.03, X_cyl, 'body', seg=16)
+    # the engine is hung in the frame: head stays to the spars, a mount on the down tube, two on the cradle (the swingarm pivot passes through the back of the case)
+    for sg in (-1, 1):
+        cutplate('headstay%d' % sg, hull(circ(*ept(0.30, -0.058)[:2], 0.016, 12) + circ(0.062, 0.86, 0.016, 12) + circ(-0.01, 0.815, 0.014, 12)), [circ(0.045, 0.80, 0.012, 10)], 0.006, FRAME, 'body', off=sg * 0.081)
+        plate('mountF%d' % sg, hull(circ(0.338, 0.545, 0.016, 12) + circ(0.215, 0.455, 0.015, 12)), 0.006, FRAME, 'body', off=sg * 0.03, bevel=0.0015)
+        plate('mountB%d' % sg, hull(circ(0.03, 0.272, 0.014, 12) + circ(0.03, 0.305, 0.013, 12)), 0.006, FRAME, 'body', off=sg * 0.09, bevel=0.0015)
+    for (x, y, w) in ((0.215, 0.455, 0.075), (0.03, 0.305, 0.192), (ept(0.30, -0.058)[0], ept(0.30, -0.058)[1], 0.175)): cyl('mountpin%.2f' % x, 0.0065, w, (x, y, 0), X_steel, 'body', seg=8, bevel=0)
+
+    # ---- cooling: a radiator either side of the down tube, hoses from the pump and to the head
+    RZ = math.radians(-11); crz, srz = math.cos(RZ), math.sin(RZ)
+    def rpt(o, lx, ly, dz=0.0): return (o[0] + lx * crz - ly * srz, o[1] + lx * srz + ly * crz, o[2] + dz)      # a point in a radiator's own (tilted) frame
+    for sg in (-1, 1):
+        o = (0.318, 0.75, sg * 0.108)
+        box('rad_core%d' % sg, (0.026, 0.215, 0.1), o, M_core, 'body', rot=(0, 0, RZ), bevel=0.002)
+        for k, ly in enumerate((0.117, -0.117)): box('rad_tank%d_%d' % (sg, k), (0.034, 0.024, 0.108), rpt(o, 0, ly), X_alu, 'body', rot=(0, 0, RZ), bevel=0.006)
+        many('rad_fins%d' % sg, X_alu, 'body', lambda bm: [bm_tube(bm, rpt(o, fx, -0.095 + 0.0173 * k, -0.048), rpt(o, fx, -0.095 + 0.0173 * k, 0.048), 0.0016, 4) for fx in (0.0145, -0.0145) for k in range(12)], 80)
+    cyl('rad_cap', 0.016, 0.018, rpt((0.318, 0.75, 0.108), 0.0, 0.14), X_alu, 'body', axis='y', seg=14, bevel=0.003)
+    tube('hose_pump', [(WP[0] + 0.02, WP[1] + 0.03, 0.105), (0.25, 0.47, 0.12), (0.292, 0.56, 0.13), (0.296, 0.63, 0.125)], 0.0125, M_rubber, 'body', seg=10, smooth=6)
+    tube('hose_head', [ept(0.275, 0.03, -0.074), (0.22, 0.75, -0.09), (0.275, 0.83, -0.105), (0.30, 0.86, -0.108)], 0.0125, M_rubber, 'body', seg=10, smooth=6)
+    tube('hose_cross', [(0.30, 0.64, -0.10), (0.325, 0.61, -0.05), (0.33, 0.605, 0.0), (0.325, 0.61, 0.05), (0.30, 0.64, 0.10)], 0.011, M_rubber, 'body', seg=10, smooth=6)
+
+    # ---- exhaust: the header leaves the front of the head, swings round the right of the cylinder and climbs past the frame to a silencer under the seat
+    E0 = ept(0.256, 0.09)
+    HDR = [E0, (0.277, 0.652, 0.014), (0.302, 0.59, 0.052), (0.282, 0.525, 0.1), (0.20, 0.494, 0.13), (0.07, 0.505, 0.142), (-0.06, 0.56, 0.146), (-0.18, 0.655, 0.148), (-0.275, 0.737, 0.156)]
+    tube('header', HDR, [0.0205, 0.0205, 0.0205, 0.021, 0.0215, 0.022, 0.0225, 0.0235, 0.0245], X_pipe, 'body', seg=18, smooth=8)
+    rod('hdr_flange', E0, (E0[0] + EP[0] * 0.012, E0[1] + EP[1] * 0.012, 0), 0.03, X_steel, 'body', seg=16)
+    C0, C1 = (-0.29, 0.752, 0.16), (-0.71, 0.905, 0.168); cd = Vector(C1) - Vector(C0); cl = cd.length; cd.normalize()
+    def cpt(f): return tuple(Vector(C0) + cd * (cl * f))
+    rod('can_joint', (-0.262, 0.727, 0.154), cpt(0.03), [0.0255, 0.027, 0.03], X_steel, 'body', seg=18)
+    sweep('can_cone', [cpt(0.02), cpt(0.1)], [0.03, 0.05], [0.032, 0.06], X_can, 'body', e=[2.0, 3.2], ring=24)
+    sweep('can', [cpt(0.1), cpt(0.9)], 0.05, 0.06, X_can, 'body', e=3.2, ring=24)
+    sweep('can_band0', [cpt(0.105), cpt(0.135)], 0.0515, 0.0615, X_steel, 'body', e=3.2, ring=24); sweep('can_band1', [cpt(0.84), cpt(0.87)], 0.0515, 0.0615, X_steel, 'body', e=3.2, ring=24)
+    sweep('can_end', [cpt(0.9), cpt(0.955), cpt(1.0)], [0.051, 0.048, 0.036], [0.061, 0.057, 0.042], G_cover, 'body', e=[3.2, 3.0, 2.4], ring=24, caps=False)
+    spin('can_outlet', cpt(0.93), cpt(1.012), [(0.0, 0.0), (0.0, 0.021), (1.0, 0.021), (1.0, 0.0245), (0.86, 0.0245)], M_bore, 'body', seg=18, flip=False)
+    spin('can_tip', cpt(0.985), cpt(1.015), [(0.0, 0.03), (1.0, 0.027), (1.0, 0.0215), (0.0, 0.0215)], X_steel, 'body', seg=18)
+    plate('can_bracket', hull(circ(-0.50, 0.90, 0.014, 10) + circ(*cpt(0.5)[:2], 0.014, 10)), 0.005, FRAME, 'body', off=0.108, bevel=0.0015)
+    rod('can_stay', (-0.50, 0.90, 0.09), (-0.50, 0.90, 0.125), 0.007, X_steel, 'body', seg=8)
+
+    # ---- final drive: chain round both sprockets (a stand-in here, the game draws it link by link), slider and guide on the swingarm
+    r1, r2 = 0.0365, 0.121; dx, dy = SPR[0] - A[0], SPR[1] - A[1]; Dc = math.hypot(dx, dy); phi = math.atan2(dy, dx); al = math.acos((r2 - r1) / Dc); loop = []
+    for k in range(21): loop.append(pol(A, r2, phi + al + (2 * math.pi - 2 * al) * k / 20, -0.092))
+    for k in range(13): loop.append(pol(SPR, r1, phi - al + 2 * al * k / 12, -0.092))
+    loop.append(loop[0])
+    sweep('chain', loop, 0.0085, 0.0062, X_chain, 'swing', e=4.0, ring=8, caps=False)['noexport'] = 1
+    sweep('chainslider', [(-0.165, 0.49, -0.128), (-0.25, 0.488, -0.13), (-0.34, 0.468, -0.132)], 0.014, 0.007, M_dark, 'swing', e=3.0, ring=10, smooth=3)
+    plate('chainguide', [(-0.60, 0.292), (-0.545, 0.292), (-0.535, 0.252), (-0.605, 0.238)], 0.03, M_dark, 'swing', off=-0.095, bevel=0.005)
+    plate('guidemount', [(-0.585, 0.345), (-0.555, 0.345), (-0.552, 0.288), (-0.59, 0.288)], 0.006, X_swing, 'swing', off=-0.118, bevel=0.0015)
+
 res = {k: sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in L) for k, L in ASM.items() if L}
 
 # ------------------------------------------------------------------ preview shots (workbench: quick, clean, shows the form)
@@ -215,7 +307,7 @@ if SHOTS:
     DIRS = {'side': ((0, 0.0, 1), 0), 'sideL': ((0, 0.0, -1), 0), 'front': ((1, 0.03, 0), 0), 'rear': ((-1, 0.05, 0), 0), 'top': ((0.001, 1, 0), 0),
             'q1': ((0.8, 0.32, 1), 1), 'q2': ((0.8, 0.32, -1), 1), 'low': ((0.5, -0.12, 1), 1), 'q3': ((-0.85, 0.36, 1), 1), 'q4': ((-0.85, 0.36, -1), 1)}
     CLOSE = {'head': ((1.35, 1.3, 0.85), (0.36, 0.9, 0.0), 75), 'pivot': ((-0.5, 0.75, -1.5), (-0.2, 0.47, 0.0), 80), 'pivotR': ((-0.5, 0.75, 1.5), (-0.2, 0.47, 0.0), 80),
-             'wheelF': ((1.75, 0.6, -1.0), (0.73, 0.32, 0.0), 85), 'wheelR': ((-1.8, 0.65, -1.0), (-0.72, 0.33, 0.0), 85), 'link': ((-0.9, 0.12, -1.0), (-0.22, 0.38, 0.0), 80)}
+             'wheelF': ((1.75, 0.6, -1.0), (0.73, 0.32, 0.0), 85), 'wheelR': ((-1.8, 0.65, -1.0), (-0.72, 0.33, 0.0), 85), 'link': ((-0.9, 0.12, -1.0), (-0.22, 0.38, 0.0), 80), 'bay': ((0.75, 0.75, 1.55), (0.1, 0.52, 0.0), 75), 'bayL': ((0.75, 0.75, -1.55), (0.1, 0.52, 0.0), 75), 'pipe': ((-1.7, 1.1, 1.3), (-0.4, 0.72, 0.1), 75), 'front34': ((1.6, 0.9, 0.9), (0.2, 0.6, 0.0), 60)}
     for v in SHOTS:
         d, persp = DIRS.get(v, ((1, 0.3, 1), 1)); dv = V(*d).normalized(); ortho = not persp
         cam.data.type = 'ORTHO' if ortho else 'PERSP'; cam.data.ortho_scale = 2.5; cam.data.lens = 200
