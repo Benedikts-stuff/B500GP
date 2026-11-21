@@ -22,7 +22,7 @@
       noteRace: 'Massenstart auf der Passstraße gegen KI-Fahrer. Wer zuerst oben ist, gewinnt.', noteSettings: 'Grafik, Lenkhilfe, Lautstärke und Sprache.', noteControls: 'Alle Tasten und ein paar Fahrtipps.',
       nav: [['↑ ↓', 'WÄHLEN'], ['← →', 'ÄNDERN'], ['Enter', 'OK'], ['Esc', 'ZURÜCK']], noteStart: 'Los geht’s.',
       camNote: { chase: 'Hinter dem Motorrad, schwenkt sanft mit.', pov: 'Cockpit-Sicht über dem Tank, ruhig geführt.', chest: 'Kamera auf der Brust: geht mit dem Fahrer mit, Arme und Knie im Bild.', tv: 'Hoch von oben, wie eine Übersichtskarte.' },
-      qNote: { low: 'Für ältere Rechner und Laptops.', medium: 'Ausgewogen, mit weichem Licht.', high: 'Alles an, inklusive Umgebungsverschattung. Für starke Grafikkarten.' },
+      qNote: { low: 'Für ältere Rechner: weniger Gras, kleinere Schatten.', medium: 'Ausgewogen: scharfes Bild, etwas weniger Gras.', high: 'Volle Schärfe, volles Gras, feinste Schatten. Wird es zu langsam, senkt das Spiel die Auflösung selbst.' },
       volNote: 'Gesamtlautstärke. M schaltet im Spiel stumm.', langNote: 'Sprache der Menüs.', oppNote: 'Anzahl der KI-Fahrer.', diffNote: 'Wie schnell die KI fährt.',
       length: 'LÄNGE', hairpins: 'KEHREN', climb: 'HÖHE', yourBest: 'DEINE BESTZEIT', sector: 'SEKTOR', gold: 'GOLD', silver: 'SILBER', bronze: 'BRONZE', toBest: 'ZUR BESTZEIT', firstRun: 'ERSTE ZEIT',
       ctlRide: 'FAHREN', ctlBody: 'KÖRPER', ctlMore: 'SONSTIGES',
@@ -44,7 +44,7 @@
       noteRace: 'Mass start on the pass road against AI riders. First to the top wins.', noteSettings: 'Graphics, steer assist, volume and language.', noteControls: 'Every key and a few riding tips.',
       nav: [['↑ ↓', 'SELECT'], ['← →', 'CHANGE'], ['Enter', 'OK'], ['Esc', 'BACK']], noteStart: 'Let’s go.',
       camNote: { chase: 'Behind the bike, swings round gently.', pov: 'Cockpit view over the tank, steady.', chest: 'Camera on the chest: moves with the rider, arms and knees in shot.', tv: 'High overhead, like a map.' },
-      qNote: { low: 'For older computers and laptops.', medium: 'Balanced, with soft light.', high: 'Everything on, including ambient occlusion. For strong graphics cards.' },
+      qNote: { low: 'For older computers: less grass, smaller shadows.', medium: 'Balanced: a sharp picture, slightly less grass.', high: 'Full sharpness, full grass, finest shadows. If it runs slow, the game lowers the resolution by itself.' },
       volNote: 'Master volume. M mutes in game.', langNote: 'Menu language.', oppNote: 'Number of AI riders.', diffNote: 'How fast the AI rides.',
       length: 'LENGTH', hairpins: 'HAIRPINS', climb: 'CLIMB', yourBest: 'YOUR BEST', sector: 'SECTOR', gold: 'GOLD', silver: 'SILVER', bronze: 'BRONZE', toBest: 'TO YOUR BEST', firstRun: 'FIRST TIME',
       ctlRide: 'RIDING', ctlBody: 'BODY', ctlMore: 'MORE',
@@ -57,7 +57,7 @@
 
   /* ------------------------------------------------------------------ settings */
   const KEY = 'apex3_settings';
-  const S = Object.assign({ lang: (navigator.language || 'de').toLowerCase().startsWith('de') ? 'de' : 'en', bike: 'strada', track: 'pass', mode: 'tt', laps: 3, opp: 5, diff: 1, assist: 'pro', cam: 'chase', quality: 'medium', vol: 0.8, kbAssist: 'on', look: 'on' },
+  const S = Object.assign({ lang: (navigator.language || 'de').toLowerCase().startsWith('de') ? 'de' : 'en', bike: 'strada', track: 'pass', mode: 'tt', laps: 3, opp: 5, diff: 1, assist: 'pro', cam: 'chase', quality: 'high', vol: 0.8, kbAssist: 'on', look: 'on', sky: 'violet' },
     (() => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } })());
   S.track = 'pass';                               // the circuits are out of the menu for now
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) { /* private mode */ } };
@@ -83,12 +83,14 @@
   window.APEX = G;   // handy for debugging in the console
 
   function resize() {
-    // render scale: Retina screens at full 2x would quadruple the pixels; the dynamic factor drops further if frames run long
-    const w = window.innerWidth, h = window.innerHeight; const cap = S.quality === 'high' ? 1.5 : S.quality === 'medium' ? 1.0 : 0.8;
-    const pr = Math.max(0.5, Math.min(window.devicePixelRatio || 1, cap) * G.dyn); renderer.setPixelRatio(pr); renderer.setSize(w, h, false);
+    // render scale: sharpness comes first. Each level renders the screen's own pixels up to a cap and a pixel budget (so a 4K or
+    // 5K screen does not ask for four times the work); the dynamic factor drops further if frames run long
+    const w = window.innerWidth, h = window.innerHeight; const cap = S.quality === 'high' ? 2.0 : S.quality === 'medium' ? 1.5 : 1.0;
+    const budget = S.quality === 'high' ? 5.2e6 : S.quality === 'medium' ? 3.2e6 : 1.7e6;
+    const pr = Math.max(0.5, Math.min(window.devicePixelRatio || 1, cap, Math.sqrt(budget / Math.max(1, w * h))) * G.dyn); renderer.setPixelRatio(pr); renderer.setSize(w, h, false);
     camera.aspect = w / h; camera.updateProjectionMatrix(); G.pr = pr;
     post.aoOn = S.quality === 'high' && !AX.LOOK; post.aoFar = 140;
-    post.enabled = true; post.setSize(Math.round(w * pr), Math.round(h * pr), S.quality === 'low' ? 0 : pr <= 1.1 ? 4 : 2);
+    post.enabled = true; post.setSize(Math.round(w * pr), Math.round(h * pr), S.quality === 'low' || pr >= 1.75 ? 2 : 4);
   }
   window.addEventListener('resize', resize);
 

@@ -24,7 +24,7 @@ The main mode is now a hill climb on a fictional Swiss-style pass: 2.3 km, 145 m
 - **Time trial** (default): start lights, then ride to the summit against your ghost, with a live delta and distance-to-summit/altitude in the HUD.
 - **Race**: same climb against AI riders.
 - **Cameras** (C): chase (default), helmet cam, top-down.
-- Defaults: Strada V4, assists off, graphics medium. The old circuits are still in the menu.
+- Defaults: Strada V4, assists off, graphics high. The old circuits are still in the menu.
 
 ## What's in it
 - **Physics** (`js/physics.js`): steering asks for a lean angle and the bike has to roll into it. One friction circle per tyre, so too much throttle while leaned slides the rear and leaves a black line, and braking while leaned pushes the front. Wheelies and stoppies come from the real weight transfer. Automatic 6-speed gearbox, rev limiter, engine braking. Surfaces are tarmac, kerbs, grass and gravel traps. Crashes: lowside, highside, loop-out, over the bars, wall impact, contact.

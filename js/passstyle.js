@@ -261,7 +261,9 @@
     sc.fog = new THREE.Fog(0xffffff, 44.5, 420);
     this.hemi = new THREE.HemisphereLight(P.hemiSky, P.hemiGround, P.hemiI); sc.add(this.hemi);
     const sun = this.sun = new THREE.DirectionalLight(P.sun, P.sunI); this.sunDir = SUN.clone();
-    sun.castShadow = true; sun.shadow.mapSize.set(4096, 4096); this.shadowR = 70;
+    const QL = this.q === 'low' ? 0 : this.q === 'medium' ? 1 : 2;       // the graphics level: shadow map and grass density here, resolution in game.js
+    const SM = QL === 0 ? 2048 : 4096;
+    sun.castShadow = true; sun.shadow.mapSize.set(SM, SM); this.shadowR = 70;
     Object.assign(sun.shadow.camera, { left: -70, right: 70, top: 70, bottom: -70, near: 120, far: 430 });
     sun.shadow.radius = 4; sun.shadow.bias = -0.0003; sun.shadow.normalBias = 0.03; sc.add(sun); sc.add(sun.target);
     {   // a soft environment for the bike's paint and visor, in the sky's colours
@@ -685,7 +687,7 @@
       const mid = surf(x0 + CELL / 2, z0 + CELL / 2), sg = cellOf.get(Math.round((x0 - gx0) / CELL) + ',' + Math.round((z0 - gz0) / CELL));
       if (mid.e > 130 + CELL && !sg) continue;
       const mats = [], fl = [], fc = [], gn = []; let y0 = 1e9, y1 = -1e9;
-      const cnt = Math.round(CELL * CELL * 9);
+      const cnt = Math.round(CELL * CELL * 9 * (QL === 0 ? 0.5 : QL === 1 ? 0.75 : 1));   // a fixed share per graphics level, the same at every distance
       const put = (x, y, z, hgt, nx, ny, nz) => {
         gn.push(nx, ny, nz);
         eu.set((rng() - 0.5) * 0.2, rng() * 6.283, (rng() - 0.5) * 0.2); qq.setFromEuler(eu); const wd = 0.9 + rng() * 0.35; sv.set(wd, hgt, wd); pv.set(x, y, z); m4.compose(pv, qq, sv); mats.push(m4.clone());
