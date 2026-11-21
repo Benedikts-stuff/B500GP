@@ -144,38 +144,46 @@
     m.customProgramCacheKey = () => 'ps-road';
     return m;
   }
-  // dry-stone wall: irregular flat stones (Voronoi cells stretched along the wall), soft joints, a slight bevel on every stone;
-  // joints and bevels fade out with distance, so far walls never shimmer
+  // dry-stone wall: flat stones laid in courses that rise and dip a little along the wall; every stone its own length and tone,
+  // narrow soft joints, a light upper and a darker lower edge. Joints and tone differences fade as stones shrink to a pixel,
+  // so far walls are one calm colour and never shimmer
   function stoneMat() {
     const m = new THREE.MeshStandardMaterial({ roughness: 0.96, metalness: 0, side: THREE.DoubleSide });
     m.onBeforeCompile = (sh) => {
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 aSt; varying vec2 vSt;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvSt = aSt;');
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
+      sh.fragmentShader = MATTE(sh.fragmentShader).replace('#include <common>', `#include <common>
         varying vec2 vSt;
-        vec2 h22(vec2 p){ p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3))); return fract(sin(p) * 43758.5453); }
-        vec3 vorB(vec2 x){
-          vec2 n = floor(x), f = fract(x), mg = vec2(0.0), mr = vec2(0.0); float md = 8.0;
-          for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) { vec2 g = vec2(float(i), float(j)), o = h22(n + g) * 0.7 + 0.15, r = g + o - f; float d = dot(r, r); if (d < md) { md = d; mr = r; mg = g; } }
-          md = 8.0;
-          for (int j = -2; j <= 2; j++) for (int i = -2; i <= 2; i++) { vec2 g = mg + vec2(float(i), float(j)), o = h22(n + g) * 0.7 + 0.15, r = g + o - f; if (dot(mr - r, mr - r) > 1e-5) md = min(md, dot(0.5 * (mr + r), normalize(r - mr))); }
-          return vec3(md, n + mg);
+        float sH(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+        // one course of stones: x = stone id, y = distance to the nearer end of the stone (m), z = stone length (m)
+        vec3 sCourse(float u, float row){
+          float L = 0.34 + 0.2 * sH(vec2(row, 3.7)), x = u / L + sH(vec2(row, 9.1)) * 13.0, i = floor(x), f = x - i;
+          float e0 = (sH(vec2(i, row)) - 0.5) * 0.64, e1 = 1.0 + (sH(vec2(i + 1.0, row)) - 0.5) * 0.64;
+          if (f < e0) { i -= 1.0; e1 = e0; e0 = -1.0 + (sH(vec2(i, row)) - 0.5) * 0.64; }
+          else if (f > e1) { i += 1.0; e0 = e1; e1 = 2.0 + (sH(vec2(i + 1.0, row)) - 0.5) * 0.64; }
+          return vec3(i, min(f - e0, e1 - f) * L, (e1 - e0) * L);
         }`)
         .replace('#include <color_fragment>', `#include <color_fragment>
-          vec2 sp = vSt * vec2(1.45, 3.6) + vec2(0.0, 0.18 * sin(vSt.x * 0.7));
-          vec3 v = vorB(sp);
-          float aa = length(fwidth(sp));
-          float fade = 1.0 - smoothstep(0.18, 0.5, aa);
-          float joint = 1.0 - smoothstep(0.018, 0.018 + aa * 1.3, v.x);
-          float bevel = 1.0 - smoothstep(0.0, 0.16, v.x);
-          float hs = fract(sin(dot(v.yz, vec2(12.9898, 78.233))) * 43758.5453), hs2 = fract(hs * 17.13);
-          vec3 c = mix(${v3(P.stoneA)}, ${v3(P.stoneB)}, hs) * (0.84 + 0.24 * hs2);
-          c = mix(c, c * vec3(1.06, 0.98, 0.88), step(0.78, hs2) * 0.7);
-          c = mix(c, c * vec3(0.92, 0.95, 1.02), step(hs2, 0.18) * 0.7);
-          c *= 1.0 - (0.1 * bevel + 0.32 * joint) * fade;
-          c *= 1.0 - 0.18 * (1.0 - smoothstep(0.0, 0.5, vSt.y));
+          const float RH = 0.2;
+          float vw = (vSt.y + 0.034 * sin(vSt.y * 9.7 + 0.6)) / RH + 0.13 * sin(vSt.x * 0.83) + 0.06 * sin(vSt.x * 2.37 + 1.3);      // courses of unequal height that rise and dip
+          float row = floor(vw), fy = vw - row;
+          vec3 st = sCourse(vSt.x, row);
+          float px = max(length(vec2(dFdx(vSt.x), dFdy(vSt.x))), length(vec2(dFdx(vSt.y), dFdy(vSt.y))));      // metres of wall per pixel
+          float fade = 1.0 - smoothstep(0.02, 0.07, px), tone = 1.0 - smoothstep(0.03, 0.1, px);
+          float dEdge = min(st.y, min(fy, 1.0 - fy) * RH);
+          float joint = 1.0 - smoothstep(0.007, 0.007 + px * 1.4, dEdge);
+          float hs = sH(vec2(st.x, row * 1.7 + 0.3)), hs2 = fract(hs * 17.13), hs3 = fract(hs * 91.7);
+          vec3 c = mix(${v3(P.stoneA)}, ${v3(P.stoneB)}, hs) * (0.93 + 0.14 * hs2);
+          c = mix(c, c * vec3(1.07, 0.99, 0.9), step(0.8, hs3) * 0.8);
+          c = mix(c, c * vec3(0.93, 0.96, 1.03), step(hs3, 0.16) * 0.8);
+          c = mix(${v3(P.stoneA.clone().lerp(P.stoneB, 0.5))}, c, tone);
+          // each stone a little rounded: lighter where its upper edge catches the sky, darker along its foot
+          float up = smoothstep(0.78, 1.0, fy) * (1.0 - joint), low = 1.0 - smoothstep(0.0, 0.3, fy);
+          c *= 1.0 + (0.07 * up - 0.06 * low - 0.05 * (1.0 - smoothstep(0.0, 0.03, st.y))) * fade;
+          c *= 1.0 - 0.3 * joint * fade;
+          c *= 1.0 - 0.12 * (1.0 - smoothstep(0.0, 0.5, vSt.y));
           diffuseColor.rgb = c;`);
     };
-    m.customProgramCacheKey = () => 'ps-stone2';
+    m.customProgramCacheKey = () => 'ps-stone3';
     return m;
   }
   function grassMat() {
