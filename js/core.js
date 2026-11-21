@@ -96,6 +96,13 @@
   };
   AX.BIKE_ORDER = ['corsa', 'strada', 'duetto'];
 
+  /* Engine sounds that no bike uses yet. A bike picks one up with `engine: AX.ENGINES.single450`.
+     single450: 450 cm³ supermoto single, tuned for redline 11500 and idle 1900. kind 'single' selects the single-cylinder
+     voice in audio.js; `tune` overrides its defaults (soundlab.html has a slider for each key and prints the values). */
+  AX.ENGINES = {
+    single450: { cyl: 1, kind: 'single', fire: [0], rough: 0.14, pipe: 0.004, bright: 1, body: 1, tune: {} }
+  };
+
   /* The supermoto: a light 450 single on 17-inch slicks. Its model has no instruments (style.dash) and brings its own colours. */
   AX.BIKES.supermoto = {
     id: 'supermoto', name: 'MOTARD 450', cls: 'Supermoto', engineLabel: '449 cm³ · 1 Zyl.',
@@ -109,13 +116,6 @@
     style: { fairing: 'naked', model: 'supermoto', tail: 'slim', exhaust: 'side', bars: 'wide', winglets: false, scale: 1.0, dash: false }
   };
   AX.BIKE_ORDER.push('supermoto');
-
-  /* Engine sounds that no bike uses yet. A bike picks one up with `engine: AX.ENGINES.single450`.
-     single450: 450 cm³ supermoto single, tuned for redline 11500 and idle 1900. kind 'single' selects the single-cylinder
-     voice in audio.js; `tune` overrides its defaults (soundlab.html has a slider for each key and prints the values). */
-  AX.ENGINES = {
-    single450: { cyl: 1, kind: 'single', fire: [0], rough: 0.14, pipe: 0.004, bright: 1, body: 1, tune: {} }
-  };
 
   AX.torqueAt = (spec, n) => {
     const c = spec.torqueShape;
