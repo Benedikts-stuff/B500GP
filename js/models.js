@@ -370,7 +370,8 @@
      travel the shock's eye moves if those parts are missing (0: the eye sits on the swingarm itself)
      chain: [gearbox sprocket radius, wheel sprocket radius, z, number of links] · hose: front brake line, top to caliper, and the sides that have one
      tyre: half axes of the tyres' cross-sections (rear a/b, front a/b) · plate: number on the front plate [x, y, size] · side: number on the side panels
-     ex: where the pipe ends, which way it points, how wide it is · bar: the grips [x, y, z] · fit: where the rider sits (hips, shoulders upright and tucked, boots)
+     ex: where the pipe ends, which way it points, how wide it is · bar: the grips [x, y, z] · grip: the middle of the right grip and the way its tube points [x, y, z, ax, ay, az], lever: where the lever passes under index
+     and middle finger, seen from the grip's axis [ahead, up] · fit: where the rider sits (hips, shoulders upright and tucked, boots)
      and, optionally, how he rides: style 'motard' = he stays upright on top of the bike and pushes it down into the corner, elbows up, inside leg
      out in front. No bike uses it at present: the supermoto's rider hangs off like the others, knee and elbow down;
      leanVis: the furthest the bike is ever drawn leaned over [rad] (its bars and guards stay clear of the road);
@@ -379,13 +380,13 @@
      centre line (Duetto, Motard). steerMax: the furthest the bars are drawn turned [rad]. gripFollow: the hands stay on the grips as the bars turn.
      fit.chestLegs false: thighs, knees and upper arms are left out of the chest camera's picture (on a sport bike they sit right beside it) */
   const SPRUNG = {
-    duetto: { wb: 1.42, Rr: 0.325, Rf: 0.315, rake: 24, head: [0.398, 0.932], PIV: [-0.15, 0.43], S0: [-0.20, 0.716], S1: [-0.325, 0.458], SPR: [-0.075, 0.445], chain: [0.0385, 0.1095, -0.118, 108],
+    duetto: { grip: [0.3047, 1.0561, 0.3265, -0.2698, 0.0156, 0.9628], lever: [0.052, -0.020], wb: 1.42, Rr: 0.325, Rf: 0.315, rake: 24, head: [0.398, 0.932], PIV: [-0.15, 0.43], S0: [-0.20, 0.716], S1: [-0.325, 0.458], SPR: [-0.075, 0.445], chain: [0.0385, 0.1095, -0.118, 108],
       hose: [[0.53485, 0.77615, 0.014], [0.54931, 0.72509, 0.058], [0.53069, 0.62923, 0.084], [0.58663, 0.4790, 0.092], [0.54505, 0.35613, 0.09]], hoseSides: [-1, 1],
       tyre: { ar: 0.0525, br: 0.1034, af: 0.0475, bf: 0.061 }, plate: [0.5395, 0.8957, 0.2], heat: true, gripFollow: true, ex: [[-0.795, 0.532, 0.232], [-0.866, 0.483, 0.129], 0.036] },
     supermoto: { wb: 1.47, Rr: 0.315, Rf: 0.30, rake: 26.5, head: [0.387, 0.953], PIV: [-0.145, 0.445], S0: [-0.05, 0.795], S1: [-0.165, 0.375], SPR: [-0.055, 0.425], chain: [0.0365, 0.121, -0.097, 114],
       hose: [[0.5206, 0.8468, 0.055], [0.5477, 0.7206, 0.06], [0.5386, 0.6044, 0.084], [0.5993, 0.4558, 0.092], [0.5588, 0.3712, 0.09]], hoseSides: [-1],
       travel: 1.6, forkMax: 0.17, link: 0.36, gripFollow: true, linkage: { F0: [-0.09, 0.31], R0: [-0.34, 0.36], R2: [-0.144, 0.265] }, tyre: { ar: 0.040, br: 0.0885, af: 0.0365, bf: 0.0632 }, plate: [0.5026, 0.9993, 0.125], side: [-0.275, 0.818, 0.1295, 0.082], ex: [[-0.757, 0.8175, 0.188], [-0.886, 0.464, 0.022], 0.0215],
-      bar: [0.286, 1.174, 0.367], fit: { hip: [-0.15, 0.985], sh: [0.045, 1.467, 0.185, 1.385], foot: [-0.20, 0.40, 0.172], leanVis: 1.14, pov: [-0.15, 1.66, 0.36], chest: [0.125, 0.55, 0.42] } },
+      bar: [0.286, 1.174, 0.367], grip: [0.2853, 1.1939, 0.367, -0.1582, 0.01, 0.9874], lever: [0.050, -0.013], fit: { hip: [-0.15, 0.985], sh: [0.045, 1.467, 0.185, 1.385], foot: [-0.20, 0.40, 0.172], leanVis: 1.14, pov: [-0.15, 1.66, 0.36], chest: [0.125, 0.55, 0.42] } },
     /* the two sport bikes (tools/blender_sport.py): faired, clip-ons, a clear screen, a dash of their own (dash: centre of its glass and how far it leans back from upright, in degrees),
        two megaphones on the V4 (ex: under the tail, ex2: low on the right). clear: the screen is clear glass. heat: where the brake discs' friction rings are
        (f / r: inner radius, outer radius, z) and where the glow sits in each pipe ([place, direction, radius]). side: number on the tail's flanks [x, y, z, size, tilt] */
@@ -394,14 +395,14 @@
       forkMax: 0.12, link: 0.4, linkage: { F0: [-0.165, 0.3], R0: [-0.36, 0.338], R2: [-0.22, 0.255] }, tyre: { ar: 0.0546, br: 0.1, af: 0.042, bf: 0.06 }, clear: true,
       ex: [[-0.6409, 0.7992, 0], [-0.9871, 0.1601, 0], 0.031], ex2: [[-0.3622, 0.2678, 0.1142], [-0.9751, 0.2065, 0.0803], 0.033],
       heat: { f: [0.119, 0.154, 0.069], r: [0.0844, 0.1093, 0.118], glow: [[[-0.6093, 0.7941, 0], [-0.9871, 0.1601, 0], 0.03], [[-0.331, 0.2612, 0.1117], [-0.9751, 0.2065, 0.0803], 0.031]] },
-      bar: [0.3977, 0.8831, 0.2778], dash: [0.52, 0.985, 52], povMove: [0.2, 0.13, 0.2], steerMax: 0.4, gripFollow: true, side: [-0.44, 0.852, 0.125, 0.07, -0.43],
+      bar: [0.3977, 0.8831, 0.2778], grip: [0.3979, 0.8832, 0.2774, -0.4252, -0.3042, 0.8524], lever: [0.066, 0.009], dash: [0.52, 0.985, 52], povMove: [0.2, 0.13, 0.2], steerMax: 0.4, gripFollow: true, side: [-0.44, 0.852, 0.125, 0.07, -0.43],
       fit: { hip: [-0.25, 0.87], sh: [0.17, 1.16, 0.26, 1.07], foot: [-0.225, 0.475, 0.215], pov: [-0.04, 1.37, 0.36], chest: [-0.03, 0.47, 0.36], chestLegs: false } },
     corsa600: { wb: 1.38, Rr: 0.317, Rf: 0.30, rake: 24, head: [0.4145, 0.8451], PIV: [-0.1, 0.43], S0: [-0.145, 0.665], S1: [-0.208, 0.325], SPR: [-0.0287, 0.435], chain: [0.0407, 0.1037, -0.122, 110],
       hose: [[0.5461, 0.746, 0.02], [0.5466, 0.6959, 0.07], [0.5269, 0.5558, 0.093], [0.5538, 0.4583, 0.099], [0.5084, 0.3127, 0.085]], hoseSides: [-1, 1],
       forkMax: 0.12, link: 0.4, linkage: { F0: [-0.13, 0.3], R0: [-0.325, 0.338], R2: [-0.185, 0.255] }, tyre: { ar: 0.0505, br: 0.096, af: 0.042, bf: 0.06 }, clear: true,
       ex: [[-0.3272, 0.2678, 0.1142], [-0.9751, 0.2065, 0.0803], 0.031],
       heat: { f: [0.119, 0.154, 0.069], r: [0.0844, 0.1093, 0.114], glow: [[[-0.296, 0.2612, 0.1117], [-0.9751, 0.2065, 0.0803], 0.03]] },
-      bar: [0.3627, 0.8831, 0.2778], dash: [0.485, 0.985, 52], povMove: [0.2, 0.13, 0.2], steerMax: 0.4, gripFollow: true, side: [-0.405, 0.852, 0.125, 0.07, -0.43],
+      bar: [0.3627, 0.8831, 0.2778], grip: [0.3629, 0.8832, 0.2774, -0.4252, -0.3042, 0.8524], lever: [0.066, 0.009], dash: [0.485, 0.985, 52], povMove: [0.2, 0.13, 0.2], steerMax: 0.4, gripFollow: true, side: [-0.405, 0.852, 0.125, 0.07, -0.43],
       fit: { hip: [-0.215, 0.87], sh: [0.156, 1.16, 0.246, 1.07], foot: [-0.19, 0.475, 0.215], pov: [-0.075, 1.37, 0.36], chest: [-0.03, 0.47, 0.36], chestLegs: false } }
   };
   function buildBike(spec, rider, opts) {
@@ -626,6 +627,12 @@
       const pivM = new THREE.Matrix4().compose(steerHead, steerPivot.quaternion, V3(1, 1, 1));
       riderRig.gripAt = (out, sg) => { steerG.updateMatrix(); return out.set(barX, barY + 0.02, sg * barZ).applyMatrix4(inv).applyMatrix4(steerG.matrix).applyMatrix4(pivM); };
     }
+    if (MD && MD.grip && riderRig.hands) {      // modelled hands: the middle of the grip and the way its tube points, turned with the bars; where the lever lies from there
+      const G = MD.grip, gx = hx - MD.wb / 2 + G[0], pivM = MD.gripFollow ? new THREE.Matrix4().compose(steerHead, steerPivot.quaternion, V3(1, 1, 1)) : null, _g = V3();
+      const turn = (v) => pivM ? v.applyMatrix4(inv).applyMatrix4(steerG.matrix).applyMatrix4(pivM) : v;
+      riderRig.gripFrame = (pos, axis, sg) => { if (pivM) steerG.updateMatrix(); turn(pos.set(gx, G[1], sg * G[2])); turn(axis.set(gx + sg * G[3], G[1] + sg * G[4], sg * G[2] + G[5])).sub(pos).normalize(); };
+      if (MD.lever) riderRig.lever = MD.lever;
+    }
 
     rootG.traverse((o) => { if (o.isMesh && o !== shadow) { o.castShadow = !o.userData.decal && !o.isInstancedMesh; o.receiveShadow = false; } });
     // signs of heat: a dull glow deep in the exhaust, brake discs that begin to glow after a few hard stops (looks only). heat: true = the Duetto's own places
@@ -787,9 +794,13 @@
       for (const [re, tag, c2] of [[/accent/, ':accent', accent], [/slider/, ':slider', SLIDER]]) if (has(re)) { const c = new THREE.Mesh(RB.geo(key + tag, () => mergeAsset('rider/' + name, null, (n) => re.test(n))), mats.suit); c.userData.rb = { key: key + tag, col: c2 }; m.add(c); }
       return m; };
     const ball = (r, col, sx, sy, sz) => { const m = new THREE.Mesh(RB.geo('sph', sphGeo), mats.suit); m.userData.rb = { key: 'sph', col, scale: new THREE.Matrix4().makeScale(r * (sx || 1), r * (sy || 1), r * (sz || 1)) }; g.add(m); return m; };
-    const parts = { arms: [], legs: [] };
+    const parts = { arms: [], legs: [] }, HANDS = RM && AX.Assets.has('rider/gloveR') && AX.Assets.has('rider/fingersR') && AX.Assets.has('rider/tipsR');
     for (let s = 0; s < 2; s++) {
-      parts.arms.push({ up: limb(0.074, 0.062, suit), lo: limb(0.062, 0.05, suit), sh: ball(RM ? 0.074 : 0.084, accent), el: ball(RM ? 0.058 : 0.064, suit), hand: part('glove', 0x1b1c20, () => ball(0.06, dark, 1.3, 0.85, 1)) });
+      // hands: a glove closed round the grip (right and left are mirror images); index and middle finger are a piece of their own, hinged on the knuckle line
+      const hn = s ? 'R' : 'L', hand = part('glove' + hn, 0x1b1c20, () => part('glove', 0x1b1c20, () => ball(0.06, dark, 1.3, 0.85, 1)));
+      const fingers = HANDS ? part('fingers' + hn, 0x1b1c20, () => null) : null, tips = HANDS ? part('tips' + hn, 0x1b1c20, () => null) : null;
+      if (fingers) { hand.add(fingers); fingers.position.set(HAND.kn[0], HAND.kn[1], 0); fingers.add(tips); tips.position.set(HAND.l1, 0, 0); }
+      parts.arms.push({ up: limb(0.074, 0.062, suit), lo: limb(0.062, 0.05, suit), sh: ball(HANDS ? 0.070 : RM ? 0.074 : 0.084, accent), el: ball(HANDS ? 0.052 : RM ? 0.058 : 0.064, suit), hand, fingers, tips });
       parts.legs.push({ up: limb(0.104, 0.08, suit), lo: limb(0.078, 0.06, suit), hip: ball(0.104, suit), kn: ball(RM ? 0.076 : 0.084, accent), puck: part('kneepuck', SLIDER, () => null), foot: part('boot', 0x1b1c20, () => ball(0.064, dark, 2.0, 0.85, 1)) });
     }
     // in the helmet cam the forearms and gloves stay visible
@@ -800,7 +811,7 @@
     const hideChest = (o) => { o.userData.chestHide = true; o.children.forEach(hideChest); };
     if (fit && fit.chestLegs === false) { for (const L of parts.legs) [L.up, L.kn, L.puck].forEach((o) => o && hideChest(o)); for (const A of parts.arms) hideChest(A.up); }   // sport bike: knees and upper arms are right beside the camera - the forearms and gloves stay in shot
     const rig = {
-      group: g, torso, helmet, parts, naked, bars, fit, pov: false,
+      group: g, torso, helmet, parts, naked, bars, fit, hands: HANDS, roll: [0, 0], pull: [0, 0], twist: 0, lever: [0.051, -0.016], pov: false,
       hang: 0, tuck: 0, sit: 0, kneeOut: 0, headYaw: 0, kneeDown: [false, false], elbowDown: [false, false], footDown: [false, false], dangle: 0,
       J: { H: V3(), S: V3(), head: V3(), a: V3(), b: V3(), c: V3(), pole: V3() }
     };
@@ -839,7 +850,13 @@
     return out.copy(a).addScaledVector(dn, x).addScaledVector(_c, h);
   }
   /* st: {lean [-1..1 normalised hang-off], tuck 0..1, sit 0..1 (upright under braking), steer} ; k = smoothing blend 0..1 */
+  /* the modelled hand (tools/blender_rider.py): where its knuckle line and its wrist lie relative to the grip's axis, the angle at which the wrist leaves it,
+     the two joints of the lever fingers (l1, and l2 / ca: how far and in which direction the crook of the finger lies from the middle joint), how far a
+     pulled lever comes towards the grip under the fingers, where the crook lies when the fingers are closed round the grip instead, and the length of
+     the forearm from elbow to wrist (the hand is a piece of its own now, so the forearm is shorter than the one that used to reach the grip) */
+  const HAND = { kn: [0.01537, 0.02459], wrist: [-0.088, 0.043], wa: Math.atan2(0.043, -0.088), l1: 0.045, l2: Math.hypot(0.0072, 0.0274), ca: Math.atan2(-0.0274, 0.0072), travel: 0.022, wrap: [0.0149, -0.0134], fore: 0.215 }, _hx = new THREE.Vector3(), _hy = new THREE.Vector3(), _hz = new THREE.Vector3(), _hw = new THREE.Vector3();
   function poseRider(rig, st, k) {
+    rig.twist = lerp(rig.twist, st.throttle || 0, Math.min(1, k * 1.6)); rig.pull[1] = lerp(rig.pull[1], st.brake || 0, Math.min(1, k * 2)); rig.pull[0] = lerp(rig.pull[0], st.clutch || 0, Math.min(1, k * 2.4));
     rig.hang = lerp(rig.hang, st.lean, k); rig.tuck = lerp(rig.tuck, st.tuck, k); rig.sit = lerp(rig.sit, st.sit, k); rig.dangle = lerp(rig.dangle || 0, st.dangle || 0, k * 0.6);
     if (rig.dangle * rig.hang < 0 && Math.abs(rig.hang) > 0.15) rig.dangle *= 0.7;      // his weight has gone to the other side: the loose leg is pulled in at once, before it ends up across the bike
     const h = rig.hang, ah = Math.abs(h), tk = rig.tuck, si = rig.sit, J = rig.J, nk = rig.naked, bars = rig.bars, F = rig.fit, mt = !!F && F.style === 'motard';
@@ -867,9 +884,35 @@
       rig.poleTmp = _d; const pole = mt ? J.pole.set(-0.3, -0.18 - inside * 0.25, sg * (1.1 + inside * 0.2))      // supermoto: elbows high and wide
         : nk ? J.pole.set(-0.42, -0.72 - inside * 0.3, sg * (0.82 + tk * 0.1 + inside * 0.3))      // wide bars: elbows out and up, ready to push
         : J.pole.set(-0.5, -1.0 - inside * 0.3 + outside * 1.4, sg * (0.42 + tk * 0.1 + inside * 0.3 + outside * 0.6));      // sport bike: hanging off, the outside arm reaches across the tank - its elbow comes up and out, over the tank instead of through it
-      ik(_a, _b, 0.285, 0.275, pole, J.c); const ph = rig.bikeLean || 0, inLean = ph * sg > 0 ? Math.abs(ph) : 0;
-      rig.elbowDown[s] = clearGround(J.c, ph, 0.07, inside > 0.8 && inLean > 1.0 ? 0.62 : 0) && inside > 0.5;
-      setLimb(A.up, _a, J.c); setLimb(A.lo, J.c, _b); A.sh.position.copy(_a); A.el.position.copy(J.c); A.hand.position.copy(_b);
+      const ph = rig.bikeLean || 0, inLean = ph * sg > 0 ? Math.abs(ph) : 0;
+      if (rig.hands) {
+        // the hand is closed round the grip: z along the grip's axis, x ahead, y up, rolled about the grip so that its wrist lines up with the forearm
+        // (the right hand rolls further with the throttle). The arm reaches for the wrist, not for the grip.
+        if (rig.gripFrame) rig.gripFrame(_b, _hz, sg); else _hz.set(0, 0, 1);
+        _hx.set(1, 0, 0).addScaledVector(_hz, -_hz.x).normalize(); _hy.crossVectors(_hz, _hx);
+        const r = rig.roll[s] + (s === 1 ? rig.twist * 0.42 : 0), cr = Math.cos(r), sr = Math.sin(r);
+        _hw.copy(_b).addScaledVector(_hx, HAND.wrist[0] * cr - HAND.wrist[1] * sr).addScaledVector(_hy, HAND.wrist[0] * sr + HAND.wrist[1] * cr);
+        ik(_a, _hw, 0.285, HAND.fore, pole, J.c); rig.elbowDown[s] = clearGround(J.c, ph, 0.07, inside > 0.8 && inLean > 1.0 ? 0.62 : 0) && inside > 0.5;
+        _d.subVectors(J.c, _hw); const want = clamp(AX.wrapAngle(Math.atan2(_d.dot(_hy), _d.dot(_hx)) - HAND.wa) * 0.7, -0.8, 1.2);      // (the wrist takes up the rest) rig.roll[s] = lerp(rig.roll[s], want, Math.min(1, k * 1.5));
+        setLimb(A.up, _a, J.c); setLimb(A.lo, J.c, _hw); A.sh.position.copy(_a); A.el.position.copy(J.c); A.hand.position.copy(_b);
+        _x.copy(_hx).multiplyScalar(cr).addScaledVector(_hy, sr); _d.copy(_hy).multiplyScalar(cr).addScaledVector(_hx, -sr); _m4.makeBasis(_x, _d, _hz); A.hand.quaternion.setFromRotationMatrix(_m4);
+        if (A.fingers) {
+          // index and middle finger lie on the lever: two joints, bent so that the crook of the finger stays on the lever wherever the hand has rolled
+          // and however far the lever is pulled (rig.pull: 0..1, the lever comes that much of its way to the grip)
+          const L = rig.lever, pl = rig.pull[s], kx = HAND.kn[0] * cr - HAND.kn[1] * sr, ky = HAND.kn[0] * sr + HAND.kn[1] * cr; let lx = L[0] - pl * HAND.travel, ly = L[1] + pl * 0.004;
+          // a hand rolled so far round the grip that the lever is out of reach closes its fingers round the grip like the other two
+          const far = smoothstep(0.074, 0.082, Math.hypot(lx - kx, ly - ky)); if (far > 0) { lx += (HAND.wrap[0] * cr - HAND.wrap[1] * sr - lx) * far; ly += (HAND.wrap[0] * sr + HAND.wrap[1] * cr - ly) * far; }
+          let dx = lx - kx, dy = ly - ky, dd = Math.hypot(dx, dy); const dc = clamp(dd, 0.024, HAND.l1 + HAND.l2 - 0.002);
+          const t1 = Math.atan2(dy, dx) + Math.acos(clamp((HAND.l1 * HAND.l1 + dc * dc - HAND.l2 * HAND.l2) / (2 * HAND.l1 * dc), -1, 1));
+          const px = kx + HAND.l1 * Math.cos(t1), py = ky + HAND.l1 * Math.sin(t1), t2 = Math.atan2(ky + dy * dc / dd - py, kx + dx * dc / dd - px) - HAND.ca;
+          A.fingers.rotation.z = t1 - r; A.tips.rotation.z = t2 - t1;
+        }
+        _x.crossVectors(_y, _z).normalize();      // (the torso's forward axis, borrowed above, back for the legs)
+      } else {
+        ik(_a, _b, 0.285, 0.275, pole, J.c);
+        rig.elbowDown[s] = clearGround(J.c, ph, 0.07, inside > 0.8 && inLean > 1.0 ? 0.62 : 0) && inside > 0.5;
+        setLimb(A.up, _a, J.c); setLimb(A.lo, J.c, _b); A.sh.position.copy(_a); A.el.position.copy(J.c); A.hand.position.copy(_b);
+      }
       // leg
       const Lg = rig.parts.legs[s];
       _a.copy(J.H).addScaledVector(_z, sg * 0.105); _a.y -= 0.03;
@@ -1060,7 +1103,7 @@
         if (!L[2] && al > 0.22 && p.speed > 5) L[2] = sd; else if (L[2] && (al < 0.07 || sd !== L[2] || p.speed < 3)) L[2] = 0;
         L[0] = damp(L[0], L[2] < 0 ? 1 : 0, L[2] < 0 ? 5 : 3.5, dt); L[1] = damp(L[1], L[2] > 0 ? 1 : 0, L[2] > 0 ? 5 : 3.5, dt); legs = L;
       }
-      poseRider(vis.rider, { lean: hang, tuck, sit, steer: p.steer, dangle, legs }, 1 - Math.exp(-9 * dt));
+      poseRider(vis.rider, { lean: hang, tuck, sit, steer: p.steer, dangle, legs, throttle: p.throttle || 0, brake: p.brake || 0 }, 1 - Math.exp(-9 * dt));
     } else {
       if (!vis.crashedVis) { vis.crashedVis = true; vis.root.parent.add(rg); rg.scale.setScalar(vis.scale); }
       poseCrash(vis.rider, p.crashT);

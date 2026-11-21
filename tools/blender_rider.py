@@ -3,7 +3,11 @@ Pieces (each its own GLB, placed by the game's rider rig):
   torso  - hips at the origin, shoulders 0.52 m up the +y axis, chest faces +x, back -x; the spine between them is a gentle curve (BEND degrees), not a plank
   helmet - centred at the origin, face towards +x
   limbs  - unit length along +y (0 = joint at the body side), real radii; rotationally symmetric so the rig can roll them freely
-  glove, boot - in bike axes on the hand / ankle point; kneepuck - knee joint at the origin, +x the way the kneecap points, y along the leg, +z the outside of the knee
+  gloveR / gloveL - a hand closed round the grip: the grip's axis is the z axis through the origin, +x ahead, +y up, the wrist behind and above. Thumb, ring and little
+            finger are part of it; index and middle finger are two more pieces (fingersR / fingersL: first joint, origin on the knuckle line;
+            tipsR / tipsL: the rest, origin on the middle joint), so they can lie on the lever
+            and pull it. The left ones are the right ones mirrored.
+  boot - in bike axes on the ankle point; kneepuck - knee joint at the origin, +x the way the kneecap points, y along the leg, +z the outside of the knee
 Material prefixes: T_suit / T_accent / T_dark / H_shell / H_accent / H_dark / H_visor, L_suit / L_accent / L_dark / L_slider (hard protectors: soles, knee pucks).
 The game recolours by prefix; the vertex colours carry baked ambient occlusion (limbs: 1 for suit, dark parts pre-darkened)."""
 import bpy, bmesh, math
@@ -160,31 +164,74 @@ for sgn in (-1, 1): disc_z('pivot%d' % sgn, (-0.024, 0.002, sgn * 0.124), 0.0145
 
 # ------------------------------------------------------------------ limbs (unit length along +y; the rig stretches them to arm / leg length and rolls them freely)
 # Each has the shape of the limb it is - a shoulder cap, a forearm that swells below the elbow, a thigh, a calf - and ends at exactly the radius of the
-# ball that sits in the joint (shoulder 0.074, elbow 0.058, hip 0.104, knee 0.076), so a bent joint is one smooth form.
+# ball that sits in the joint (shoulder 0.070, elbow 0.052, hip 0.104, knee 0.076), so a bent joint is one smooth form. The forearm ends at the wrist
+# (the hand is a piece of its own): a slim cuff in the second colour, then the glove's gauntlet.
 SEG = 24
 # every piece is closed at both ends: whichever of them a camera shows on its own, there is nothing to look into
-lathe_y('uparm_w', [(0.0, 0.0), (0.0, 0.074), (0.1, 0.0795), (0.22, 0.0795), (0.36, 0.0745), (0.36, 0.0)], L_accent, 'uparm', SEG)
-lathe_y('uparm', [(0.36, 0.0), (0.36, 0.0745), (0.55, 0.0685), (0.8, 0.061), (1.0, 0.058), (1.0, 0.0)], L_suit, 'uparm', SEG)
-lathe_y('foarm', [(0.0, 0.0), (0.0, 0.058), (0.12, 0.0625), (0.26, 0.064), (0.45, 0.059), (0.62, 0.052), (0.62, 0.0)], L_suit, 'foarm', SEG)
-lathe_y('foarm_w', [(0.62, 0.0), (0.62, 0.052), (0.71, 0.0495), (0.71, 0.0)], L_accent, 'foarm', SEG)
-lathe_y('foarm_glove', [(0.71, 0.0), (0.71, 0.0495), (0.715, 0.059), (0.75, 0.061), (0.92, 0.055), (1.0, 0.05), (1.02, 0.0)], L_dark, 'foarm', SEG)
+lathe_y('uparm_w', [(0.0, 0.0), (0.0, 0.070), (0.1, 0.0745), (0.22, 0.074), (0.36, 0.068), (0.36, 0.0)], L_accent, 'uparm', SEG)
+lathe_y('uparm', [(0.36, 0.0), (0.36, 0.068), (0.55, 0.062), (0.8, 0.055), (1.0, 0.052), (1.0, 0.0)], L_suit, 'uparm', SEG)
+lathe_y('foarm', [(0.0, 0.0), (0.0, 0.052), (0.12, 0.0555), (0.26, 0.056), (0.45, 0.049), (0.64, 0.039), (0.64, 0.0)], L_suit, 'foarm', SEG)
+lathe_y('foarm_w', [(0.64, 0.0), (0.64, 0.039), (0.72, 0.0365), (0.72, 0.0)], L_accent, 'foarm', SEG)
+lathe_y('foarm_glove', [(0.72, 0.0), (0.72, 0.0365), (0.725, 0.0408), (0.78, 0.0415), (0.9, 0.037), (0.97, 0.032), (1.0, 0.029), (1.04, 0.0)], L_dark, 'foarm', SEG)
 lathe_y('thigh', [(0.0, 0.0), (0.0, 0.104), (0.1, 0.111), (0.25, 0.11), (0.55, 0.097), (0.86, 0.082), (0.86, 0.0)], L_suit, 'thigh', SEG)
 lathe_y('thigh_w', [(0.86, 0.0), (0.86, 0.082), (1.0, 0.076), (1.0, 0.0)], L_accent, 'thigh', SEG)
 lathe_y('shin_w', [(0.0, 0.0), (0.0, 0.076), (0.1, 0.0795), (0.1, 0.0)], L_accent, 'shin', SEG)
 lathe_y('shin', [(0.1, 0.0), (0.1, 0.0795), (0.2, 0.0825), (0.32, 0.079), (0.5, 0.064), (0.5, 0.0)], L_suit, 'shin', SEG)
 lathe_y('shin_boot', [(0.5, 0.0), (0.5, 0.064), (0.505, 0.072), (0.56, 0.074), (0.8, 0.065), (1.0, 0.059), (1.03, 0.0)], L_dark, 'shin', SEG)
 
-# ------------------------------------------------------------------ glove (a fist round the grip) and boot (ankle at the origin, the peg under the arch)
-loft_x('glove', [dict(x=-0.046, y=0.0, w=0.03, ht=0.018, hb=0.018), dict(x=-0.03, y=0.0, w=0.052, ht=0.034, hb=0.032, e=3.0), dict(x=0.012, y=0.002, w=0.055, ht=0.036, hb=0.034, e=3.0),
-                 dict(x=0.04, y=-0.004, w=0.05, ht=0.028, hb=0.03, e=3.0), dict(x=0.052, y=-0.008, w=0.03, ht=0.014, hb=0.016)], L_dark, 'glove', ring=14, subsurf=1)
+# ------------------------------------------------------------------ hands: a glove closed round the grip, with real fingers
+# The grip's axis is the z axis through the origin (radius RG). The palm lies over the top of the grip towards the back, the knuckles sit above its
+# front, the wrist is behind and above. Thumb, ring and little finger are wrapped round the grip and belong to the hand; index and middle finger are
+# two pieces of their own, hinged on the knuckle line KN and on the middle joint: they lie on the lever (two-finger braking) and curl as they pull it.
+RG = 0.0175
+K_glove, K_accent = mat('K_glove', (0.02, 0.02, 0.022)), mat('K_accent', (0.9, 0.9, 0.88))      # K_: like the limbs' leather, but these keep their baked shading
+def sausage(name, pts, radii, m, piece, seg=10):
+    """a finger: a round tube through pts (game axes) with the given radii, closed by a rounded tip at each end"""
+    bm = bmesh.new(); P = [V(*q) for q in pts]; n = len(P); rings = []; tans = []
+    for i2 in range(n):
+        t = (P[min(i2 + 1, n - 1)] - P[max(i2 - 1, 0)]).normalized(); ref = Vector((0, 1, 0)) if abs(t.y) < 0.8 else Vector((0, 0, 1)); a = t.cross(ref).normalized(); b = t.cross(a); tans.append(t)
+        rings.append([bm.verts.new(P[i2] + (a * math.cos(k / seg * 6.2832) + b * math.sin(k / seg * 6.2832)) * radii[i2]) for k in range(seg)])
+    def cap(ring, c, t, r):      # a rounded end: one smaller ring, then the tip
+        r2 = [bm.verts.new(c + t * r * 0.55 + (v.co - c) * 0.72) for v in ring]; tip = bm.verts.new(c + t * r * 0.92)
+        for k in range(seg): bm.faces.new([ring[k], ring[(k + 1) % seg], r2[(k + 1) % seg], r2[k]]); bm.faces.new([r2[k], r2[(k + 1) % seg], tip])
+    for i2 in range(n - 1):
+        for k in range(seg): bm.faces.new([rings[i2][k], rings[i2 + 1][k], rings[i2 + 1][(k + 1) % seg], rings[i2][(k + 1) % seg]])
+    cap(rings[0], P[0], -tans[0], radii[0]); cap(rings[-1], P[-1], tans[-1], radii[-1])
+    return finish(bm, name, m, piece, 60)
+def arc(a0, a1, r, z, n=7): return [(r * math.cos(math.radians(a0 + (a1 - a0) * k / (n - 1))), r * math.sin(math.radians(a0 + (a1 - a0) * k / (n - 1))), z) for k in range(n)]
+FR = RG + 0.0115                          # the fingers' centre line runs this far from the grip's axis
+KN = (FR * math.cos(math.radians(58)), FR * math.sin(math.radians(58)))      # the knuckle line (x, y)
+# back of the hand and palm: from the wrist, over the grip, to the knuckles
+loft_x('hand', [dict(x=-0.096, y=0.046, w=0.029, ht=0.026, hb=0.026, e=2.2), dict(x=-0.076, y=0.039, w=0.031, ht=0.021, hb=0.022, e=2.4), dict(x=-0.05, y=0.033, w=0.038, ht=0.018, hb=0.021, e=2.8), dict(x=-0.022, y=0.029, w=0.0455, ht=0.02, hb=0.016, e=3.0),
+                dict(x=0.004, y=0.03, w=0.048, ht=0.019, hb=0.012, e=3.0), dict(x=0.022, y=0.029, w=0.0475, ht=0.014, hb=0.012, e=3.0), dict(x=0.032, y=0.024, w=0.045, ht=0.007, hb=0.009, e=2.8)],
+       K_glove, 'gloveR', ring=16, subsurf=1)
+# ring and little finger, wrapped round the grip (+z is the outside of the right hand), and the thumb underneath, on the inside
+FZ = (-0.0345, -0.0115, 0.0115, 0.0345)      # index, middle, ring, little finger along the grip
+sausage('ring', arc(58, -150, FR, FZ[2]), [0.0108, 0.0108, 0.0106, 0.0103, 0.0099, 0.0094, 0.0087], K_glove, 'gloveR')
+sausage('little', arc(56, -128, FR - 0.001, FZ[3]), [0.0098, 0.0098, 0.0096, 0.0093, 0.009, 0.0085, 0.0078], K_glove, 'gloveR')
+sausage('thumb', [(-0.036, 0.012, -0.037), (-0.016, -0.008, -0.048), (0.006, -0.022, -0.05), (0.024, -0.027, -0.045), (0.037, -0.024, -0.038)], [0.013, 0.0127, 0.012, 0.011, 0.0098], K_glove, 'gloveR')
+# knuckle guard (second colour): a low hard shell over the four knuckles - it is what makes the glove read as race kit
+loft_x('knuckle', [dict(x=-0.002, y=0.0485, w=0.031, ht=0.0028, hb=0.005, e=2.8), dict(x=0.007, y=0.0487, w=0.0405, ht=0.005, hb=0.006, e=3.4), dict(x=0.02, y=0.0432, w=0.041, ht=0.0054, hb=0.007, e=3.4),
+                   dict(x=0.0295, y=0.0345, w=0.037, ht=0.0032, hb=0.005, e=2.8)], K_accent, 'gloveR', ring=14, subsurf=1)
+# index and middle finger in two pieces: fingersR is the first joint (origin on the knuckle line, FL1 long, pointing +x), tipsR the rest of the finger
+# (origin on the middle joint), curled so that the lever lies in its crook at FCROOK. The game bends both so the crook stays on the lever.
+FL1, FCROOK = 0.045, (0.0072, -0.0274)
+for nm2, z, ln, r0 in (('index', FZ[0], 0.93, 0.0104), ('middle', FZ[1], 1.0, 0.0108)):
+    sausage(nm2, [(0.0, 0.0, z), (FL1 * 0.5, 0.0, z), (FL1, 0.0, z)], [r0, r0 * 0.99, r0 * 0.97], K_glove, 'fingersR')
+    sausage(nm2 + '_tip', [(0.0, 0.0, z), (0.012 * ln, -0.006 * ln, z), (0.0215 * ln, -0.019 * ln, z), (0.025 * ln, -0.030 * ln, z), (0.0255 * ln, -0.038 * ln, z)], [r0 * 0.97, r0 * 0.95, r0 * 0.91, r0 * 0.86, r0 * 0.8], K_glove, 'tipsR')
+# the left hand: the right one, mirrored
+for src, dst in (('gloveR', 'gloveL'), ('fingersR', 'fingersL'), ('tipsR', 'tipsL')):
+    for o in list(PIECES[src]):
+        me = o.data.copy(); bm = bmesh.new(); bm.from_mesh(me)
+        for v in bm.verts: v.co.y = -v.co.y
+        bmesh.ops.reverse_faces(bm, faces=bm.faces); bm.to_mesh(me); bm.free()
+        o2 = bpy.data.objects.new(o.name + '_L', me); scene.collection.objects.link(o2); PIECES.setdefault(dst, []).append(o2)
 loft_x('boot', [dict(x=-0.115, y=0.02, w=0.028, ht=0.03, hb=0.03), dict(x=-0.09, y=0.022, w=0.044, ht=0.05, hb=0.042, e=3.0), dict(x=-0.02, y=0.025, w=0.048, ht=0.052, hb=0.045, e=3.0),
                 dict(x=0.05, y=0.012, w=0.049, ht=0.036, hb=0.032, e=3.0), dict(x=0.11, y=0.003, w=0.045, ht=0.024, hb=0.023, e=3.0), dict(x=0.15, y=0.0, w=0.03, ht=0.014, hb=0.018)],
        L_dark, 'boot', ring=14, subsurf=1)
 
-# knuckle guard on the back of the fist (second colour), heel counter and sole on the boot (hard grey): the things that make gloves and boots read as race kit
+# heel counter and sole on the boot (hard grey): the things that make boots read as race kit
 L_slider = mat('L_slider', (0.2, 0.2, 0.22))
-loft_x('glove_knuckle', [dict(x=-0.006, y=0.031, w=0.028, ht=0.006, hb=0.008, e=2.6), dict(x=0.01, y=0.033, w=0.044, ht=0.0105, hb=0.01, e=3.0), dict(x=0.03, y=0.029, w=0.043, ht=0.01, hb=0.012, e=3.0),
-                         dict(x=0.046, y=0.02, w=0.03, ht=0.006, hb=0.008, e=2.6)], L_accent, 'glove', ring=14, subsurf=1)
 loft_x('boot_heel', [dict(x=-0.122, y=0.006, w=0.03, ht=0.018, hb=0.02), dict(x=-0.098, y=0.006, w=0.0475, ht=0.03, hb=0.024, e=3.2), dict(x=-0.066, y=0.006, w=0.0505, ht=0.026, hb=0.024, e=3.2),
                      dict(x=-0.05, y=0.004, w=0.044, ht=0.014, hb=0.016, e=3.0)], L_slider, 'boot', ring=14, subsurf=1)
 loft_x('boot_sole', [dict(x=-0.118, y=-0.022, w=0.03, ht=0.005, hb=0.007, e=3.0), dict(x=-0.09, y=-0.022, w=0.0465, ht=0.006, hb=0.008, e=3.4), dict(x=-0.02, y=-0.022, w=0.05, ht=0.006, hb=0.008, e=3.4),
@@ -225,7 +272,7 @@ if BEND > 1e-4:
         o.data.update()
 
 # lay the pieces apart for the AO bake
-offs = {'torso': (0, 0, 0), 'helmet': (1.0, 0, 0), 'uparm': (2, 0, 0), 'foarm': (2.5, 0, 0), 'thigh': (3, 0, 0), 'shin': (3.5, 0, 0), 'glove': (4, 0, 0), 'boot': (4.5, 0, 0), 'kneepuck': (5, 0, 0)}
+offs = {'torso': (0, 0, 0), 'helmet': (1.0, 0, 0), 'uparm': (2, 0, 0), 'foarm': (2.5, 0, 0), 'thigh': (3, 0, 0), 'shin': (3.5, 0, 0), 'gloveR': (4, 0, 0), 'gloveL': (4, 0, 0.5), 'fingersR': (5.5, 0, 0), 'fingersL': (5.5, 0, 0.5), 'tipsR': (6, 0, 0), 'tipsL': (6, 0, 0.5), 'boot': (4.5, 0, 0), 'kneepuck': (5, 0, 0)}
 allo = [o for L in PIECES.values() for o in L]
 for p, L in PIECES.items():
     for o in L: o.location = V(*offs[p])
