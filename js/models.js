@@ -185,11 +185,11 @@
   }
   function numberTexture(num, bg, fg) {
     const key = num + bg + fg; if (numTexCache[key]) return numTexCache[key];
-    const c = document.createElement('canvas'); c.width = 128; c.height = 128; const g = c.getContext('2d');
+    const c = document.createElement('canvas'); c.width = 512; c.height = 512; const g = c.getContext('2d'); g.scale(4, 4);      // 4x the layout size: crisp on the number plate in close-ups
     g.fillStyle = bg; g.beginPath(); g.arc(64, 64, 62, 0, 7); g.fill();
     g.fillStyle = fg; g.font = 'italic 900 ' + (String(num).length > 1 ? 78 : 96) + 'px "Arial Black", "Helvetica Neue", Arial, sans-serif';
     g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(num), 60, 70);
-    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; numTexCache[key] = t; return t;
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 8; numTexCache[key] = t; return t;
   }
 
   // the APEX wordmark, drawn rather than typed so it looks the same on every machine: slanted block letters, an A without its bar, an E of three bars
@@ -215,7 +215,7 @@
   const panelTexCache = {};
   function panelTexture(num) {
     const key = num == null ? 'word' : 'n' + num; if (panelTexCache[key]) return panelTexCache[key];
-    const c = document.createElement('canvas'); c.width = 384; c.height = 128; const g = c.getContext('2d');
+    const c = document.createElement('canvas'); c.width = 1024; c.height = 512; const g = c.getContext('2d'); g.scale(1024 / 384, 4);      // sharper lettering on the side panel
     if (num == null) g.drawImage(wordTexture('#101113').image, 16, 20, 352, 88);
     else { g.fillStyle = '#101113'; g.font = 'italic 900 118px "Arial Black", "Helvetica Neue", Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(num), 186, 70); }
     const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 8; panelTexCache[key] = t; return t;

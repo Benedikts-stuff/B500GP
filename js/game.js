@@ -321,13 +321,14 @@
   }
   /* digital dash on the top yoke: gear, speed, rev bar with shift lights (only in the helmet cam) */
   function makeDash(v) {
-    const c = document.createElement('canvas'); c.width = 256; c.height = 128; const tx = new THREE.CanvasTexture(c); tx.encoding = THREE.sRGBEncoding;
+    // drawn at four times the layout size (1024 x 512): in the helmet and chest cameras the display fills a good part of a sharp screen
+    const c = document.createElement('canvas'); c.width = 1024; c.height = 512; const tx = new THREE.CanvasTexture(c); tx.encoding = THREE.sRGBEncoding; tx.anisotropy = 8;
     const naked = v.spec.style.fairing === 'naked';
     const m = new THREE.Mesh(new THREE.PlaneGeometry(0.17, 0.085), new THREE.MeshBasicMaterial({ map: tx, toneMapped: false }));
     const frame = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.105, 0.03), new THREE.MeshBasicMaterial({ color: 0x0b0c0e }));
     const g = new THREE.Group(); g.add(frame); m.position.z = 0.016; g.add(m);
     g.position.set(naked ? 0.462 : 0.45, naked ? 1.005 : 1.035, 0); /* Duetto: tucked behind the top of the number plate */ g.scale.setScalar(0.8); g.rotation.set(0, -Math.PI / 2, 0); g.rotateX(-0.55);
-    v.susG.add(g); v.dash = g; v.dashCtx = c.getContext('2d'); v.dashTex = tx; v.dashT = 0;
+    v.susG.add(g); v.dash = g; v.dashCtx = c.getContext('2d'); v.dashCtx.setTransform(4, 0, 0, 4, 0, 0); v.dashTex = tx; v.dashT = 0;
   }
   function drawDash(v, p, dt) {
     if (!v.dash) return; v.dashT -= dt; if (v.dashT > 0) return; v.dashT = 1 / 20;
