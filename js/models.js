@@ -366,7 +366,8 @@
      chain: [gearbox sprocket radius, wheel sprocket radius, z, number of links] · hose: front brake line, top to caliper, and the sides that have one
      tyre: half axes of the tyres' cross-sections (rear a/b, front a/b) · plate: number on the front plate [x, y, size] · side: number on the side panels
      ex: where the pipe ends, which way it points, how wide it is · bar: the grips [x, y, z] · fit: where the rider sits (hips, shoulders upright and tucked, boots)
-     and how he rides: 'motard' = he stays upright on top of the bike and pushes it down into the corner, elbows up, inside leg out in front;
+     and, optionally, how he rides: style 'motard' = he stays upright on top of the bike and pushes it down into the corner, elbows up, inside leg
+     out in front. No bike uses it at present: the supermoto's rider hangs off like the others, knee and elbow down;
      leanVis: the furthest the bike is ever drawn leaned over [rad] (its bars and guards stay clear of the road);
      pov / chest: where the helmet and chest cameras sit and how far they look down, when the usual place would leave the bars out of shot */
   const SPRUNG = {
@@ -376,7 +377,7 @@
     supermoto: { wb: 1.47, Rr: 0.315, Rf: 0.30, rake: 26.5, head: [0.387, 0.953], PIV: [-0.145, 0.445], S0: [-0.05, 0.795], S1: [-0.165, 0.375], SPR: [-0.055, 0.425], chain: [0.0365, 0.121, -0.097, 114],
       hose: [[0.5206, 0.8468, 0.055], [0.5477, 0.7206, 0.06], [0.5386, 0.6044, 0.084], [0.5993, 0.4558, 0.092], [0.5588, 0.3712, 0.09]], hoseSides: [-1],
       tyre: { ar: 0.040, br: 0.0885, af: 0.0365, bf: 0.0632 }, plate: [0.5026, 0.9993, 0.125], side: [-0.275, 0.818, 0.1295, 0.082], ex: [[-0.757, 0.8175, 0.188], [-0.886, 0.464, 0.022], 0.0215],
-      bar: [0.286, 1.174, 0.367], fit: { hip: [-0.15, 0.985], sh: [0.045, 1.467, 0.185, 1.385], foot: [-0.20, 0.40, 0.172], style: 'motard', leanVis: 1.14, pov: [-0.15, 1.66, 0.36], chest: [0.125, 0.55, 0.42] } }
+      bar: [0.286, 1.174, 0.367], fit: { hip: [-0.15, 0.985], sh: [0.045, 1.467, 0.185, 1.385], foot: [-0.20, 0.40, 0.172], leanVis: 1.14, pov: [-0.15, 1.66, 0.36], chest: [0.125, 0.55, 0.42] } }
   };
   function buildBike(spec, rider, opts) {
     opts = opts || {}; const env = opts.env || null; const st = spec.style; const naked = st.fairing === 'naked', mdl = naked ? st.model || 'duetto' : null, MD = mdl ? SPRUNG[mdl] : null;

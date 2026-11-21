@@ -9,6 +9,11 @@
   const AX = root.AX;
   const { clamp, lerp, damp, smoothstep, approach, G, SURF, SURF_DATA } = AX;
   const DEG = Math.PI / 180;
+  /* backing in: k = how eagerly the rear comes round on the brakes, v = the speeds [m/s] between which that fades in, hold = the slide angle
+     the keyboard rider holds [rad], rear / eng = strength of the rear brake and of engine braking, stoppie = how far the rear is let off the road
+     under full braking (1 = as the assist level says, 0 = it stays down), lock = how hard a locked rear wheel swings the bike, rb = how much the
+     rear brake by itself brings the back round (0 = only by locking the wheel). A bike can bring its own (spec.backIn). */
+  const BACKIN = { k: 1, v: [9, 16], hold: 0.3, rear: 1, eng: 1, stoppie: 1, lock: 1, rb: 0 };
 
   /* tc: traction-control slip ceiling (0 = off) · wcBase / wcBack: wheelie height the assist allows with neutral / weight-back body
      (null = no wheelie control) · catchSa / catchK: slide angle where the assist steps in and how hard the chassis pulls straight
@@ -242,7 +247,8 @@
         aDem = this.aFull * this.throttle;
       }
       // engine braking acts through the chain on the rear tyre; a slipper clutch (assists) takes the edge off
-      const engBrake = (1 - this.throttle) * (0.7 + 2.3 * n) * (vf > 1 ? 1 : 0) * (as.slipper == null ? 1 : as.slipper);
+      const bi = spec.backIn || BACKIN;      // how readily this bike backs into a corner (core.js)
+      const engBrake = (1 - this.throttle) * (0.7 + 2.3 * n) * (vf > 1 ? 1 : 0) * (as.slipper == null ? 1 : as.slipper) * bi.eng;
 
       // ---- wheelie: balance acceleration about the rear contact; the assist holds the height the rider asks for
       const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
@@ -290,11 +296,11 @@
       // ---- front brake (S)
       const q = Math.max(0, -this.pitch);
       // no ABS, keys only: the rider eases the lever as the rear lifts - unless the weight is thrown forward, then it goes over
-      let aBrkF = this.brake * spec.brake * (as.stop < 0 && !inp.analog ? 1 - smoothstep(fwd > 0.5 ? 0.45 : 0.05, fwd > 0.5 ? 0.85 : 0.17, q) : 1);
+      let aBrkF = this.brake * spec.brake * (as.stop < 0 && !inp.analog ? 1 - smoothstep(fwd > 0.5 ? 0.45 : 0.05 * bi.stoppie, fwd > 0.5 ? 0.85 : 0.17 * bi.stoppie, q) : 1);
       if (as.abs) {
         const cq = Math.cos(q), sq = Math.sin(q);
         const bf = (spec.wheelbase - cgB) * cq - spec.cgH * sq, hf = spec.cgH * cq + (spec.wheelbase - cgB) * sq;
-        if (as.stop >= 0) { const qT = as.stop * (1 - smoothstep(0.1, 0.35, Math.abs(this.lean))) - 0.012; const lim = G * bf / hf + 56 * (qT - q) + 17 * this.pitchVel; if (aBrkF > lim) aBrkF = Math.max(0, lim); }
+        if (as.stop >= 0) { const qT = as.stop * bi.stoppie * (1 - smoothstep(0.1, 0.35, Math.abs(this.lean))) - 0.012; const lim = G * bf / hf + 56 * (qT - q) + 17 * this.pitchVel; if (aBrkF > lim) aBrkF = Math.max(0, lim); }
         const circ = GrL * Math.sqrt(Math.max(0.02, 1 - latFrac * latFrac)) * (1 + 0.1 * trail);
         if (aBrkF > circ) aBrkF = Math.max(circ, Math.min(aBrkF, Gr * 0.22));
       }
@@ -308,7 +314,7 @@
       const decel0 = Math.max(0, aBrkF);
       const rearLoad = clamp(1 - cgB / spec.wheelbase - decel0 * spec.cgH / (G * spec.wheelbase), 0.08, 1);
       const capRear = rearUp ? 0 : Gr * 1.9 * rearLoad * Math.sqrt(Math.max(0.05, 1 - latFrac * latFrac));
-      let rearDem = rearUp ? 0 : this.rearBrake * G * 0.6 + engBrake;
+      let rearDem = rearUp ? 0 : this.rearBrake * G * 0.6 * bi.rear + engBrake;
       if (as.rearAbs && rearDem > capRear) rearDem = capRear;
       const lockT = capRear > 0 ? clamp((rearDem - capRear) / (Gr * 0.25), 0, 1) : 0;
       this.rearLock = damp(this.rearLock, lockT, lockT > this.rearLock ? 20 : 7, dt);
@@ -346,13 +352,15 @@
       const turnSign = Math.abs(ayDem) > 0.5 ? Math.sign(ayDem) : (Math.abs(this.steer) > 0.05 ? Math.sign(this.steer) : 0);
       let stepOut = 2.2 * Math.max(0, Math.min(uRear, 1.9) - 1) * (this.throttle > 0.2 ? 1 : 0);
       if (aBrk > 0.4) {
-        const soB = 0.55 * (as.brakeSlide || 1) * (aBrkF / spec.brake) * latFrac * (1 + 0.35 * fwd) * (1 - 0.5 * back) * (rearUp ? 1.2 : 1) + this.rearLock * (1.2 + 1.6 * latFrac) * (rearUp ? 0 : 1);
+        const soB = 0.55 * bi.k * (as.brakeSlide || 1) * (aBrkF / spec.brake) * latFrac * (1 + 0.35 * fwd) * (1 - 0.5 * back) * (rearUp ? 1.2 : 1) + this.rearLock * (1.2 + 1.6 * latFrac) * bi.lock * (rearUp ? 0 : 1);
         stepOut += soB;
         // backing it in from (nearly) upright: hard on the front the rear is almost unloaded, so a small steering input
         // already swings it round - the bike comes in a little sideways before it is properly leaned over
         const light = smoothstep(0.5, 0.92, aBrkF / Gr), stK = smoothstep(0.06, 0.35, Math.abs(this.steer));
-        const soU = (as.id === 'ai' ? 0 : 1.6) * light * stK * (1 + 0.7 * this.rearBrake) * (1 - 0.5 * latFrac) * (1 + 0.35 * fwd) * (1 - 0.15 * back) * smoothstep(9, 16, vf) * (rearUp ? 1.3 : 1);   // a rear in the air swings round even more easily
+        const soU = (as.id === 'ai' ? 0 : 1.6) * bi.k * light * stK * (1 + 0.7 * this.rearBrake) * (1 - 0.5 * latFrac) * (1 + 0.35 * fwd) * (1 - 0.15 * back) * smoothstep(bi.v[0], bi.v[1], vf) * (rearUp ? 1.3 : 1);   // a rear in the air swings round even more easily
         stepOut += soU;
+        // a bike made for it comes round on the rear brake alone: foot on the pedal, turn in, and the back steps out
+        if (bi.rb) stepOut += (as.id === 'ai' ? 0 : bi.rb) * this.rearBrake * stK * smoothstep(bi.v[0], bi.v[1], vf) * (1 - 0.4 * latFrac) * (1 - 0.7 * light) * (rearUp ? 0 : 1);      // (hard on the front as well, the light rear already does most of it)
         // a light, braking rear has little side grip left: it lets go and the bike backs in
         capY *= 1 - clamp(soB * 0.2, 0, 0.25);   // the sliding rear still drags sideways and the front still bites
       }
@@ -366,7 +374,7 @@
       // it neither dies straight away nor keeps swinging round until it throws him off
       const holdS = inp.leanAssist && vf > 8 && (this.brake > 0.3 || this.rearBrake > 0.3) && this.throttle < 0.3;
       this.slideHold = holdS;
-      if (holdS && Math.abs(this.slipAngle) > 0.07) { const s0 = Math.abs(this.slipAngle); omega += Math.sign(this.slipAngle) * (0.3 - s0) * (s0 < 0.3 ? 1.6 : 7); }
+      if (holdS && Math.abs(this.slipAngle) > 0.07) { const s0 = Math.abs(this.slipAngle); omega += Math.sign(this.slipAngle) * (bi.hold - s0) * (s0 < bi.hold ? 1.6 : 7); }
       // Off: past ~30 degrees the rider fights a slide that keeps opening (counter-steer, off the brake) - it can still go,
       // but it takes a lot more than a moment too long on the lever
       if (as.saSoft && Math.abs(this.slipAngle) > as.saSoft) omega -= Math.sign(this.slipAngle) * (Math.abs(this.slipAngle) - as.saSoft) * 9;

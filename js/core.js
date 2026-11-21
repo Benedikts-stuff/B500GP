@@ -120,7 +120,8 @@
     mass: 190, power: 46, redline: 11500, idle: 1900,
     gears: [17.5, 23.5, 29.5, 35.5, 41, 47],
     torqueShape: [[0, 0.74], [0.2, 0.92], [0.4, 1.0], [0.55, 1.0], [0.7, 0.94], [0.82, 0.86], [0.92, 0.78], [1.0, 0.68]],
-    wheelbase: 1.47, cgB: 0.69, cgH: 0.66, mu: 1.62, maxLean: 61, leanRate: 11.2, brake: 13.2, dragTop: 45,
+    wheelbase: 1.47, cgB: 0.64, cgH: 0.60, mu: 1.62, maxLean: 61, leanRate: 11.2, brake: 13.2, dragTop: 45,
+    backIn: { k: 1.1, v: [5, 10], hold: 0.36, rear: 1.0, eng: 1.2, stoppie: 0.15, lock: 0.3, rb: 2.6 },   // made for backing in: the rear stays down on the brakes and comes round early, at low speed too
     stats: { speed: 0.4, accel: 0.55, torque: 0.88, agility: 1.0, lean: 1.0, brake: 0.9 },
     engine: (AX.ENGINES && AX.ENGINES.single450) || { cyl: 1, fire: [0], rough: 0.14, pipe: 0.004, bright: 1, body: 1 },
     style: { fairing: 'naked', model: 'supermoto', tail: 'slim', exhaust: 'side', bars: 'wide', winglets: false, scale: 1.0, dash: false }
