@@ -668,6 +668,25 @@
 
   /* ------------------------------------------------------------------ main loop */
   let last = performance.now();
+  /* heat haze behind the player's exhaust: strongest standing on the grid with the engine hot, thinned out by the airflow at speed */
+  const _hz0 = new THREE.Vector3(), _hz1 = new THREE.Vector3(), _hz2 = new THREE.Vector3(), _hzU = new THREE.Vector3();
+  function updateHaze(dt) {
+    const u = post.mFinal.uniforms, p = G.player, vis = G.vis[0]; u.uHzA.value = 0;
+    if (!p || !vis || !vis.exhaustPos || p.crashed || vis.rider.pov) return;
+    const load = clamp((p.rpm - p.spec.idle) / (p.spec.redline - p.spec.idle), 0, 1) * (0.35 + 0.65 * (p.throttle || 0));
+    G.hazeT = (G.hazeT || 0) + (load - (G.hazeT || 0)) * (load > (G.hazeT || 0) ? 0.5 : 0.12) * dt;
+    const sp = Math.abs(p.speed), cx = Math.cos(p.yaw), sz = Math.sin(p.yaw), len = 0.55 + Math.min(sp, 40) * 0.02, rise = 0.38 / (1 + sp * 0.25);
+    vis.exhaustPos(_hz0); _hz1.set(_hz0.x - cx * len, _hz0.y + rise, _hz0.z - sz * len);
+    const r0 = 0.11, r1 = 0.26, str = (0.5 + 0.5 * G.hazeT) / (1 + sp / 28);
+    _hzU.set(0, 1, 0).applyQuaternion(camera.quaternion);
+    _hz2.copy(_hz0).addScaledVector(_hzU, r0).project(camera); const d0 = _hz0.distanceTo(camera.position), d1 = _hz1.distanceTo(camera.position);
+    _hz0.project(camera); _hz1.project(camera);
+    if (_hz0.z > 1 || _hz1.z > 1 || Math.abs(_hz0.x) > 1.4 || Math.abs(_hz0.y) > 1.4 || d0 > 30) return;
+    const rs = Math.abs(_hz2.y - _hz0.y) * 0.5;      // radius on screen, in units of the picture's height
+    u.uHz.value.set(_hz0.x * 0.5 + 0.5, _hz0.y * 0.5 + 0.5, _hz1.x * 0.5 + 0.5, _hz1.y * 0.5 + 0.5);
+    u.uHzR.value.set(rs, rs * (r1 / r0) * (d0 / Math.max(d1, 0.5)), G.time, camera.aspect); u.uHzA.value = rs * 0.22 * str;
+  }
+
   function frame(now) {
     if (!G._manual) requestAnimationFrame(frame);
     const rawDt = (now - last) / 1000, dt = Math.min(0.05, rawDt); last = now; if (!G.world) return;
@@ -710,6 +729,7 @@
     if (G.state !== 'menu') updateHUD(dt);
     updateAudio(dt);
     G.world.scene.updateMatrixWorld(); AX.RiderBatch.flush(G.world.scene);
+    updateHaze(dt);
     if (!G._noRender) post.render(G.world.scene, camera);
   }
   /* frame-rate meter + dynamic resolution */

@@ -7,7 +7,10 @@
 Game coordinates: x forward, y up, z lateral (right = +z), origin on the ground at mid wheelbase. Blender: X = x, Y = -z, Z = y.
 Assemblies: body (frame, engine, bodywork) · swing (swingarm, pivots at PIV) · front (steered: clamps, outer fork tubes, bars)
             fork (steered + slides along the fork: stanchions, feet, calipers, axle) · wheelF / wheelR (centred on their axle on export)
-Material prefixes tell the game which shader to use: P_ livery paint, M_ matte, X_ metal, G_ gloss, S_ screen."""
+            shockU (damper body, turns about its top eye S0) · shockL (shaft and lower collar, follow the swingarm) · spring (squeezed between the collars)
+            decalR / decalL (patches lying on the tank side panels, with UVs: the game prints number and name on them)
+The game moves these against each other (suspension); the chain and the two brake hoses down the fork legs are drawn by the game, because they change shape.
+Material prefixes tell the game which shader to use: P_ livery paint, M_ matte, X_ metal, G_ gloss, S_ screen, L_ brake light (glows), D_ decal."""
 import bpy, bmesh, math
 from mathutils import Vector, Matrix
 
@@ -48,7 +51,7 @@ def mat(name, hexc):
     m.diffuse_color = (*c, 1); m.metallic = 0.85 if name[0] == 'X' else 0.0; m.roughness = {'X': 0.38, 'G': 0.15, 'P': 0.3}.get(name[0], 0.62)   # viewport / preview look
     MATS[name] = m; return m
 
-ASM = {'body': [], 'swing': [], 'front': [], 'fork': [], 'wheelF': [], 'wheelR': []}
+ASM = {'body': [], 'swing': [], 'front': [], 'fork': [], 'wheelF': [], 'wheelR': [], 'shockU': [], 'shockL': [], 'spring': [], 'decalR': [], 'decalL': []}
 def obj_from_bm(bm, name, m, asm, smooth_angle=38, subsurf=0, solid=0.0):
     me = bpy.data.meshes.new(name); bm.to_mesh(me); bm.free()
     o = bpy.data.objects.new('bk_' + name, me); scene.collection.objects.link(o); me.materials.append(m)
@@ -251,6 +254,65 @@ def stripe(o, name, m, asm, bands=((0.0125, 0.06), (-0.06, -0.0125)), under=-0.3
     bmesh.ops.delete(bm, geom=sel, context='FACES'); bm.to_mesh(o.data); bm.free()
     return obj_from_bm(bm2, name, m, asm, 60)
 
+def band(objs, name, a, b, hh, xe, m, asm, slant=0.0):
+    """a strip let into finished surfaces: cut along two planes parallel to the line a-b (side view) and hand what lies between them, behind xe, to another material"""
+    dx, dy = b[0] - a[0], b[1] - a[1]; L = math.hypot(dx, dy); dx, dy = dx / L, dy / L; nx, ny = -dy, dx
+    ex, ey = 1.0, slant; el = math.hypot(ex, ey); ex, ey = ex / el, ey / el; E = (xe, a[1] + (xe - a[0]) * dy / dx)
+    bm2 = bmesh.new()
+    for o in objs:
+        bm = bmesh.new(); bm.from_mesh(o.data)
+        for (co, no) in ((V(a[0] + nx * hh, a[1] + ny * hh), V(nx, ny)), (V(a[0] - nx * hh, a[1] - ny * hh), V(nx, ny)), (V(E[0], E[1]), V(ex, ey))):
+            bmesh.ops.bisect_plane(bm, geom=bm.verts[:] + bm.edges[:] + bm.faces[:], dist=1e-6, plane_co=co, plane_no=no, clear_inner=False, clear_outer=False)
+        bm.faces.ensure_lookup_table(); sel = []
+        for f in bm.faces:
+            c = f.calc_center_median(); x, y = c.x, c.z
+            if abs((x - a[0]) * nx + (y - a[1]) * ny) < hh and (x - E[0]) * ex + (y - E[1]) * ey < 0: sel.append(f)
+        vm = {}
+        for f in sel:
+            vs = []
+            for v in f.verts:
+                if v not in vm: vm[v] = bm2.verts.new(v.co)
+                vs.append(vm[v])
+            bm2.faces.new(vs)
+        bmesh.ops.delete(bm, geom=sel, context='FACES'); bm.to_mesh(o.data); bm.free()
+    bmesh.ops.remove_doubles(bm2, verts=bm2.verts[:], dist=1e-5)
+    return obj_from_bm(bm2, name, m, asm, 60)
+
+def give(src, dst, pred):
+    """hand the faces of `src` whose centre (side view x, y) satisfies pred over to `dst` and weld them in"""
+    bm = bmesh.new(); bm.from_mesh(src.data); bd = bmesh.new(); bd.from_mesh(dst.data); vm = {}; sel = []
+    for f in bm.faces:
+        c = f.calc_center_median()
+        if pred(c.x, c.z): sel.append(f)
+    for f in sel:
+        vs = []
+        for v in f.verts:
+            if v not in vm: vm[v] = bd.verts.new(v.co)
+            vs.append(vm[v])
+        nf = bd.faces.new(vs); nf.smooth = True
+    bmesh.ops.delete(bm, geom=sel, context='FACES'); bm.to_mesh(src.data); bm.free()
+    bmesh.ops.remove_doubles(bd, verts=bd.verts[:], dist=1e-5); bd.normal_update(); bd.to_mesh(dst.data); bd.free()
+
+def decal(name, target, c, w, h, s, m, asm, nx=16, ny=6, lift=0.0012, tilt=0.0):
+    """a patch lying on a curved panel: a grid dropped onto `target` from the side, a hair proud of it. UVs run the way one reads it from that side."""
+    bm = bmesh.new(); uvl = bm.loops.layers.uv.new('UVMap'); grid = []; ct, st = math.cos(tilt), math.sin(tilt)
+    for j in range(ny + 1):
+        row = []
+        for i in range(nx + 1):
+            u, v = i / nx, j / ny; lx, ly = (u - 0.5) * w * s, (v - 0.5) * h          # reading direction: +x seen from the right, -x from the left
+            x, y = c[0] + lx * ct - ly * st * s, c[1] + lx * st * s + ly * ct
+            ok, loc, nrm, idx = target.ray_cast(V(x, y, s * 0.6), Vector((0, s, 0)))
+            assert ok, (name, x, y)
+            vt = bm.verts.new(loc + nrm * lift); row.append((vt, (u, v)))
+        grid.append(row)
+    for j in range(ny):
+        for i in range(nx):
+            q = [grid[j][i], grid[j][i + 1], grid[j + 1][i + 1], grid[j + 1][i]]
+            f = bm.faces.new([e[0] for e in q])
+            for lp, e in zip(f.loops, q): lp[uvl].uv = e[1]
+    bm.normal_update()
+    return obj_from_bm(bm, name, m, asm, 80)
+
 def lathe(name, prof, m, asm, seg=40, center=(0, 0, 0), smooth=50):
     """profile [(radius, z_lateral)] revolved around the game z axis (wheel axle)"""
     bm = bmesh.new(); rings = []
@@ -279,7 +341,7 @@ def coil(name, a, b, R, wire, turns, m, asm, n=14):
 # ------------------------------------------------------------------ materials
 P_body = mat('P_body', 'ffffff')
 M_dark = mat('M_dark', '1c1e22'); M_tyre = mat('M_tyre', '1a1a1c'); M_red = mat('M_red', 'c8281e'); M_disc = mat('M_disc', 'a9adb2'); M_cal = mat('M_caliper', 'b28a2c')
-M_spring = mat('M_spring', 'd8d9dc'); M_seat = mat('M_seat', '18191c'); M_groove = mat('M_groove', '070708'); M_resv = mat('M_resv', 'c9c6b4'); G_tail = mat('G_tail', 'ff2a1a')
+M_spring = mat('M_spring', 'd8d9dc'); M_seat = mat('M_seat', '18191c'); M_groove = mat('M_groove', '070708'); M_resv = mat('M_resv', 'c9c6b4'); G_tail = mat('G_tail', 'ff2a1a'); G_lens = mat('G_lens', '0b0b0d'); L_tail = mat('L_tail', 'e0261a'); D_decal = mat('D_decal', '111214')
 X_header = mat('X_header', '8a6c48'); X_ti = mat('X_ti', '9a958c'); X_chain = mat('X_chain', '55585e'); M_engine = mat('M_engine', '2e3136')
 X_brushed = mat('X_brushed', '9ea3aa'); FRAME = mat('G_frame', '141518'); G_stripe = mat('G_stripe', '0c0d0f'); M_bore = mat('M_bore', '050506'); M_lead = mat('M_lead', 'b3261c')
 X_alu = mat('X_alu', 'b9bdc2'); X_steel = mat('X_steel', 'd6d8db'); X_frame = mat('X_frame', '41454c'); X_rim = mat('X_rimdark', '34373d'); X_cast = mat('X_cast', '7d8188')
@@ -336,11 +398,11 @@ if 'chassis' in STAGES:
         plate('shk_lugT%d' % s, hull(circ(S0[0], S0[1], 0.016) + circ(T[3][0], T[3][1], 0.014)), 0.006, FRAME, 'body', off=s * 0.02, bevel=0.0015)
         plate('shk_lugB%d' % s, hull(circ(S1[0], S1[1], 0.015) + circ(-0.305, 0.43, 0.02)), 0.006, X_alu, 'swing', off=s * 0.02, bevel=0.0015)
     cyl('shk_eyeT', 0.014, 0.034, S0, X_steel, 'body', seg=14, bevel=0.002); cyl('shk_eyeB', 0.013, 0.034, S1, X_steel, 'swing', seg=14, bevel=0.002)
-    rod('shk_body', shp(0.06), shp(0.52), [0.021, 0.024, 0.024, 0.024], X_frame, 'body', seg=16)
-    rod('shk_shaft', shp(0.5), shp(0.94), 0.0075, X_steel, 'body', seg=10)
-    rod('shk_collarT', shp(0.115), shp(0.15), 0.039, X_alu, 'body', seg=20); rod('shk_collarB', shp(0.85), shp(0.885), 0.037, X_alu, 'body', seg=20)
-    coil('shk_spring', shp(0.15), shp(0.85), 0.031, 0.0068, 7.5, M_spring, 'body')
-    rod('shk_res', (S0[0] - 0.05, S0[1] - 0.015, 0.046), (S0[0] - 0.105, S0[1] - 0.125, 0.046), 0.019, X_alu, 'body', seg=14)
+    rod('shk_body', shp(0.06), shp(0.52), [0.021, 0.024, 0.024, 0.024], X_frame, 'shockU', seg=16)
+    rod('shk_shaft', shp(0.28), shp(0.94), 0.0075, X_steel, 'shockL', seg=10)           # runs well up inside the body: the game slides it in and out
+    rod('shk_collarT', shp(0.115), shp(0.15), 0.039, X_alu, 'shockU', seg=20); rod('shk_collarB', shp(0.85), shp(0.885), 0.037, X_alu, 'shockL', seg=20)
+    coil('shk_spring', shp(0.15), shp(0.85), 0.031, 0.0068, 7.5, M_spring, 'spring')
+    rod('shk_res', (S0[0] - 0.05, S0[1] - 0.015, 0.046), (S0[0] - 0.105, S0[1] - 0.125, 0.046), 0.019, X_alu, 'shockU', seg=14)
 
     # ---- fork: upside-down. Dark outer tubes held by the two clamps, chrome stanchions sliding in them, cast feet carrying axle and calipers
     for s in (-1, 1):
@@ -348,7 +410,7 @@ if 'chassis' in STAGES:
         tube('forkO%d' % s, [fp(0.275, z), fp(0.30, z), fp(0.335, z), fp(0.728, z)], [0.0315, 0.0315, 0.0285, 0.0285], X_frame, 'front', seg=20)
         rod('forkseal%d' % s, fp(0.268, z), fp(0.277, z), 0.0295, M_dark, 'front', seg=20)
         rod('forkcap%d' % s, fp(0.728, z), fp(0.739, z), [0.024, 0.021], X_alu, 'front', seg=18); rod('forkadj%d' % s, fp(0.739, z), fp(0.748, z), 0.008, X_steel, 'front', seg=8)
-        rod('forkS%d' % s, fp(0.07, z), fp(0.30, z), 0.0215, X_steel, 'fork', seg=20)
+        rod('forkS%d' % s, fp(0.07, z), fp(0.46, z), 0.0215, X_steel, 'fork', seg=20)       # long enough to stay in the outer tube when the fork tops out
         tube('forkfoot%d' % s, [fp(-0.034, z), fp(-0.024, z), fp(0.03, z), fp(0.085, z), fp(0.095, z)], [0.02, 0.029, 0.03, 0.027, 0.0235], X_cast, 'fork', seg=18)
         cyl('axleboss%d' % s, 0.03, 0.05, (F[0], F[1], z), X_cast, 'fork', seg=18, bevel=0.004)
         # radial caliper behind the leg, on two lugs
@@ -475,12 +537,12 @@ if 'engine' in STAGES:
         cyl('mnt_head%d' % s, 0.0095, 0.006, (MNT[0], MNT[1], s * 0.153), X_steel, 'body', seg=6, bevel=0)
         cyl('mnt_spacerR%d' % s, 0.012, 0.049, (-0.14, 0.345, s * 0.1095), X_steel, 'body', seg=12, bevel=0)
     # final drive: front sprocket on the gearbox, chain round to the rear sprocket
-    lathe('sprocketF', [(0.012, -0.123), (0.04, -0.121), (0.04, -0.115), (0.012, -0.113)], X_steel, 'body', 20, (SPR[0], SPR[1], 0), 30)
+    lathe('sprocketF', [(0.012, -0.1215), (0.0355, -0.1205), (0.0355, -0.1155), (0.012, -0.1145)], X_steel, 'body', 20, (SPR[0], SPR[1], 0), 30)
     r1, r2 = 0.044, 0.113; dx, dy = SPR[0] - A[0], SPR[1] - A[1]; Dc = math.hypot(dx, dy); phi = math.atan2(dy, dx); al = math.acos((r2 - r1) / Dc); loop = []
     for k in range(21): loop.append(pol(A, r2, phi + al + (2 * math.pi - 2 * al) * k / 20, -0.118))
     for k in range(13): loop.append(pol(SPR, r1, phi - al + 2 * al * k / 12, -0.118))
     loop.append(loop[0])
-    sweep('chain', loop, 0.0085, 0.0062, X_chain, 'swing', e=4.0, ring=8, caps=False)
+    sweep('chain', loop, 0.0085, 0.0062, X_chain, 'swing', e=4.0, ring=8, caps=False)['noexport'] = 1      # stand-in for previews: the game draws the chain link by link
 
     # ---- exhaust: two bronze headers into a collector under the engine, then a short upswept race megaphone on the right
     HR, RR2 = 0.0225, 0.021; YU = 0.252                    # YU: height of the pipes under the engine
@@ -546,7 +608,9 @@ if 'body' in STAGES:
         rows = [[(0.338, 0.915, 0.112), (0.26, 0.893, 0.166), (0.15, 0.868, 0.168), (0.045, 0.842, 0.152)],
                 [(0.348, 0.835, 0.122), (0.272, 0.805, 0.162), (0.165, 0.782, 0.163), (0.07, 0.785, 0.148)],
                 [(0.342, 0.75, 0.116), (0.278, 0.716, 0.146), (0.185, 0.712, 0.15), (0.10, 0.742, 0.142)]]
-        panel('shroud%d' % s, [[side(q, s) for q in row] for row in rows], 0.009, X_brushed, 'body')
+        shr = panel('shroud%d' % s, [[side(q, s) for q in row] for row in rows], 0.009, X_brushed, 'body')
+        DC = globals().get('DECAL', (0.195, 0.798, 0.18, 0.06, 0.0))
+        decal('decal%d' % s, shr, DC[:2], DC[2], DC[3], s, D_decal, 'decalR' if s > 0 else 'decalL', tilt=DC[4])
         for (bx, by, z0, z1) in ((0.235, 0.848, 0.104, 0.166), (0.262, 0.728, 0.108, 0.152)):
             cyl('shroud_post%d_%.2f' % (s, by), 0.006, z1 - z0, (bx, by, s * (z0 + z1) / 2), FRAME, 'body', seg=8, bevel=0)
             cyl('shroud_bolt%d_%.2f' % (s, by), 0.0085, 0.005, (bx, by, s * (z1 + 0.004)), X_steel, 'body', seg=6, bevel=0)
@@ -554,14 +618,18 @@ if 'body' in STAGES:
     loft('seat', [dict(x=-0.175, y=0.815, w=0.085, ht=0.03, hb=0.028, e=2.6), dict(x=-0.25, y=0.798, w=0.128, ht=0.03, hb=0.03, e=2.8), dict(x=-0.34, y=0.79, w=0.158, ht=0.03, hb=0.03, e=3.0),
                   dict(x=-0.43, y=0.80, w=0.152, ht=0.036, hb=0.03, e=3.0), dict(x=-0.485, y=0.822, w=0.132, ht=0.042, hb=0.034, e=2.8)], M_seat, 'body', ring=18, subsurf=2)
     # tail: painted single-seat cowl over the end of the subframe, dark tray underneath; two racing stripes run over tank and cowl
-    stripe(loft('tail', [dict(x=-0.40, y=0.772, w=0.136, ht=0.02, hb=0.034, e=3.0), dict(x=-0.47, y=0.80, w=0.142, ht=0.052, hb=0.044, e=3.0), dict(x=-0.55, y=0.826, w=0.132, ht=0.064, hb=0.044, e=3.0),
-                         dict(x=-0.64, y=0.848, w=0.11, ht=0.05, hb=0.038, e=3.0), dict(x=-0.715, y=0.862, w=0.088, ht=0.032, hb=0.03, e=3.2), dict(x=-0.738, y=0.864, w=0.076, ht=0.024, hb=0.024, e=3.4)],
-                X_brushed, 'body', ring=18, subsurf=2), 'tail_stripes', G_stripe, 'body')
+    TLX, TLS = globals().get('TLX', -0.615), globals().get('TLS', 0.7)
+    tail = loft('tail', [dict(x=-0.40, y=0.772, w=0.136, ht=0.02, hb=0.034, e=3.0), dict(x=-0.47, y=0.80, w=0.142, ht=0.052, hb=0.044, e=3.0), dict(x=-0.55, y=0.826, w=0.132, ht=0.064, hb=0.044, e=3.0),
+                         dict(x=-0.64, y=0.848, w=0.11, ht=0.05, hb=0.038, e=3.0), dict(x=-0.715, y=0.862, w=0.088, ht=0.034, hb=0.032, e=3.0), dict(x=-0.745, y=0.865, w=0.07, ht=0.027, hb=0.027, e=2.8)],
+                X_brushed, 'body', ring=18, subsurf=2)
+    tail_st = stripe(tail, 'tail_stripes', G_stripe, 'body')
     loft('undertray', [dict(x=-0.44, y=0.758, w=0.105, ht=0.012, hb=0.02, e=3.0), dict(x=-0.60, y=0.80, w=0.092, ht=0.012, hb=0.024, e=3.0), dict(x=-0.72, y=0.836, w=0.066, ht=0.01, hb=0.016, e=3.0)],
          M_dark, 'body', ring=12, subsurf=1)
-    # tail light: an LED bar set into the end of the tail
-    box('taillight_bezel', (0.012, 0.03, 0.128), (-0.741, 0.863, 0), M_dark, 'body', bevel=0.005)
-    box('taillight', (0.012, 0.016, 0.112), (-0.7445, 0.863, 0), G_tail, 'body', bevel=0.004)['noexport'] = 1      # the game puts its own glowing brake light here
+    # tail light: one unbroken band of light let into the tail, running round the end from flank to flank along the line where the cowl is widest
+    TA, TB = (-0.745, 0.866), (-0.60, 0.838)
+    give(tail_st, tail, lambda x, y: x < -0.66 and (x - TA[0]) * 0.028 + (y - TA[1]) * 0.145 < 0)      # the racing stripes end at the light; below it the cowl is bare metal
+    lens = band([tail, tail_st], 'tail_lens', TA, TB, 0.0125, TLX, G_lens, 'body', slant=TLS)
+    band([lens], 'tail_light', TA, TB, 0.0054, TLX + 0.012, L_tail, 'body', slant=TLS)
 
 # ================================================================== STAGE 4: controls
 if 'controls' in STAGES:
@@ -598,13 +666,18 @@ if 'controls' in STAGES:
         cyl('resvcap%d' % s, rr + 0.002, 0.009, (rc[0], rc[1] + 0.019, rc[2]), M_dark, 'front', axis='y', seg=18, bevel=0.002)
         rod('resvarm%d' % s, (px + 0.045, py - 0.006, s * 0.202), (rc[0], rc[1] - 0.014, rc[2]), 0.0042, X_steel, 'front', seg=6)
     # hydraulics and cables: brake line to a splitter on the lower clamp and down the back of each leg to its caliper; clutch line and throttle cable into the frame
+    HOSES = []
     mr, ml = bar(0.238), bar(-0.238); SPL = (sp(0.498)[0] + N[0] * 0.064, sp(0.498)[1] + N[1] * 0.064, 0.0)
     box('brakesplit', (0.02, 0.02, 0.04), SPL, X_alu, 'front', rot=(0, 0, RAKE), bevel=0.004)
     hose('brakeline', [(mr[0] + 0.082, mr[1] - 0.016, 0.2), (0.47, 0.955, 0.168), (0.515, 0.868, 0.088), (SPL[0] + 0.004, SPL[1] + 0.014, 0.012)], 0.0048, X_chain, 'front', fit=X_alu)
     for s in (-1, 1):
         q1, q2 = fp(0.44), fp(0.2)
-        hose('brakeleg%d' % s, [(SPL[0], SPL[1] - 0.006, s * 0.014), (q1[0] + N[0] * 0.02, q1[1] + N[1] * 0.02, s * 0.058), (fp(0.36)[0] - N[0] * 0.036, fp(0.36)[1] - N[1] * 0.036, s * 0.084),
-                                (q2[0] - N[0] * 0.046, q2[1] - N[1] * 0.046, s * 0.092), pol(F, 0.17, math.radians(166), s * 0.09)], 0.0045, X_chain, 'front', fit=X_alu)
+        HP = [(SPL[0], SPL[1] - 0.006, s * 0.014), (q1[0] + N[0] * 0.02, q1[1] + N[1] * 0.02, s * 0.058), (fp(0.36)[0] - N[0] * 0.036, fp(0.36)[1] - N[1] * 0.036, s * 0.084),
+              (q2[0] - N[0] * 0.046, q2[1] - N[1] * 0.046, s * 0.092), pol(F, 0.17, math.radians(166), s * 0.09)]
+        tube('brakeleg%d' % s, HP, 0.0045, X_chain, 'front', seg=8, smooth=6)['noexport'] = 1      # stand-in for previews: the game draws this hose, it has to flex with the fork
+        for k, (a, b, asm) in enumerate(((HP[0], HP[1], 'front'), (HP[-1], HP[-2], 'fork'))):
+            d = Vector(b) - Vector(a); d.normalize(); rod('brakeleg%d_fit%d' % (s, k), tuple(Vector(a) - d * 0.004), tuple(Vector(a) + d * 0.016), 0.0045 * 1.7, X_alu, asm, seg=8)
+        HOSES.append([list(q) for q in HP])
     J = (sp(0.60)[0] - N[0] * 0.05, sp(0.60)[1] - N[1] * 0.05)                 # just behind the steering head: lines pass from the bars into the frame here
     hose('clutchline_a', [(ml[0] + 0.082, ml[1] - 0.016, -0.2), (0.46, 0.95, -0.15), (0.43, 0.875, -0.07), (J[0], J[1], -0.036)], 0.0045, X_chain, 'front', fit=X_alu)
     hose('throttle_a', [(mr[0] + 0.025, mr[1] - 0.02, 0.222), (0.455, 0.965, 0.13), (0.43, 0.885, 0.07), (J[0], J[1], 0.036)], 0.0036, M_dark, 'front')
@@ -633,6 +706,7 @@ if 'controls' in STAGES:
         hose('throttle_b', [(J[0], J[1], 0.036), (0.33, 0.80, 0.05), (0.26, 0.70, 0.04), (0.215, 0.655, 0.03)], 0.0036, M_dark, 'body')
 
 res = {k: sum(sum(len(p.vertices) - 2 for p in o.data.polygons) for o in L) for k, L in ASM.items()}
+if 'HOSES' in globals(): res['hoses'] = HOSES
 
 # ------------------------------------------------------------------ preview shots (workbench: quick, clean, shows the form)
 if SHOTS:
@@ -648,7 +722,7 @@ if SHOTS:
     C = V(0, 0.52, 0)
     DIRS = {'side': ((0, 0.0, 1), 0), 'sideL': ((0, 0.0, -1), 0), 'front': ((1, 0.03, 0), 0), 'rear': ((-1, 0.05, 0), 0), 'top': ((0.001, 1, 0), 0),
             'q1': ((0.8, 0.32, 1), 1), 'q2': ((0.8, 0.32, -1), 1), 'low': ((0.5, -0.12, 1), 1), 'q3': ((-0.85, 0.36, 1), 1), 'q4': ((-0.85, 0.36, -1), 1)}
-    CLOSE = {'cock': ((-0.42, 1.42, 0.0), (0.45, 0.93, 0.0), 30), 'bars': ((1.25, 1.45, 0.75), (0.33, 1.0, 0.0), 70), 'tail': ((-1.75, 1.2, 0.8), (-0.5, 0.78, 0.0), 70), 'tyre': ((1.55, 0.55, 0.55), (0.71, 0.33, 0.0), 80), 'pipe': ((-1.9, 0.75, 0.62), (-0.7, 0.5, 0.21), 110), 'bay': ((0.55, 0.75, -1.5), (0.1, 0.56, 0.0), 75), 'bayR': ((0.55, 0.75, 1.5), (0.1, 0.56, 0.0), 75)}
+    CLOSE = {'cock': ((-0.42, 1.42, 0.0), (0.45, 0.93, 0.0), 30), 'bars': ((1.25, 1.45, 0.75), (0.33, 1.0, 0.0), 70), 'tail': ((-1.75, 1.2, 0.8), (-0.5, 0.78, 0.0), 70), 'tailq': ((-1.7, 1.12, 0.75), (-0.63, 0.84, 0.0), 120), 'tailr': ((-2.3, 0.98, 0.0), (-0.7, 0.855, 0.0), 170), 'tails': ((-0.62, 0.86, 1.6), (-0.62, 0.84, 0.0), 150), 'panelR': ((0.19, 0.83, 1.3), (0.19, 0.81, 0.0), 120), 'panelL': ((0.19, 0.83, -1.3), (0.19, 0.81, 0.0), 120), 'tyre': ((1.55, 0.55, 0.55), (0.71, 0.33, 0.0), 80), 'pipe': ((-1.9, 0.75, 0.62), (-0.7, 0.5, 0.21), 110), 'bay': ((0.55, 0.75, -1.5), (0.1, 0.56, 0.0), 75), 'bayR': ((0.55, 0.75, 1.5), (0.1, 0.56, 0.0), 75)}
     for v in SHOTS:
         d, persp = DIRS.get(v, ((1, 0.3, 1), 1)); dv = V(*d).normalized(); ortho = not persp
         cam.data.type = 'ORTHO' if ortho else 'PERSP'; cam.data.ortho_scale = 2.35; cam.data.lens = 200
@@ -662,10 +736,12 @@ if SHOTS:
 
 # ------------------------------------------------------------------ bake AO into vertex colours and export the game assemblies
 if EXPORT:
-    GAME = {'body': ['body', 'swing'], 'front': ['front', 'fork'], 'wheelF': ['wheelF'], 'wheelR': ['wheelR']}     # until the game animates the suspension
+    GAME = {k: [k] for k in ASM}
+    DEC = ASM['decalR'] + ASM['decalL']
+    for o in DEC: o.hide_render = True                   # lettering casts no shade on the panel under it
     for k in ASM: ASM[k] = [o for o in ASM[k] if not o.get('noexport')]
     for o in [o for o in scene.objects if o.get('noexport')]: o.hide_render = True
-    allobj = [o for L in ASM.values() for o in L]
+    allobj = [o for k, L in ASM.items() for o in L if not k.startswith('decal')]
     for o in allobj:
         me = o.data
         for a in list(me.color_attributes): me.color_attributes.remove(a)
@@ -686,7 +762,7 @@ if EXPORT:
     vl.objects.active = allobj[0]
     bpy.ops.object.bake(type='AO', target='VERTEX_COLORS', use_clear=True)
     for o in allobj:
-        m = o.data.materials[0]; paint = m.name.startswith('P_'); base = (1, 1, 1) if paint else m['apex_col']
+        m = o.data.materials[0]; paint = m.name.startswith('P_') or m.name.startswith('L_'); base = (1, 1, 1) if paint else m['apex_col']
         brushed = m.name == 'X_brushed'; me = o.data; ca = me.color_attributes['Col']
         for lp in me.loops:
             p = ca.data[lp.index]; a = 0.35 + 0.65 * p.color[0]
@@ -708,6 +784,6 @@ if EXPORT:
         for o in L: o.select_set(True)
         vl.objects.active = L[0]
         bpy.ops.export_scene.gltf(filepath=OUT + 'bike_duetto_' + asm + '.glb', export_format='GLB', use_selection=True, use_active_scene=True, export_apply=True,
-                                  export_vertex_color='ACTIVE', export_yup=True, export_normals=True, export_texcoords=False, export_materials='EXPORT')
+                                  export_vertex_color='NONE' if asm.startswith('decal') else 'ACTIVE', export_yup=True, export_normals=True, export_texcoords=asm.startswith('decal'), export_materials='EXPORT')
         for o in L: o.location = (0, 0, 0)
 result = res

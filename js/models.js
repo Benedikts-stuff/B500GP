@@ -190,6 +190,122 @@
     const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; numTexCache[key] = t; return t;
   }
 
+  // the APEX wordmark, drawn rather than typed so it looks the same on every machine: slanted block letters, an A without its bar, an E of three bars
+  const wordTexCache = {};
+  function wordTexture(color) {
+    if (wordTexCache[color]) return wordTexCache[color];
+    const c = document.createElement('canvas'); c.width = 512; c.height = 128; const g = c.getContext('2d');
+    const H = 86, W = 80, gap = 30, wt = 22, yb = 107, sk = 0.2;
+    g.setTransform(1, 0, -sk, 1, sk * yb, 0);
+    g.beginPath(); g.rect(-60, yb - H, 700, H); g.clip();      // everything is cut square at base line and cap height
+    g.strokeStyle = color; g.lineWidth = wt; g.lineJoin = 'miter'; g.miterLimit = 8; g.lineCap = 'butt';
+    const L = (pts) => { g.beginPath(); pts.forEach((q, k) => (k ? g.lineTo(q[0], yb - q[1]) : g.moveTo(q[0], yb - q[1]))); g.stroke(); };
+    let x = 40;
+    L([[x + 6, -22], [x + W / 2, H + 9], [x + W - 6, -22]]); x += W + gap;                                   // A
+    const ym = H * 0.41, r = (H - wt / 2 - ym) / 2, cx = x + W - wt / 2 - r;                                  // P
+    L([[x + wt / 2, -10], [x + wt / 2, H + 10]]);
+    g.beginPath(); g.moveTo(x + wt / 2, yb - (H - wt / 2)); g.lineTo(cx, yb - (H - wt / 2)); g.arc(cx, yb - (ym + r), r, -Math.PI / 2, Math.PI / 2); g.lineTo(x + wt / 2, yb - ym); g.stroke(); x += W + gap - 4;
+    for (const [y, f] of [[wt / 2, 1], [H / 2, 0.78], [H - wt / 2, 1]]) L([[x, y], [x + W * 0.9 * f, y]]); x += W * 0.9 + gap;   // E
+    L([[x + 2, -16], [x + W - 2, H + 16]]); L([[x + 2, H + 16], [x + W - 2, -16]]);                           // X
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 8; wordTexCache[color] = t; return t;
+  }
+  // what stands on the tank side panels: the start number on one side, the name on the other (3:1, dark on bare metal)
+  const panelTexCache = {};
+  function panelTexture(num) {
+    const key = num == null ? 'word' : 'n' + num; if (panelTexCache[key]) return panelTexCache[key];
+    const c = document.createElement('canvas'); c.width = 384; c.height = 128; const g = c.getContext('2d');
+    if (num == null) g.drawImage(wordTexture('#101113').image, 16, 20, 352, 88);
+    else { g.fillStyle = '#101113'; g.font = 'italic 900 118px "Arial Black", "Helvetica Neue", Arial, sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(String(num), 186, 70); }
+    const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 8; panelTexCache[key] = t; return t;
+  }
+  // one chain link, lying along +x from its pin (origin) to the next: two side plates, the roller and the rivet. `wide` = outer link
+  const linkCache = {};
+  function linkGeometry(wide, pitch) {
+    if (linkCache[wide]) return linkCache[wide];
+    const gb = new GeoBuilder(), R = 0.0068, c = 0.0032, h = 0.0064, zp = wide ? 0.0079 : 0.0061, t = 0.0015, sh = new THREE.Shape();
+    [[-c, -h], [pitch * 0.5, -h * 0.74], [pitch + c, -h], [pitch + R, -h * 0.45], [pitch + R, h * 0.45], [pitch + c, h], [pitch * 0.5, h * 0.74], [-c, h], [-R, h * 0.45], [-R, -h * 0.45]].forEach((q, k) => (k ? sh.lineTo(q[0], q[1]) : sh.moveTo(q[0], q[1])));
+    const plate = new THREE.ExtrudeGeometry(sh, { depth: t, bevelEnabled: false, curveSegments: 1 }), col = wide ? 0xa98432 : 0x74787f;
+    for (const z of [-zp - t / 2, zp - t / 2]) gb.add(plate, M(0, 0, z), col);
+    const rot = new THREE.Matrix4().makeRotationX(Math.PI / 2);
+    if (!wide) gb.add(new THREE.CylinderGeometry(0.0051, 0.0051, 0.0112, 8, 1, true), rot, 0x8b8f96);     // roller, between the inner plates
+    else for (const x of [0, pitch]) gb.add(new THREE.CylinderGeometry(0.0023, 0.0023, 0.0196, 6), M(x, 0, 0).multiply(rot), 0xb9bcc2);   // rivet heads
+    plate.dispose(); return (linkCache[wide] = gb.build());
+  }
+  // a flexible hose: a tube through moving points, rebuilt in place
+  function hoseMesh(mat, color, n, sides) {
+    const cnt = (n + 1) * sides, P = new Float32Array(cnt * 3), Nn = new Float32Array(cnt * 3), C = new Float32Array(cnt * 3), I = [], c = lin(color);
+    for (let k = 0; k < cnt; k++) { C[k * 3] = c.r; C[k * 3 + 1] = c.g; C[k * 3 + 2] = c.b; }
+    for (let i = 0; i < n; i++) for (let j = 0; j < sides; j++) { const a = i * sides + j, b = i * sides + (j + 1) % sides, d = a + sides, e = b + sides; I.push(a, d, b, b, d, e); }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(Nn, 3)); geo.setAttribute('color', new THREE.BufferAttribute(C, 3)); geo.setIndex(I);
+    const m = new THREE.Mesh(geo, mat); m.frustumCulled = false; m.userData.hose = { n, sides, c: new Float32Array((n + 1) * 3) }; return m;
+  }
+  function hoseUpdate(mesh, pts, r) {     // pts: array of Vector3 (>= 3), Catmull-Rom through all of them
+    const { n, sides, c } = mesh.userData.hose, P = mesh.geometry.attributes.position.array, Nn = mesh.geometry.attributes.normal.array, m = pts.length - 1;
+    for (let i = 0; i <= n; i++) {
+      const u = i / n * m, j = Math.min(m - 1, Math.floor(u)), t = u - j, p0 = pts[Math.max(0, j - 1)], p1 = pts[j], p2 = pts[j + 1], p3 = pts[Math.min(m, j + 2)], t2 = t * t, t3 = t2 * t;
+      for (const [k, ax] of [[0, 'x'], [1, 'y'], [2, 'z']]) c[i * 3 + k] = 0.5 * (2 * p1[ax] + (p2[ax] - p0[ax]) * t + (2 * p0[ax] - 5 * p1[ax] + 4 * p2[ax] - p3[ax]) * t2 + (3 * p1[ax] - p0[ax] - 3 * p2[ax] + p3[ax]) * t3);
+    }
+    for (let i = 0; i <= n; i++) {
+      const a = Math.max(0, i - 1) * 3, b = Math.min(n, i + 1) * 3; let tx = c[b] - c[a], ty = c[b + 1] - c[a + 1], tz = c[b + 2] - c[a + 2]; const tl = Math.hypot(tx, ty, tz) || 1; tx /= tl; ty /= tl; tz /= tl;
+      let nx = ty, ny = -tx, nz = 0; const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;                      // n = t x z
+      const bx = ty * nz - tz * ny, by = tz * nx - tx * nz, bz = tx * ny - ty * nx;
+      for (let s2 = 0; s2 < sides; s2++) { const an = s2 / sides * Math.PI * 2, cs = Math.cos(an), sn = Math.sin(an), o = (i * sides + s2) * 3, vx = nx * cs + bx * sn, vy = ny * cs + by * sn, vz = nz * cs + bz * sn;
+        Nn[o] = vx; Nn[o + 1] = vy; Nn[o + 2] = vz; P[o] = c[i * 3] + vx * r; P[o + 1] = c[i * 3 + 1] + vy * r; P[o + 2] = c[i * 3 + 2] + vz * r; }
+    }
+    mesh.geometry.attributes.position.needsUpdate = true; mesh.geometry.attributes.normal.needsUpdate = true;
+  }
+  // a strip of lettering laid onto a curved surface: every vertex is dropped onto the mesh along `dir` (mesh-local), then lifted a hair
+  const _ray = new THREE.Raycaster();
+  function conformStrip(mesh, centre, right, up, w, h, nx, lift) {
+    const nrm = new THREE.Vector3().crossVectors(right, up).normalize(), P = [], U = [], I = [], hit = [], o = new THREE.Vector3(), d = nrm.clone().negate();
+    mesh.updateMatrixWorld(true); const inv = new THREE.Matrix4().copy(mesh.matrixWorld).invert(), dw = d.clone().transformDirection(mesh.matrixWorld);
+    for (let j = 0; j <= 2; j++) for (let i = 0; i <= nx; i++) {
+      const u = i / nx, v = j / 2; o.copy(centre).addScaledVector(right, (u - 0.5) * w).addScaledVector(up, (v - 0.5) * h);
+      const base = o.clone(); o.addScaledVector(nrm, 0.5); _ray.set(o.clone().applyMatrix4(mesh.matrixWorld), dw); hit.length = 0; mesh.raycast(_ray, hit); hit.sort((q, k) => q.distance - k.distance);
+      const q = hit.length ? hit[0].point.clone().applyMatrix4(inv) : base; q.addScaledVector(nrm, lift); P.push(q.x, q.y, q.z); U.push(u, v);
+    }
+    for (let j = 0; j < 2; j++) for (let i = 0; i < nx; i++) { const a = j * (nx + 1) + i, b2 = a + 1, c2 = a + nx + 1, d2 = c2 + 1; I.push(a, b2, c2, b2, d2, c2); }
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); geo.setIndex(I); geo.computeVertexNormals(); return geo;
+  }
+  /* tyres that show how they have been used: fresh rubber is a dull grey, the band that has worked is clean and black,
+     and where the tyre has been slid the rubber rolls up into a rough, lighter grain that cleans off again over the next corners */
+  const TYRE_FRAG = `
+        float tyR = length(vTy.xy), tyU = clamp(vTy.z / uTy.y, -1.0, 1.0), tyM = smoothstep(uTy.x - 0.004, uTy.x + 0.008, tyR);
+        vec4 tyW = texture2D(uWear, vec2(tyU * 0.4844 + 0.5, 0.5));
+        // grain: fine torn ripples lying at a slant across the tread; seen from far off, or on a spinning wheel, they melt into a dull band
+        vec2 tyP = vec2(atan(vTy.y, vTy.x) * uTy.x * 230.0 + vTy.z * 320.0, vTy.z * 760.0 - atan(vTy.y, vTy.x) * uTy.x * 60.0);
+        float tyF = clamp(1.3 - max(fwidth(tyP.x), fwidth(tyP.y)) * 1.1, 0.0, 1.0) * (1.0 - uTy.z);
+        float tyN = tyNoise(tyP) * 0.6 + tyNoise(tyP * 2.7 + 7.1) * 0.4;
+        float tyUse = tyW.r * tyM, tyG = tyW.g * tyM * mix(0.5, 0.18 + 0.82 * smoothstep(0.3, 0.68, tyN), tyF);
+        diffuseColor.rgb *= mix(1.5, 0.66, tyUse);
+        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.05, 0.05, 0.056), tyG * 0.8);`;
+  function tyreSkin(wheel, base, Rc, W) {
+    const N = 32, data = new Uint8Array(N * 4), tex = new THREE.DataTexture(data, N, 1, THREE.RGBAFormat); tex.magFilter = tex.minFilter = THREE.LinearFilter;
+    const use = new Float32Array(N), grain = new Float32Array(N), mat = base.clone(), u = { uWear: { value: tex }, uTy: { value: new THREE.Vector3(Rc, W, 0) } };
+    for (let k = 0; k < N; k++) { const x = ((k + 0.5) / N - 0.5) / 0.4844; use[k] = 0.8 * (1 - smoothstep(0.34, 0.6, Math.abs(x))); data[k * 4] = use[k] * 255; data[k * 4 + 3] = 255; }   // run in down the middle, untouched on the shoulders
+    tex.needsUpdate = true;
+    mat.onBeforeCompile = (sh) => {
+      sh.uniforms.uWear = u.uWear; sh.uniforms.uTy = u.uTy;
+      sh.vertexShader = 'varying vec3 vTy;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vTy = position;');
+      sh.fragmentShader = 'uniform sampler2D uWear; uniform vec3 uTy; varying vec3 vTy;\nfloat tyHash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }\nfloat tyNoise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f); return mix(mix(tyHash(i), tyHash(i + vec2(1.0, 0.0)), f.x), mix(tyHash(i + vec2(0.0, 1.0)), tyHash(i + vec2(1.0, 1.0)), f.x), f.y); }\n'
+        + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>' + TYRE_FRAG).replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n  roughnessFactor = mix(roughnessFactor * mix(1.0, 0.82, tyUse), 1.0, tyG);');
+    };
+    mat.customProgramCacheKey = () => 'apexTyre'; mat.extensions = { derivatives: true };
+    for (const c of wheel.children) if (c.isMesh && c.material === base) c.material = mat;
+    return { N, data, tex, use, grain, mat, u, acc: 0 };
+  }
+  function tyreWork(Wr, uc, ds, slide) {     // uc: where across the tread the tyre stands on the road (-1..1), ds: metres rolled
+    const N = Wr.N, x = (uc * 0.4844 + 0.5) * N - 0.5, k0 = Math.max(0, Math.floor(x - 5)), k1 = Math.min(N - 1, Math.ceil(x + 5)), sc = 1 - Math.exp(-ds / 90);
+    for (let k = k0; k <= k1; k++) {
+      const d = (k - x) / 2.1, w = Math.exp(-d * d);
+      Wr.use[k] += (1 - Wr.use[k]) * sc * w;
+      Wr.grain[k] = clamp(Wr.grain[k] + (slide > 0.05 ? (1 - Wr.grain[k]) * slide * ds / 16 : -Wr.grain[k] * ds / 240) * w, 0, 1);
+    }
+    Wr.acc += ds; if (Wr.acc < 2.5) return; Wr.acc = 0;
+    for (let k = 0; k < N; k++) { Wr.data[k * 4] = Wr.use[k] * 255; Wr.data[k * 4 + 1] = Wr.grain[k] * 255; }
+    Wr.tex.needsUpdate = true;
+  }
+
   /* ---------------------------------------------------------------- wheel */
   const TYRE = 0x15171a, RIMS = { corsa: 0x1b1d21, strada: 0xc9a227, duetto: 0xd8d8d6 };
   function wheelGeometry(R, halfW, rimColor, isRear) {
@@ -357,11 +473,12 @@
 
     // ---- Blender superbike (faired bikes): swap the procedural parts for the modelled ones, keep the rig
     const NEWM = { strada: 'super', corsa: 'corsa' }[spec.id], SUPV = NEWM && AX.Assets && AX.Assets.has('bike/' + NEWM + '_body') ? NEWM : null, SUP = !!SUPV, CORSA = SUPV === 'corsa';   // the supersports use their own models
+    let susp = null;
     const BV = naked ? 'duetto' : SUP ? SUPV : 'strada', BWB = naked || SUP ? 1.42 : 1.45, BMOD = !!(AX.Assets && AX.Assets.has('bike/' + BV + '_body'));
     if (BMOD) {
       const sx = wb / BWB, Sx = new THREE.Matrix4().makeScale(sx, 1, 1);
       paint.vertexColors = true;
-      const catMat = (n) => /^P_/.test(n) ? paint : /^X_/.test(n) ? mats.metal : /^G_/.test(n) ? mats.gloss : /^S_/.test(n) ? mats.screen : mats.matte;
+      const catMat = (n) => /^P_/.test(n) ? paint : /^X_/.test(n) ? mats.metal : /^G_/.test(n) ? mats.gloss : /^S_/.test(n) ? mats.screen : /^L_/.test(n) ? brakeMat : mats.matte;
       const merged = (name, pre) => {
         const groups = new Map();
         for (const p of AX.Assets.get(name).parts) { const k = (p.material.name || 'M_').slice(0, 2); (groups.get(k) || groups.set(k, []).get(k)).push(p.geometry); }
@@ -383,7 +500,30 @@
       for (const [w, nm] of [[wheelF, 'bike/' + BV + '_wheelF'], [wheelR, 'bike/' + BV + '_wheelR']]) { w.geometry = new THREE.BufferGeometry(); merged(nm).forEach((m) => w.add(m)); }
       if (CORSA) { brakeLight.position.set(-0.882 * sx, 0.985, 0); brakeLight.scale.set(1, 0.9, 1.05); }
       else if (SUP) { brakeLight.position.set(-0.857 * sx, 0.962, 0); brakeLight.rotation.z = -0.35; brakeLight.scale.set(1, 0.45, 0.95); }
-      else if (naked) { brakeLight.position.set(-0.7445 * sx, 0.863, 0); brakeLight.scale.set(1, 0.55, 1.24); }      // LED bar in the end of the tail
+      else if (naked) { brakeLight.position.set(-0.7445 * sx, 0.863, 0); brakeLight.scale.set(1, 0.55, 1.24); brakeLight.visible = !AX.Assets.has('bike/' + BV + '_swing'); }      // the Duetto's light is a band let into the tail (material L_)
+      if (naked && AX.Assets.has('bike/' + BV + '_swing')) {
+        /* working suspension: the fork lowers slide in the outer tubes, the swingarm turns about its pivot, the shock is squeezed between them.
+           All positions below are the model's own (tools/blender_duetto.py). */
+        const PIV = V3(-0.15, 0.43, 0), S0 = V3(-0.20, 0.716, 0), S1 = V3(-0.325, 0.458, 0), SPR = V3(-0.075, 0.445, 0), Tm = (v) => new THREE.Matrix4().makeTranslation(-v.x, -v.y, 0), nm = 'bike/' + BV + '_';
+        const forkG = new THREE.Group(); steerG.add(forkG); merged(nm + 'fork', new THREE.Matrix4().multiplyMatrices(inv, Sx)).forEach((m) => forkG.add(m)); forkG.add(wfHolder);
+        const swingG = new THREE.Group(); swingG.position.copy(PIV); susG.add(swingG); merged(nm + 'swing', Tm(PIV)).forEach((m) => swingG.add(m));
+        const sv = S1.clone().sub(S0), sl = sv.length(), Rm = new THREE.Matrix4().makeRotationZ(-Math.atan2(sv.y, sv.x));      // shock parts lie along local +x, turning about the top eye
+        const shU = new THREE.Group(); shU.position.copy(S0); susG.add(shU); merged(nm + 'shockU', Rm.clone().multiply(Tm(S0))).forEach((m) => shU.add(m));
+        const spring = merged(nm + 'spring', Rm.clone().multiply(Tm(S0))); spring.forEach((m) => shU.add(m));
+        const shL = new THREE.Group(); susG.add(shL); merged(nm + 'shockL', Rm.clone().multiply(Tm(S1))).forEach((m) => shL.add(m));
+        // chain: 108 links (54 outer, 54 inner) laid round the two sprockets every frame
+        const NL = 108, pitch = 0.01634, chain = [0, 1].map((k) => { const im = new THREE.InstancedMesh(linkGeometry(!k, pitch), mats.metal, NL / 2); im.frustumCulled = false; susG.add(im); return im; });
+        // brake hoses from the splitter on the lower clamp down to the calipers: the top is clamped, the bottom rides with the fork
+        const HP = [[0.53485, 0.77615, 0.014], [0.54931, 0.72509, 0.058], [0.53069, 0.62923, 0.084], [0.58663, 0.4790, 0.092], [0.54505, 0.35613, 0.09]], hoses = [-1, 1].map((sd) => {
+          const m = hoseMesh(mats.metal, 0x3c3e43, 22, 6); m.userData.pts = HP.map((q) => V3(q[0] * sx, q[1], q[2] * sd).applyMatrix4(inv)); m.userData.cur = m.userData.pts.map((q) => q.clone()); steerG.add(m); return m; });
+        susp = { forkG, swingG, shU, shL, spring, chain, hoses, PIV, S0, SPR, s1r: S1.clone().sub(PIV), sl, L: Math.hypot(-hx - PIV.x, Rr - PIV.y), psi0: Math.atan2(Rr - PIV.y, -hx - PIV.x), axle0: wfHolder.position.clone(), NL, pitch, d: 1, th: 0, ph: 0, top: 0 };
+        // number and name on the tank side panels
+        for (const [dn, tex] of [['decalR', panelTexture(rider.num)], ['decalL', panelTexture(null)]]) {
+          if (!AX.Assets.has(nm + dn)) continue;
+          const g = AX.Assets.get(nm + dn).parts[0].geometry.clone(), uv = g.attributes.uv; for (let k = 0; k < uv.count; k++) uv.setY(k, 1 - uv.getY(k)); g.applyMatrix4(Sx);
+          const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ map: tex, transparent: true, roughness: 0.5, metalness: 0.1, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); m.userData.decal = true; susG.add(m);
+        }
+      }
       else { brakeLight.position.set(-0.812 * sx, 0.995, 0); brakeLight.scale.set(1, 0.8, 0.85); }
     }
 
@@ -401,7 +541,7 @@
     const riderRig = buildRider(spec, rider, mats, numTex, { barX, barY, barZ });
     susG.add(riderRig.group);
 
-    rootG.traverse((o) => { if (o.isMesh && o !== shadow) { o.castShadow = true; o.receiveShadow = false; } });
+    rootG.traverse((o) => { if (o.isMesh && o !== shadow) { o.castShadow = !o.userData.decal && !o.isInstancedMesh; o.receiveShadow = false; } });
     // signs of heat on the Duetto: a dull glow deep in the exhaust, brake discs that begin to glow after a few hard stops (looks only)
     let heat = null;
     if (naked && BMOD) {
@@ -413,12 +553,13 @@
       const ex = put(new THREE.CircleGeometry(0.041, 20), mE, susG, -0.72 * wb / BWB, 0.4905, 0.2216); ex.quaternion.setFromUnitVectors(V3(0, 0, 1), V3(-0.866, 0.483, 0.129).normalize());
       heat = { mF, mR, mE, tf: 0, tr: 0, te: 0, flash: 0 };
     }
+    const wear = naked && BMOD ? [tyreSkin(wheelF, mats.matte, 0.2675, 0.062), tyreSkin(wheelR, mats.matte, 0.2725, 0.105)] : null;
     const batched = opts.batch !== false;
     const sc = (st.scale || 1) * AX.BIKE_SCALE; rootG.scale.setScalar(sc);
 
     const bike = {
       root: rootG, leanG, pitchG, bodyG, susG, steerG, wheelF, wheelR, rider: riderRig, paint, brakeMat, spec, scale: sc,
-      Rr, Rf, hx, wfHolder, shadow, rT: 0.105, heat, tyre: naked && BMOD ? { ar: 0.0525, br: 0.1034, af: 0.0475, bf: 0.061 } : null, dive: 0, diveV: 0, steerVis: 0, shake: 0, crashedVis: false, riderHolder: null,
+      Rr, Rf, hx, wfHolder, shadow, rT: 0.105, heat, wear, susp, tyre: naked && BMOD ? { ar: 0.0525, br: 0.1034, af: 0.0475, bf: 0.061 } : null, dive: 0, diveV: 0, steerVis: 0, shake: 0, crashedVis: false, riderHolder: null,
       /* contact patches in world space (for skid marks / smoke) */
       rearContact(out) { return out.set(-hx, 0.02, 0).applyMatrix4(leanG.matrixWorld); },
       frontContact(out) { return out.set(hx, 0.02, 0).applyMatrix4(leanG.matrixWorld); },
@@ -507,8 +648,10 @@
     const RM = AX.Assets && AX.Assets.has('rider/torso');      // Blender-made rider parts
     const pick = (n) => /accent/.test(n) ? accent : /dark/.test(n) ? dark : /shell/.test(n) ? helmetC : suit;
     const torso = new THREE.Mesh(RM ? mergeAsset('rider/torso', pick) : tb.build(), mats.suit); g.add(torso);
-    const backNum = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.2), new THREE.MeshBasicMaterial({ map: numTex, transparent: true }));
-    backNum.position.set(-0.118, 0.2, 0); backNum.rotation.set(0, -Math.PI / 2, 0); backNum.rotation.z = Math.PI / 2; torso.add(backNum);
+    // lettering across the back, laid onto the leathers
+    const backWord = new THREE.Mesh(conformStrip(torso, V3(-0.118, 0.24, 0), V3(0, 0, 1), V3(0, 1, 0), 0.27, 0.27 / 4, 16, 0.0022),
+      new THREE.MeshStandardMaterial({ map: wordTexture('#f3f3f0'), transparent: true, roughness: 0.7, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
+    backWord.castShadow = false; torso.add(backWord);
     // helmet
     const hb = new GeoBuilder();
     hb.add(new THREE.SphereGeometry(0.162, 26, 20), M(0, 0, 0, 0, 0, 0, 1.12, 0.98, 0.94), helmetC);
@@ -640,6 +783,7 @@
 
   /* ---------------------------------------------------------------- per-frame sync from physics */
   const _mw = new THREE.Matrix4(), _fw = new THREE.Vector3();
+  const _pin = new Float32Array(220), _m1 = new THREE.Matrix4();
   function syncBike(vis, p, dt, time) {
     const spec = vis.spec, maxLean = spec.maxLean * Math.PI / 180;
     // each wheel stands on the road where it actually is: height and pitch come from the surface under the two contact patches
@@ -664,26 +808,72 @@
       vis.leanG.position.set(0, q - T.ar * c, -((T.br * T.br - T.ar * T.ar) * s * c / q + T.ar * s));
       dFront = ((q - T.ar * c) - (qf - T.af * c)) / Math.max(c, 0.45);
     } else vis.leanG.position.set(0, vis.rT * (1 - Math.cos(phi)), -vis.rT * Math.sin(phi));   // roll on the tyre's round profile
+    if (vis.wear && !p.crashed && p.speed > 0.5) {
+      const T = vis.tyre, c = Math.cos(phi), s = Math.sin(phi), ds = p.speed * dt, blur = smoothstep(3, 14, p.speed);
+      tyreWork(vis.wear[1], T.br * s / Math.sqrt(T.ar * T.ar * c * c + T.br * T.br * s * s), ds, Math.max(clamp(Math.abs(p.slipAngle || 0) * 4.5 - 0.22, 0, 1), clamp((p.spin || 0) * 1.3 - 0.1, 0, 1)));
+      tyreWork(vis.wear[0], T.bf * s / Math.sqrt(T.af * T.af * c * c + T.bf * T.bf * s * s), ds, p.fx ? clamp((p.fx.frontSkid || 0) * 1.4, 0, 1) : 0);
+      vis.wear[0].u.uTy.value.z = vis.wear[1].u.uTy.value.z = blur;      // a spinning tyre shows the band, not the single grains
+    }
     vis.rider.bikeLean = phi;
     vis.shadow.position.z = Math.sin(phi) * 0.3; vis.shadow.scale.y = 1 + Math.abs(Math.sin(phi)) * 0.6; vis.shadow.visible = !p.crashed;
     // pitch about the wheel that stays on the ground
     const hx = vis.hx;
     if (p.pitch >= 0) { vis.pitchG.position.set(-hx, 0, 0); vis.bodyG.position.set(hx, 0, 0); }
     else { vis.pitchG.position.set(hx, 0, 0); vis.bodyG.position.set(-hx, 0, 0); }
-    vis.pitchG.rotation.z = p.pitch;
+    const S = vis.susp;
+    vis.pitchG.rotation.z = p.pitch - (S && p.pitch >= 0 ? dFront / (2 * hx) : 0);   // the narrower front tyre lets the nose down a touch when leaned over
     // sprung body: dive under braking, squat under power
-    const target = p.crashed ? 0 : clamp(-p.aLong * 0.0042, -0.05, 0.055);
+    const target = p.crashed ? 0 : S ? clamp(-p.aLong * 0.0054, -0.05, 0.076) : clamp(-p.aLong * 0.0042, -0.05, 0.055);
     vis.diveV += ((target - vis.dive) * 190 - vis.diveV * 17) * dt; vis.dive += vis.diveV * dt;
-    vis.susG.rotation.z = -vis.dive + jit * 0.5; vis.susG.position.y = -Math.abs(vis.dive) * 0.25 + Math.abs(jit) * 0.4;
-    // wheels
-    // the front wheel is unsprung: keep its axle where the body says it is, whatever the suspension does
-    vis.root.updateMatrixWorld(true); _fw.set(hx, vis.Rf - dFront, 0).applyMatrix4(vis.bodyG.matrixWorld); vis.wfHolder.parent.worldToLocal(_fw); vis.wfHolder.position.copy(_fw);
-    const roll = p.speed * dt / (vis.Rr * vis.scale);
-    vis.wheelR.rotation.z -= roll * (1 + p.spin * 0.45); vis.wheelF.rotation.z -= p.pitch > 0.06 ? roll * 0.6 : roll;
+    const sa = -vis.dive + jit * 0.5, sy = -Math.abs(vis.dive) * 0.25 + Math.abs(jit) * 0.4;
+    vis.susG.rotation.z = sa; vis.susG.position.y = sy;
+    const roll = p.speed * dt / (vis.Rr * vis.scale), rollR = roll * (1 + p.spin * 0.45);
+    if (S) {
+      // rear: the wheel stays on the road where the physics has it; the swingarm turns about its pivot to reach the axle, and the body takes up what is left
+      const ca = Math.cos(sa), sn = Math.sin(sa), px = S.PIV.x * ca - S.PIV.y * sn, py = S.PIV.x * sn + S.PIV.y * ca;
+      const sp = clamp((vis.Rr - sy - py) / S.L, -0.5, 0.3), psi = Math.atan2(sp, -Math.sqrt(1 - sp * sp)), th = AX.wrapAngle(psi - sa - S.psi0);
+      vis.susG.position.x = -hx - px - S.L * Math.cos(psi); S.swingG.rotation.z = th; S.th = th;
+      // shock: top eye on the frame, bottom eye on the swingarm; the spring is squeezed between its two collars
+      const ct = Math.cos(th), st2 = Math.sin(th), s1x = S.PIV.x + S.s1r.x * ct - S.s1r.y * st2, s1y = S.PIV.y + S.s1r.x * st2 + S.s1r.y * ct, vx = s1x - S.S0.x, vy = s1y - S.S0.y, ls = Math.hypot(vx, vy), ph = Math.atan2(vy, vx);
+      S.shU.rotation.z = ph; S.shL.rotation.z = ph; S.shL.position.set(s1x, s1y, 0);
+      const ks = (ls - 0.3 * S.sl) / (0.7 * S.sl); for (const m of S.spring) { m.scale.x = ks; m.position.x = 0.15 * S.sl * (1 - ks); }
+      // chain: round the rear sprocket, along the top run to the gearbox sprocket, round it and back along the bottom
+      const r1 = 0.0385, r2 = 0.1095, c2x = S.PIV.x + S.L * Math.cos(psi - sa), c2y = S.PIV.y + S.L * Math.sin(psi - sa), dx = S.SPR.x - c2x, dy = S.SPR.y - c2y, Dc = Math.hypot(dx, dy), cph = Math.atan2(dy, dx), al = Math.acos((r2 - r1) / Dc);
+      const Lr = r2 * (2 * Math.PI - 2 * al), Lf = r1 * 2 * al, Ls = Math.sqrt(Dc * Dc - (r2 - r1) * (r2 - r1)), Lt = Lr + Lf + 2 * Ls, pt = Lt / S.NL, adv = rollR * r2 / (2 * pt);
+      S.ph = ((S.ph - (Math.abs(adv) > 0.37 ? Math.sign(adv) * 0.37 : adv)) % 1 + 1) % 1;      // faster than the eye (and the frame rate) can follow: keep it running forwards instead of flickering
+      const a0x = c2x + r2 * Math.cos(cph - al), a0y = c2y + r2 * Math.sin(cph - al), b0x = S.SPR.x + r1 * Math.cos(cph - al), b0y = S.SPR.y + r1 * Math.sin(cph - al);
+      const a1x = c2x + r2 * Math.cos(cph + al), a1y = c2y + r2 * Math.sin(cph + al), b1x = S.SPR.x + r1 * Math.cos(cph + al), b1y = S.SPR.y + r1 * Math.sin(cph + al);
+      const pin = (k, o) => {
+        let q = (S.ph * 2 + k) * pt % Lt;
+        if (q < Lr) { const an = cph + al + q / r2; _pin[o] = c2x + r2 * Math.cos(an); _pin[o + 1] = c2y + r2 * Math.sin(an); return; } q -= Lr;
+        if (q < Ls) { const f = q / Ls; _pin[o] = a0x + (b0x - a0x) * f; _pin[o + 1] = a0y + (b0y - a0y) * f; return; } q -= Ls;
+        if (q < Lf) { const an = cph - al + q / r1; _pin[o] = S.SPR.x + r1 * Math.cos(an); _pin[o + 1] = S.SPR.y + r1 * Math.sin(an); return; } q -= Lf;
+        const f = q / Ls; _pin[o] = b1x + (a1x - b1x) * f; _pin[o + 1] = b1y + (a1y - b1y) * f;
+      };
+      for (let k = 0; k <= S.NL; k++) pin(k, k * 2);
+      for (let k = 0; k < S.NL; k++) {
+        const ax = _pin[k * 2], ay = _pin[k * 2 + 1], ex = _pin[k * 2 + 2] - ax, ey = _pin[k * 2 + 3] - ay, el = Math.hypot(ex, ey) || 1, sc2 = el / S.pitch, e = S.chain[k & 1].instanceMatrix.array, o = (k >> 1) * 16;
+        e[o] = ex / el * sc2; e[o + 1] = ey / el * sc2; e[o + 2] = 0; e[o + 3] = 0; e[o + 4] = -ey / el; e[o + 5] = ex / el; e[o + 6] = 0; e[o + 7] = 0; e[o + 8] = 0; e[o + 9] = 0; e[o + 10] = 1; e[o + 11] = 0; e[o + 12] = ax; e[o + 13] = ay; e[o + 14] = -0.118; e[o + 15] = 1;
+      }
+      S.chain[0].instanceMatrix.needsUpdate = true; S.chain[1].instanceMatrix.needsUpdate = true;
+    }
+    vis.wheelR.rotation.z -= rollR; vis.wheelF.rotation.z -= p.pitch > 0.06 ? roll * 0.6 : roll;
     // steering: counter-steers into a slide, turns in at walking pace
     const pvw = vis.rider.pov ? 0.6 : 1.1, pvm = vis.rider.pov ? 0.32 : 0.55;   // seen from the saddle, the bars need far less opposite lock to read as a slide
     const st = p.crashed ? 0.5 * (p.crashSide || 1) : clamp(-p.slipAngle * pvw + p.steer * lerp(0.42, 0.03, smoothstep(2, 14, p.speed)), -pvm, pvm);
     vis.steerVis = damp(vis.steerVis, st, 16, dt); vis.steerG.rotation.y = -vis.steerVis + (p.headShake ? Math.sin(time * 38) * 0.14 * p.headShake : 0);   // tank-slapper after a fast landing
+    // front wheel
+    vis.root.updateMatrixWorld(true);
+    if (S) {
+      // the lowers slide along the fork until the tyre stands on the road; with the wheel in the air the fork tops out
+      _m1.copy(vis.bodyG.matrixWorld).invert().multiply(vis.steerG.matrixWorld); const e = _m1.elements, a0 = S.axle0;
+      S.top = damp(S.top, p.pitch > 0.015 && !p.crashed ? 1 : 0, 10, dt);
+      const d = clamp((vis.Rf - (e[1] * a0.x + e[5] * a0.y + e[9] * a0.z + e[13])) / e[5] - 0.034 * S.top, -0.04, 0.13);
+      if (Math.abs(d - S.d) > 2e-4) {
+        S.d = d; S.forkG.position.y = d;
+        for (const h of S.hoses) { const P = h.userData.pts, C = h.userData.cur; C[3].copy(P[3]); C[3].y += d * 0.55; C[4].copy(P[4]); C[4].y += d; hoseUpdate(h, C, 0.0045); }
+      }
+    } else { _fw.set(hx, vis.Rf - dFront, 0).applyMatrix4(vis.bodyG.matrixWorld); vis.wfHolder.parent.worldToLocal(_fw); vis.wfHolder.position.copy(_fw); }   // unsprung: keep the axle where the body says it is
     // brake light
     const br = (p.brake + (p.rearBrake || 0)) > 0.08 && !p.crashed;
     const bl = br ? (p.brake > 0.8 && p.speed > 12 && Math.sin(time * 37.7) < 0 ? 0.3 : 1) : 0;      // hard on the brakes: it flashes, six times a second
@@ -739,6 +929,7 @@
     const m = new THREE.MeshBasicMaterial({ color: color || 0x66ccff, transparent: true, opacity: 0.32, depthWrite: false });
     const f = (o) => { if (o.isMesh) { o.material = m; o.castShadow = false; } };
     if (vis.heat) { const H = vis.heat, kill = []; vis.root.traverse((o) => { if (o.isMesh && (o.material === H.mF || o.material === H.mR || o.material === H.mE)) kill.push(o); }); for (const o of kill) o.parent.remove(o); vis.heat = null; }   // a ghost has no engine to glow
+    vis.wear = null;
     vis.root.traverse(f); vis.rider.group.traverse(f); vis.brakeMat = new THREE.MeshBasicMaterial(); return vis;
   }
 

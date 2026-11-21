@@ -83,12 +83,23 @@
       this.mBlur = new THREE.ShaderMaterial({ uniforms: { t: { value: null }, d: { value: new THREE.Vector2() } }, vertexShader: vs, depthTest: false, depthWrite: false,
         fragmentShader: 'uniform sampler2D t; uniform vec2 d; varying vec2 vUv; void main(){ vec3 c=texture2D(t,vUv).rgb*0.227; c+=(texture2D(t,vUv+d*1.385).rgb+texture2D(t,vUv-d*1.385).rgb)*0.316; c+=(texture2D(t,vUv+d*3.231).rgb+texture2D(t,vUv-d*3.231).rgb)*0.070; gl_FragColor=vec4(c,1.0); }' });
       this.mFinal = new THREE.ShaderMaterial({
-        uniforms: { t: { value: null }, b: { value: null }, ao: { value: null }, uAO: { value: 0 }, px: { value: new THREE.Vector2() }, uTilt: { value: 1 }, uFocus: { value: 0.5 }, uBloom: { value: 0.5 }, uVig: { value: 0.32 }, uSat: { value: 1.12 } },
+        uniforms: { t: { value: null }, b: { value: null }, ao: { value: null }, uAO: { value: 0 }, px: { value: new THREE.Vector2() }, uTilt: { value: 1 }, uFocus: { value: 0.5 }, uBloom: { value: 0.5 }, uVig: { value: 0.32 }, uSat: { value: 1.12 }, uHz: { value: new THREE.Vector4() }, uHzR: { value: new THREE.Vector4(0.02, 0.05, 0, 1.6) }, uHzA: { value: 0 } },
         vertexShader: vs, depthTest: false, depthWrite: false,
-        fragmentShader: `uniform sampler2D t; uniform sampler2D b; uniform sampler2D ao; uniform float uAO; uniform vec2 px; uniform float uTilt; uniform float uFocus; uniform float uBloom; uniform float uVig; uniform float uSat; varying vec2 vUv;
+        fragmentShader: `uniform sampler2D t; uniform sampler2D b; uniform sampler2D ao; uniform float uAO; uniform vec2 px; uniform float uTilt; uniform float uFocus; uniform float uBloom; uniform float uVig; uniform float uSat; uniform vec4 uHz; uniform vec4 uHzR; uniform float uHzA; varying vec2 vUv;
           void main(){
             float r = uTilt * smoothstep(0.24, 0.6, abs(vUv.y - uFocus)) * 1.7;
-            vec3 c = texture2D(t, vUv).rgb;
+            // heat haze: the air behind a hot exhaust bends the picture. uHz = plume start/end on screen, uHzR = radius at start/end, time, aspect; uHzA = how far it bends
+            vec2 hz = vec2(0.0);
+            if (uHzA > 0.0) {
+              vec2 ha = vec2((vUv.x - uHz.x) * uHzR.w, vUv.y - uHz.y), hd = vec2((uHz.z - uHz.x) * uHzR.w, uHz.w - uHz.y);
+              float hh = clamp(dot(ha, hd) / max(dot(hd, hd), 1e-7), 0.0, 1.0), hm = 1.0 - length(ha - hd * hh) / mix(uHzR.x, uHzR.y, hh);
+              if (hm > 0.0) {
+                hm = hm * hm * (3.0 - 2.0 * hm) * (1.0 - 0.7 * hh) * smoothstep(0.0, 0.12, hh);
+                vec2 hs = ha / uHzR.x * 2.6; float ht = uHzR.z;
+                hz = vec2(sin(hs.y * 3.3 - ht * 13.0 + sin(hs.x * 2.6 + ht * 7.0) * 1.8) / uHzR.w, sin(hs.x * 3.9 + ht * 10.0 + sin(hs.y * 2.9 - ht * 9.0) * 1.6)) * uHzA * hm;
+              }
+            }
+            vec3 c = texture2D(t, vUv + hz).rgb;
             if (r > 0.05) {
               c *= 0.2; vec2 o = px * r;
               c += texture2D(t, vUv + o * vec2( 1.0,  0.35)).rgb * 0.1; c += texture2D(t, vUv + o * vec2(-1.0, -0.35)).rgb * 0.1;
