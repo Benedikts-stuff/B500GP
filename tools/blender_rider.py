@@ -122,7 +122,8 @@ repaint(torso, [((0, YOKE, 0), (0.0, 1, 0))], lambda x, y, z: y > YOKE, 'yoke', 
 hump = loft_y('hump', [dict(y=0.245, x=-0.086, w=0.02, df=0.01, db=0.01), dict(y=0.33, x=-0.088, w=0.058, df=0.02, db=0.03, e=2.4), dict(y=0.44, x=-0.088, w=0.064, df=0.02, db=0.042, e=2.4),
                        dict(y=0.52, x=-0.082, w=0.05, df=0.02, db=0.032, e=2.4), dict(y=0.565, x=-0.072, w=0.02, df=0.01, db=0.01)], T_suit, 'torso', ring=16, subsurf=2)
 repaint(hump, [((0, YOKE, 0), (0.0, 1, 0))], lambda x, y, z: y > YOKE, 'hump_yoke', T_accent, 'torso')
-loft_y('collar', [dict(y=0.58, x=0.014, w=0.068, df=0.056, db=0.058), dict(y=0.64, x=0.017, w=0.056, df=0.049, db=0.05)], T_dark, 'torso', ring=20, subsurf=1)
+# the neck: runs on well up into the helmet, so that there is always a body under it from wherever one looks
+loft_y('collar', [dict(y=0.575, x=0.014, w=0.07, df=0.058, db=0.06), dict(y=0.64, x=0.017, w=0.058, df=0.051, db=0.052), dict(y=0.705, x=0.02, w=0.052, df=0.047, db=0.048)], T_dark, 'torso', ring=20, subsurf=1)
 
 # ------------------------------------------------------------------ helmet: a race full-face at true size - 26 cm wide, 28 high, 35 long - so it is longer than it is
 # wide, with the chin bar reaching forward. The visor is part of the same surface, tapering back to its pivots.

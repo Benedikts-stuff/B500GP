@@ -765,8 +765,11 @@
     _y.subVectors(J.S, J.H).normalize(); _z.set(0, -h * 0.25, 1).normalize(); _x.crossVectors(_y, _z).normalize(); _z.crossVectors(_x, _y).normalize();
     _m4.makeBasis(_x, _y, _z); rig.torso.quaternion.setFromRotationMatrix(_m4); rig.torso.position.copy(J.H);
     rig.torso.scale.set(1, J.S.distanceTo(J.H) / 0.52, 1);
-    J.head.copy(J.S).addScaledVector(_y, 0.19).addScaledVector(_x, 0.08); J.head.z += h * 0.07; J.head.y += lerp(0.02, -0.02, tk);      // the upper back is rounded: the neck comes out of it forwards, the head sits a little lower between the shoulders
-    rig.helmet.position.copy(J.head); rig.helmet.rotation.set(-h * 0.45, -h * 0.3, lerp(nk ? -0.13 : -0.2, -0.42, tk) + si * 0.15, 'YXZ');
+    // the helmet sits on the neck: its socket (a point inside the bottom opening, a little behind the middle) is put on the top of the neck,
+    // whichever way the head is turned - so the neck always runs up into the helmet and never stands beside it
+    rig.helmet.rotation.set(-h * 0.45, -h * 0.3, lerp(nk ? -0.13 : -0.2, -0.42, tk) + si * 0.15, 'YXZ');
+    J.head.set(-0.022, -0.092, 0).applyQuaternion(rig.helmet.quaternion).negate().add(J.H).addScaledVector(_x, 0.048).addScaledVector(_y, 0.615 * J.S.distanceTo(J.H) / 0.52);
+    J.head.z += h * 0.03; rig.helmet.position.copy(J.head);
     for (let s = 0; s < 2; s++) {
       const sg = s === 0 ? -1 : 1, inside = sg * h > 0 ? Math.abs(h) : 0;
       // arm
