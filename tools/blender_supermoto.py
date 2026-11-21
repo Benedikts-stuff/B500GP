@@ -313,20 +313,21 @@ if 'engine' in STAGES:
 
     # ---- exhaust: the header leaves the front of the head, swings round the right of the cylinder and climbs past the frame to a silencer under the seat
     E0 = ept(0.256, 0.09)
-    HDR = [E0, (0.277, 0.652, 0.014), (0.302, 0.59, 0.052), (0.282, 0.525, 0.1), (0.20, 0.494, 0.13), (0.07, 0.505, 0.142), (-0.06, 0.56, 0.147), (-0.18, 0.655, 0.155), (-0.275, 0.737, 0.171)]
+    HDR = [E0, (0.277, 0.652, 0.014), (0.302, 0.59, 0.052), (0.282, 0.525, 0.1), (0.20, 0.494, 0.13), (0.07, 0.505, 0.142), (-0.06, 0.535, 0.148), (-0.19, 0.565, 0.156), (-0.30, 0.588, 0.168)]
     tube('header', HDR, [0.0205, 0.0205, 0.0205, 0.021, 0.0215, 0.022, 0.0225, 0.0235, 0.0245], X_pipe, 'body', seg=18, smooth=8)
     rod('hdr_flange', E0, (E0[0] + EP[0] * 0.012, E0[1] + EP[1] * 0.012, 0), 0.03, X_steel, 'body', seg=16)
-    C0, C1 = (-0.29, 0.752, 0.178), (-0.71, 0.848, 0.188); cd = Vector(C1) - Vector(C0); cl = cd.length; cd.normalize()
+    C0, C1 = (-0.355, 0.605, 0.178), (-0.725, 0.745, 0.186); cd = Vector(C1) - Vector(C0); cl = cd.length; cd.normalize()
     def cpt(f): return tuple(Vector(C0) + cd * (cl * f))
-    rod('can_joint', (-0.262, 0.727, 0.168), cpt(0.03), [0.0255, 0.027, 0.03], X_steel, 'body', seg=18)
-    sweep('can_cone', [cpt(0.02), cpt(0.1)], [0.03, 0.05], [0.032, 0.06], X_can, 'body', e=[2.0, 3.2], ring=24)
-    CAN = sweep('can', [cpt(0.1), cpt(0.9)], 0.05, 0.06, X_can, 'body', e=3.2, ring=24)
-    sweep('can_band0', [cpt(0.105), cpt(0.135)], 0.0515, 0.0615, X_steel, 'body', e=3.2, ring=24); sweep('can_band1', [cpt(0.84), cpt(0.87)], 0.0515, 0.0615, X_steel, 'body', e=3.2, ring=24)
-    sweep('can_end', [cpt(0.9), cpt(0.955), cpt(1.0)], [0.051, 0.048, 0.036], [0.061, 0.057, 0.042], G_cover, 'body', e=[3.2, 3.0, 2.4], ring=24, caps=False)
+    rod('can_joint', (-0.325, 0.594, 0.171), cpt(0.03), [0.0255, 0.027, 0.03], X_steel, 'body', seg=18)
+    sweep('can_cone', [cpt(0.02), cpt(0.1)], [0.03, 0.048], [0.032, 0.07], X_can, 'body', e=[2.0, 3.2], ring=24)
+    CAN = sweep('can', [cpt(0.1), cpt(0.9)], 0.048, 0.07, X_can, 'body', e=3.2, ring=24)
+    sweep('can_band0', [cpt(0.105), cpt(0.135)], 0.0495, 0.0715, X_steel, 'body', e=3.2, ring=24); sweep('can_band1', [cpt(0.84), cpt(0.87)], 0.0495, 0.0715, X_steel, 'body', e=3.2, ring=24)
+    sweep('can_end', [cpt(0.9), cpt(0.955), cpt(1.0)], [0.049, 0.046, 0.035], [0.071, 0.066, 0.048], G_cover, 'body', e=[3.2, 3.0, 2.4], ring=24, caps=False)
     spin('can_outlet', cpt(0.93), cpt(1.012), [(0.0, 0.0), (0.0, 0.021), (1.0, 0.021), (1.0, 0.0245), (0.86, 0.0245)], M_bore, 'body', seg=18, flip=False)
     spin('can_tip', cpt(0.985), cpt(1.015), [(0.0, 0.03), (1.0, 0.027), (1.0, 0.0215), (0.0, 0.0215)], X_steel, 'body', seg=18)
-    plate('can_bracket', hull(circ(-0.50, 0.855, 0.014, 10) + circ(*cpt(0.5)[:2], 0.014, 10)), 0.005, FRAME, 'body', off=0.128, bevel=0.0015)
-    rod('can_stay', (-0.50, 0.855, 0.09), (-0.50, 0.855, 0.141), 0.007, X_steel, 'body', seg=8)
+    plate('can_bracket', hull(circ(-0.50, 0.855, 0.014, 10) + circ(*cpt(0.5)[:2], 0.014, 10)), 0.005, FRAME, 'body', off=0.104, bevel=0.0015)
+    rod('can_stud', (cpt(0.5)[0], cpt(0.5)[1], 0.1), (cpt(0.5)[0], cpt(0.5)[1], 0.142), 0.007, X_steel, 'body', seg=8)
+    rod('can_stay', (-0.50, 0.855, 0.09), (-0.50, 0.855, 0.112), 0.007, X_steel, 'body', seg=8)
 
     # ---- final drive: chain round both sprockets (a stand-in here, the game draws it link by link), slider and guide on the swingarm
     r1, r2 = 0.0365, 0.121; dx, dy = SPR[0] - A[0], SPR[1] - A[1]; Dc = math.hypot(dx, dy); phi = math.atan2(dy, dx); al = math.acos((r2 - r1) / Dc); loop = []
@@ -344,61 +345,61 @@ if 'engine' in STAGES:
 if 'body' in STAGES:
     G_red = mat('G_smred', 'c2141a'); G_black = mat('G_smplastic', '15161a'); G_white = mat('G_smwhite', 'f1f1ec'); M_seat = mat('M_smseat', '141518'); M_dark = mat('M_dark', '1c1e22')
     T_white = mat('G_smtxtwhite', 'f4f4f0'); T_black = mat('G_smtxtblack', '101114'); T_red = mat('G_smtxtred', 'c2141a')
-    # tank: sits between the spars under the front of the seat, black; only its top and the filler show once the shrouds are on
-    loft('tank', [dict(x=0.305, y=0.93, w=0.045, ht=0.05, hb=0.06, e=2.6), dict(x=0.24, y=0.935, w=0.086, ht=0.064, hb=0.09, e=2.8), dict(x=0.12, y=0.92, w=0.1, ht=0.068, hb=0.1, e=2.9),
-                  dict(x=0.0, y=0.895, w=0.096, ht=0.052, hb=0.09, e=2.8), dict(x=-0.075, y=0.875, w=0.07, ht=0.038, hb=0.07, e=2.6)], G_black, 'body', ring=20, subsurf=2)
-    cyl('fuelcap', 0.03, 0.016, (0.222, 1.004, 0), M_dark, 'body', axis='y', seg=20, bevel=0.004); cyl('fuelcap_top', 0.02, 0.006, (0.222, 1.014, 0), X_alu, 'body', axis='y', seg=16, bevel=0.002)
+    # tank: sits between the spars under the front of the seat, black; its hump and the filler show above the shrouds
+    loft('tank', [dict(x=0.305, y=0.90, w=0.045, ht=0.05, hb=0.06, e=2.6), dict(x=0.24, y=0.90, w=0.086, ht=0.064, hb=0.09, e=2.8), dict(x=0.12, y=0.89, w=0.1, ht=0.068, hb=0.1, e=2.9),
+                  dict(x=0.0, y=0.875, w=0.096, ht=0.052, hb=0.09, e=2.8), dict(x=-0.075, y=0.862, w=0.07, ht=0.038, hb=0.07, e=2.6)], G_black, 'body', ring=20, subsurf=2)
+    cyl('fuelcap', 0.03, 0.016, (0.222, 0.968, 0), M_dark, 'body', axis='y', seg=20, bevel=0.004); cyl('fuelcap_top', 0.02, 0.006, (0.222, 0.978, 0), X_alu, 'body', axis='y', seg=16, bevel=0.002)
     # airbox under the seat, between the subframe rails; the intake boot runs into its front
     loft('airbox', [dict(x=-0.06, y=0.77, w=0.07, ht=0.06, hb=0.07, e=3.4), dict(x=-0.16, y=0.765, w=0.086, ht=0.066, hb=0.09, e=3.6), dict(x=-0.30, y=0.772, w=0.088, ht=0.058, hb=0.075, e=3.6),
                     dict(x=-0.37, y=0.785, w=0.07, ht=0.045, hb=0.05, e=3.2)], M_dark, 'body', ring=16, subsurf=1)
     # seat: long, flat and narrow, so the rider can slide all the way forward onto the tank
-    loft('seat', [dict(x=0.165, y=0.985, w=0.05, ht=0.02, hb=0.022, e=2.6), dict(x=0.05, y=0.956, w=0.076, ht=0.03, hb=0.032, e=3.0), dict(x=-0.1, y=0.917, w=0.093, ht=0.034, hb=0.04, e=3.2),
-                  dict(x=-0.28, y=0.883, w=0.1, ht=0.034, hb=0.04, e=3.2), dict(x=-0.45, y=0.886, w=0.096, ht=0.034, hb=0.036, e=3.2), dict(x=-0.6, y=0.901, w=0.08, ht=0.03, hb=0.03, e=3.0),
+    loft('seat', [dict(x=0.165, y=0.948, w=0.05, ht=0.02, hb=0.022, e=2.6), dict(x=0.05, y=0.93, w=0.076, ht=0.03, hb=0.032, e=3.0), dict(x=-0.1, y=0.899, w=0.093, ht=0.034, hb=0.04, e=3.2),
+                  dict(x=-0.28, y=0.872, w=0.1, ht=0.034, hb=0.04, e=3.2), dict(x=-0.45, y=0.877, w=0.096, ht=0.034, hb=0.036, e=3.2), dict(x=-0.6, y=0.901, w=0.08, ht=0.03, hb=0.03, e=3.0),
                   dict(x=-0.675, y=0.908, w=0.054, ht=0.02, hb=0.02, e=2.6)], M_seat, 'body', ring=18, subsurf=2)
-    # The bodywork is two triangles hanging from the long line of tank and seat: the radiator shroud points down and forward at the radiator's foot,
-    # the side panel points down at the swingarm pivot. Sharp at the tips, flowing in between: the two run into each other in one arch above the
-    # cylinder head, so the space round the top of the engine is closed.
+    # The bodywork follows the layout every bike of this class has. One long line runs from the tail along the seat to a wing beside the fork; under it
+    # hang two triangles: the radiator shroud, with a blade reaching down in front of the engine, and the side panel, pointing down at the swingarm
+    # pivot. They run into each other in one arch above the cylinder head. Sharp at the tips, flowing in between.
     def off(a, b, d):                                      # the line a-b moved d to its left (in the side view)
         dx, dy = b[0] - a[0], b[1] - a[1]; L = math.hypot(dx, dy); return (a[0] - dy / L * d, a[1] + dx / L * d), (b[0] - dy / L * d, b[1] + dx / L * d)
-    SA, SB = (-0.10, 0.72), (0.43, 0.561)                  # base line of the black sill along the shroud's lower edge
-    PA, PB = (-0.68, 0.905), (-0.155, 0.565)               # lower rear edge of the side panel
+    SA, SB = (0.10, 0.615), (0.45, 0.72)                   # the slash across the shroud: black below it
+    PA, PB = (-0.40, 0.60), (0.0, 0.72)                    # the slash across the side panel: red below it
     for sg in (-1, 1):
         k = 1.0 if sg < 0 else 0.97                        # the right-hand side panel sits a little closer in: the silencer runs outside it
-        # ---- radiator shroud: red, the word mark in white, a black border with a white pinstripe along the lower rear edge
-        top = [(-0.10, 0.925, 0.104), (0.08, 0.972, 0.116), (0.27, 0.992, 0.128), (0.45, 0.972, 0.142), (0.585, 0.858, 0.18)]
-        bot = [(-0.08, 0.705, 0.126), (0.04, 0.698, 0.148), (0.175, 0.664, 0.163), (0.305, 0.61, 0.17), (0.43, 0.545, 0.172)]
-        lft = [(-0.10, 0.925, 0.104), (-0.098, 0.87, 0.116), (-0.094, 0.815, 0.123), (-0.088, 0.76, 0.126), (-0.08, 0.705, 0.126)]
-        rgt = [(0.585, 0.858, 0.18), (0.536, 0.785, 0.18), (0.493, 0.706, 0.178), (0.458, 0.626, 0.175), (0.43, 0.545, 0.172)]
-        shr = panel('shroud%d' % sg, tight([[side(q, sg) for q in row] for row in coons(top, bot, lft, rgt, 0.02)], 0.12), 0.006, G_red, 'body')
+        # ---- radiator shroud: red, the word mark in white, the blade black under a white pinstripe
+        top = [(-0.10, 0.885, 0.104), (0.05, 0.915, 0.118), (0.20, 0.93, 0.138), (0.36, 0.93, 0.162), (0.49, 0.902, 0.178)]
+        bot = [(-0.08, 0.715, 0.126), (0.07, 0.708, 0.15), (0.18, 0.675, 0.16), (0.265, 0.61, 0.163), (0.33, 0.515, 0.16)]
+        lft = [(-0.10, 0.885, 0.104), (-0.097, 0.842, 0.114), (-0.092, 0.80, 0.121), (-0.086, 0.757, 0.125), (-0.08, 0.715, 0.126)]
+        rgt = [(0.49, 0.902, 0.178), (0.425, 0.81, 0.178), (0.385, 0.71, 0.175), (0.355, 0.61, 0.169), (0.33, 0.515, 0.16)]
+        shr = panel('shroud%d' % sg, tight([[side(q, sg) for q in row] for row in coons(top, bot, lft, rgt, 0.014)], 0.12), 0.006, G_red, 'body')
         # (lettering first, while the panel is still whole; tilt is the slope of the base line in the bike's side view)
-        label('ad_apex%d' % sg, 'APEX', shr, (0.27, 0.872), 0.072, sg, T_white, 'body', tilt=0.06 * sg)
-        label('ad_korvex%d' % sg, 'KORVEX', shr, (0.455, 0.80), 0.02, sg, T_white, 'body', tilt=0.06 * sg)
-        label('ad_oktan%d' % sg, 'OKTAN 98', shr, (0.435, 0.735), 0.016, sg, T_white, 'body', tilt=0.06 * sg)
-        band([shr], 'shroud_edge%d' % sg, SA, SB, 0.06, 0.9, G_black, 'body')
-        band([shr], 'shroud_pin%d' % sg, *off(SA, SB, 0.068), 0.0045, 0.9, G_white, 'body')
-        # ---- side panel: black, a white field for the start number (the game prints it), a red border with a white pinstripe along the lower rear edge
-        top = [(0.03, 0.878, 0.114), (-0.15, 0.874, 0.116), (-0.33, 0.856, 0.114), (-0.50, 0.866, 0.106), (-0.68, 0.905, 0.078)]
-        bot = [(0.03, 0.712, 0.12), (-0.02, 0.695, 0.121), (-0.07, 0.662, 0.122), (-0.115, 0.62, 0.122), (-0.155, 0.565, 0.122)]
+        label('ad_apex%d' % sg, 'APEX', shr, (0.19, 0.83), 0.062, sg, T_white, 'body', tilt=0.05 * sg)
+        label('ad_korvex%d' % sg, 'KORVEX', shr, (0.385, 0.862), 0.018, sg, T_white, 'body', tilt=0.0)
+        label('ad_oktan%d' % sg, 'OKTAN 98', shr, (0.33, 0.752), 0.014, sg, T_white, 'body', tilt=0.05 * sg)
+        band([shr], 'shroud_edge%d' % sg, *off(SA, SB, -0.1), 0.1, 0.9, G_black, 'body')
+        band([shr], 'shroud_pin%d' % sg, *off(SA, SB, 0.009), 0.0045, 0.9, G_white, 'body')
+        # ---- side panel: black, a white field for the start number (the game prints it), the tip red under a white pinstripe, the tail red
+        top = [(0.03, 0.878, 0.114), (-0.15, 0.868, 0.116), (-0.33, 0.85, 0.114), (-0.50, 0.866, 0.106), (-0.68, 0.905, 0.078)]
+        bot = [(0.03, 0.712, 0.12), (-0.03, 0.70, 0.121), (-0.10, 0.67, 0.122), (-0.165, 0.615, 0.122), (-0.22, 0.54, 0.12)]
         lft = [(0.03, 0.878 - 0.0415 * q, 0.114 + 0.0015 * q) for q in range(5)]
-        rgt = [(-0.68, 0.905, 0.078), (-0.545, 0.836, 0.112), (-0.41, 0.754, 0.12), (-0.28, 0.662, 0.123), (-0.155, 0.565, 0.122)]
+        rgt = [(-0.68, 0.905, 0.078), (-0.57, 0.828, 0.112), (-0.46, 0.745, 0.12), (-0.345, 0.648, 0.123), (-0.22, 0.54, 0.12)]
         sp_ = panel('sidepanel%d' % sg, tight([[(q[0], q[1], q[2] * sg * k) for q in row] for row in coons(top, bot, lft, rgt, 0.006)], 0.12), 0.006, G_black, 'body')
-        label('ad_zynto%d' % sg, 'ZYNTO', sp_, (-0.165, 0.70), 0.02, sg, T_white, 'body', tilt=0.0)
-        label('ad_grip2%d' % sg, 'GRIPWERK', sp_, (-0.405, 0.772), 0.019, sg, T_white, 'body', tilt=-0.575 * sg)
-        band([sp_], 'sidepanel_edge%d' % sg, PA, PB, 0.058, 0.9, G_red, 'body')
-        band([sp_], 'sidepanel_pin%d' % sg, *off(PA, PB, 0.066), 0.004, 0.9, G_white, 'body')
-        band([sp_], 'sidepanel_field%d' % sg, (-0.7, 0.832), (0.0, 0.832), 0.07, -0.14, G_white, 'body', slant=-0.6)
+        label('ad_zynto%d' % sg, 'ZYNTO', sp_, (-0.19, 0.722), 0.02, sg, T_white, 'body', tilt=0.0)
+        band([sp_], 'sidepanel_tip%d' % sg, *off(PA, PB, -0.1), 0.1, 0.9, G_red, 'body')
+        band([sp_], 'sidepanel_pin%d' % sg, *off(PA, PB, 0.008), 0.004, 0.9, G_white, 'body')
+        fld = band([sp_], 'sidepanel_field%d' % sg, (-0.7, 0.84), (0.0, 0.84), 0.065, -0.14, G_white, 'body', slant=-0.6)
+        band([fld], 'sidepanel_tail%d' % sg, (-0.7, 0.84), (0.0, 0.84), 0.2, -0.50, G_red, 'body', slant=0.6)
         label('ad_grip%d' % sg, 'GRIPWERK', ARM[sg], (-0.5, 0.381), 0.03, sg, T_black, 'swing', tilt=0.208 * sg)
         label('ad_vyro_f%d' % sg, 'VYRO', FORKO[sg], fp(0.43)[:2], 0.024, sg, T_black, 'front', tilt=math.pi / 2 + RAKE * sg)
     # rear fender: red, runs out from under the seat, kicked up over the wheel
     FR = [(-0.50, 0.873, 0.086, 0.012), (-0.66, 0.90, 0.076, 0.015), (-0.82, 0.93, 0.062, 0.013), (-0.955, 0.955, 0.044, 0.008)]
     panel('fender_rear', tight([[(x, y - 0.03 * w / 0.086, -w), (x, y, -w * 0.9), (x, y + c, 0.0), (x, y, w * 0.9), (x, y - 0.03 * w / 0.086, w)] for (x, y, w, c) in FR], 0.2), 0.006, G_red, 'body')
     # heat shield where the rider's leg passes the pipe
-    sweep('heatshield', [(-0.05, 0.567, 0.176), (-0.15, 0.632, 0.182), (-0.245, 0.712, 0.192)], 0.004, 0.03, G_black, 'body', e=3.0, ring=10, smooth=4)
+    sweep('heatshield', [(-0.07, 0.56, 0.176), (-0.17, 0.584, 0.182), (-0.27, 0.606, 0.191)], 0.004, 0.03, G_black, 'body', e=3.0, ring=10, smooth=4)
     if 'engine' in STAGES: label('ad_can', 'DRIFTWERK', CAN, cpt(0.5)[:2], 0.034, 1, mat('G_smtxtyellow', 'ffd21a'), 'body', tilt=math.atan2(C0[1] - C1[1], C0[0] - C1[0]))
     # front fender: a red beak under the lower fork clamp, steering with the fork
-    FF = [(0.315, 0.742, 0.044, 0.012), (0.44, 0.777, 0.07, 0.022), (0.60, 0.778, 0.078, 0.024), (0.76, 0.752, 0.066, 0.02), (0.885, 0.716, 0.04, 0.012)]
+    FF = [(0.315, 0.757, 0.044, 0.012), (0.44, 0.792, 0.07, 0.022), (0.60, 0.796, 0.078, 0.024), (0.76, 0.778, 0.066, 0.02), (0.90, 0.75, 0.04, 0.012)]
     panel('fender_front', tight([[(x, y, -w), (x, y + c, 0.0), (x, y, w)] for (x, y, w, c) in FF], 0.2), 0.006, G_red, 'front')
-    for sg in (-1, 1): rod('fender_stay%d' % sg, (0.455, 0.80, sg * 0.05), (sp(0.61)[0] + N[0] * 0.03, sp(0.61)[1] + N[1] * 0.03 - 0.016, sg * 0.05), 0.007, M_dark, 'front', seg=8)
+    for sg in (-1, 1): rod('fender_stay%d' % sg, (0.455, 0.812, sg * 0.05), (sp(0.61)[0] + N[0] * 0.03, sp(0.61)[1] + N[1] * 0.03 - 0.016, sg * 0.05), 0.007, M_dark, 'front', seg=8)
     # start-number plate in front of the clamps: red, with a white field for the number
     NPC = (fp(0.74)[0] + N[0] * 0.064, fp(0.74)[1] + N[1] * 0.064, 0.0)
     def npp(h, z, b): return (NPC[0] + U[0] * h + N[0] * b, NPC[1] + U[1] * h + N[1] * b, z)
