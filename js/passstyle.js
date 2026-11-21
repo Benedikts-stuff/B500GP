@@ -456,6 +456,47 @@
       ring(4700, 350, 1350, K.ring[2], 9.1, 0.3); ring(3600, 300, 950, K.ring[1], 4.7, 0.48); ring(2300, 300, 700, K.ring[0], 1.3, 0.66);
     }
 
+    /* ---- clouds: a few low-poly banks far out above the ridges, flat underneath, lit from the sun's side.
+       They are real shapes standing in the distance (the ridges cover them properly) and drift very slowly round the valley */
+    {
+      const crng = AX.RNG(4711), grp = new THREE.Group(); grp.position.set(cx, 0, cz); grp.name = 'psClouds';
+      const y0 = t.planeH(cx, cz), pos = [], nor = [];
+      const blob = (bx, by, bz, rx, ry, rz) => {
+        const g = new THREE.IcosahedronGeometry(1, 1), q = g.index ? g.toNonIndexed() : g, a = q.attributes.position, o = crng() * 40;
+        for (let k = 0; k < a.count; k++) {
+          let x = a.getX(k), y = a.getY(k), z = a.getZ(k); const f = 1 + 0.14 * nA(x * 2.1 + o, z * 2.1 + y * 1.3);
+          x *= rx * f; z *= rz * f; y = Math.max(y * f, -0.28) * ry;                 // cut flat below
+          pos.push(bx + x, by + y, bz + z);
+        }
+        if (q !== g) q.dispose(); g.dispose();
+      };
+      const N_CLOUD = 13;
+      for (let c = 0; c < N_CLOUD; c++) {
+        const az = (c / N_CLOUD) * 6.283 + (crng() - 0.5) * 0.4, R = 3100 + crng() * 1500, alt = y0 + 1050 + crng() * 750, W = 420 + crng() * 480, H = W * (0.2 + crng() * 0.09);
+        const ox = Math.cos(az) * R, oz = Math.sin(az) * R, tx = -Math.sin(az), tz = Math.cos(az), n = 4 + Math.floor(crng() * 4);
+        for (let k = 0; k < n; k++) {
+          const u = n > 1 ? k / (n - 1) - 0.5 : 0, mid = 1 - Math.abs(u) * 1.5, r = W * (0.2 + 0.16 * crng()) * (0.6 + 0.6 * mid);
+          blob(ox + tx * u * W * 1.5 + Math.cos(az) * (crng() - 0.5) * 120, alt, oz + tz * u * W * 1.5 + Math.sin(az) * (crng() - 0.5) * 120, r * 1.25, H * (0.55 + 0.75 * mid) * (0.8 + crng() * 0.4), r);
+        }
+      }
+      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.computeVertexNormals();
+      const m = new THREE.Mesh(g, new THREE.ShaderMaterial({
+        fog: false, uniforms: { uLit: { value: K.cloudLit }, uShade: { value: K.cloudShade }, uWarm: { value: K.hazeWarm }, uCool: { value: K.hazeCool } },
+        vertexShader: 'varying vec3 vN; varying vec3 vW; void main(){ vN = normalize(mat3(modelMatrix) * normal); vW = (modelMatrix * vec4(position, 1.0)).xyz; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+        fragmentShader: `uniform vec3 uLit; uniform vec3 uShade; uniform vec3 uWarm; uniform vec3 uCool; varying vec3 vN; varying vec3 vW;
+          void main(){ vec3 n = normalize(vN), d = normalize(vW - cameraPosition);
+            float l = dot(n, ${SUNV}) * 0.75 + n.y * 0.45;
+            vec3 c = mix(uShade, uLit, smoothstep(-0.15, 0.55, l));
+            float sd = clamp(dot(d, ${SUNV}) * 0.5 + 0.5, 0.0, 1.0);
+            c = mix(c, mix(uCool, uWarm, pow(sd, 1.7)), 0.3 + 0.35 * (1.0 - smoothstep(0.1, 0.4, d.y)));      // lower in the sky: deeper in the haze
+            gl_FragColor = vec4(c, 1.0);
+            #include <tonemapping_fragment>
+            #include <encodings_fragment>
+          }`
+      }));
+      m.renderOrder = -7; m.frustumCulled = false; grp.add(m); sc.add(grp); this.clouds = grp;
+    }
+
     /* ---- road: one ribbon from barrier to barrier, asphalt, lines and shoulders drawn in the shader */
     const yaw = (i) => t.yaw[i];
     {
@@ -805,6 +846,7 @@
     mb.needsUpdate = true;
   }
   function update(world, cam) {
+    if (world.clouds) world.clouds.rotation.y = AX.windT.value * 0.0011;      // about four metres a second out there: you only notice over a minute
     const rb = AX.RiderBatch && AX.RiderBatch.mat; if (rb && !rb.userData.psTame) { rb.userData.psTame = true; rb.roughness = 0.92; rb.envMapIntensity = 0.1; rimLight(rb); rb.needsUpdate = true; }
     const L = world.styleChunks; if (!L) return;
     for (let k = 0; k < L.length; k++) {
