@@ -294,7 +294,7 @@
     }
     if (f.scrape && r() < 0.7) G.sparks.spawn(b.x, 0.5 + ys, b.z, -b.vx * 0.2 + (r() - 0.5) * 5, 1 + r() * 2, -b.vz * 0.2 + (r() - 0.5) * 5, 0.22, 0.1, 1, 0.8, 0.35, 1, 0, 1, 10);
     // the engine pops on the overrun, now and then on a downshift or held on the limiter: a short tongue of flame out of the pipe
-    if ((f.shift === -1 && r() < 0.3) || (b.limiter && r() < 0.025)) vis.pop(0.55 + r() * 0.25);
+    if ((f.shift === -1 && r() < 0.6) || (b.limiter && r() < 0.03)) vis.pop(0.6 + r() * 0.3);
     if (f.backfire > 0 && r() < 0.05) { vis.pop(0.8 + r() * 0.2); if (b === G.player) G.pop = 0.55; }
   }
   function burst(b) {
