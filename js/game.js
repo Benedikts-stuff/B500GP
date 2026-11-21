@@ -286,9 +286,10 @@
     }
     if (G.world.leafFx) G.world.leafFx.ride(b, rx, rz, ys);       // leaves lying on the road whirl up behind the rear wheel
     if ((b.surf === SURF.GRASS || b.surf === SURF.GRAVEL) && b.speed > 5 && r() < 0.7) {
-      const g = b.surf === SURF.GRAVEL;
-      sm.spawn(rx, 0.2 + ys, rz, b.vx * 0.3 + (r() - 0.5) * 3, 0.8 + r() * 1.8, b.vz * 0.3 + (r() - 0.5) * 3, 0.8 + r() * 0.6, 0.6, g ? 0.74 : 0.42, g ? 0.66 : 0.5, g ? 0.48 : 0.26, g ? 0.5 : 0.32, 2.6, 1.4, 0);
-      if (r() < 0.5) sm.spawn(rx, 0.15 + ys, rz, b.vx * 0.5 + (r() - 0.5) * 5, 2 + r() * 3, b.vz * 0.5 + (r() - 0.5) * 5, 0.5, 0.11, g ? 0.6 : 0.3, g ? 0.54 : 0.44, g ? 0.4 : 0.18, 0.95, 0, 0.6, 14);
+      // on the styled pass the strip beside the lane is a grey gravel shoulder, not turf: pale stone dust and grit, not green
+      const g = b.surf === SURF.GRAVEL || !!G.world.styled, st = G.world.styled ? 0.92 : 1;
+      sm.spawn(rx, 0.2 + ys, rz, b.vx * 0.3 + (r() - 0.5) * 3, 0.8 + r() * 1.8, b.vz * 0.3 + (r() - 0.5) * 3, 0.8 + r() * 0.6, 0.6, g ? 0.74 * st : 0.42, g ? 0.66 * st : 0.5, g ? 0.48 * (2 - st) : 0.26, g ? 0.5 : 0.32, 2.6, 1.4, 0);
+      if (r() < 0.5) sm.spawn(rx, 0.15 + ys, rz, b.vx * 0.5 + (r() - 0.5) * 5, 2 + r() * 3, b.vz * 0.5 + (r() - 0.5) * 5, 0.5, 0.11, g ? 0.6 * st : 0.3, g ? 0.54 * st : 0.44, g ? 0.4 * (2 - st) : 0.18, 0.95, 0, 0.6, 14);
     }
     if (f.scrape && r() < 0.7) G.sparks.spawn(b.x, 0.5 + ys, b.z, -b.vx * 0.2 + (r() - 0.5) * 5, 1 + r() * 2, -b.vz * 0.2 + (r() - 0.5) * 5, 0.22, 0.1, 1, 0.8, 0.35, 1, 0, 1, 10);
     // the engine pops on the overrun, now and then on a downshift or held on the limiter: a lick of flame at the pipe and three or four small sparks thrown out behind
