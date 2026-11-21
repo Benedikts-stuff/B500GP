@@ -51,6 +51,14 @@ Die Probefahrt hat gezeigt: Beim Zufahren auf Dinge flackerten Schatten, vor all
 - **Kein Lichtspalt am Mauerfuß.** Die Mauer war für die Schatten nur ein dünnes Blatt. Zwei unsichtbare Flächen im Hang dahinter stehen jetzt für den Mauerkörper.
 - **Laub in fester Größe.** Blätter wurden mit der Entfernung etwas breiter gezeichnet; jetzt haben sie überall dieselbe Größe.
 
+### Zweite Nachbesserung: Flimmern in der Ferne
+
+Nach der ersten Nachbesserung flimmerten ferne Hänge und Tannen weiter. Die Ursache lag nicht bei Schatten oder Bäumen, sondern im Tiefenpuffer: three.js gibt einem Renderziel nur 16 Bit Tiefe, wenn man nichts anderes verlangt. Bei der Sichtweite der Kamera (0,3 m bis 9 km) kann die Grafikkarte damit in 100 m Entfernung Flächen nur auf etwa 0,5 m auseinanderhalten, in 300 m auf rund 5 m und in 600 m auf rund 18 m. Ferne Baumstufen, Steine, Gras und der Boden darunter tauschen dann von Bild zu Bild die Plätze. Das war schon immer so; der dichtere Dunst hatte es vorher verdeckt.
+
+- Behoben in `js/fx.js` mit einer Einstellung: Das Renderziel hat jetzt 24 Bit Tiefe, also 256-mal feiner (rund 2 cm in 300 m). Das kostet keine messbare Leistung und gilt für alle Strecken.
+- Nachweis: Ein ferner Stein in der Wiese war vorher von Gras und Boden zerrissen und ist jetzt ganz (Bild im Chat). Die Tiefe des Renderziels wurde ausgelesen: vorher 16 Bit, nachher 24.
+- Zwei Ideen, die ich dafür zuerst gebaut hatte, sind nicht drin, weil sie in der Messung nichts brachten: Bodenschatten als gebackene Textur und Tannen, die in der Ferne zu glatten Kegeln werden. Die zweite hätte außerdem das Aussehen der fernen Bäume verändert.
+
 ### Noch von dir zu prüfen
 
 - **Framerate auf „Hoch“:** Hier konnte nur ein Software-Renderer laufen. Ob „Hoch“ auf deinem Mac flüssig ist und ob die ersten Sekunden ruckeln, zeigt nur eine Probefahrt.

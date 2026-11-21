@@ -150,7 +150,11 @@
     }
     setSize(w, h, samples) {
       const r = this.r; if (this.rt) { this.rt.dispose(); this.a.dispose(); this.bb.dispose(); this.h1.dispose(); if (this.h2) this.h2.dispose(); }
-      const opt = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, encoding: THREE.sRGBEncoding, depthBuffer: true, stencilBuffer: false };
+      // stencilBuffer: true is there for the depth buffer. Without it three.js gives a render target a 16-bit depth buffer; with the
+      // camera's range (0.3 m to 9 km) that tells surfaces apart only to about 0.5 m at 100 m, 5 m at 300 m and 18 m at 600 m. Far trees,
+      // slopes and the ground under them then swap places from frame to frame: flicker in the distance. With it the buffer has
+      // 24 bits, 256 times finer (2 cm at 300 m)
+      const opt = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, encoding: THREE.sRGBEncoding, depthBuffer: true, stencilBuffer: true };
       if (r.capabilities.isWebGL2 && samples > 1 && THREE.WebGLMultisampleRenderTarget) { this.rt = new THREE.WebGLMultisampleRenderTarget(w, h, opt); this.rt.samples = Math.min(samples, r.capabilities.maxSamples || 4); }
       else this.rt = new THREE.WebGLRenderTarget(w, h, opt);
       const o2 = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, depthBuffer: false, stencilBuffer: false };
