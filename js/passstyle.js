@@ -103,12 +103,13 @@
   // over everything that faces up; grass and ground keep their colour instead
   const MATTE = (fs) => fs.replace('#include <lights_fragment_end>', '#include <lights_fragment_end>\nreflectedLight.directSpecular = vec3(0.0); reflectedLight.indirectSpecular = vec3(0.0);');
   /* ------------------------------------------------------------------ materials */
-  function terrainMat() {
+  function terrainMat(box) {
     const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0 });
     m.onBeforeCompile = (sh) => {
+      sh.uniforms.uT = AX.windT; sh.uniforms.uBox = { value: box };
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vW; varying vec3 vWN; attribute float aRoad; varying float vRoad;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvW = (modelMatrix * vec4(position, 1.0)).xyz; vWN = normalize(mat3(modelMatrix) * normal); vRoad = aRoad;');
-      sh.fragmentShader = MATTE(sh.fragmentShader).replace('#include <common>', '#include <common>\nvarying vec3 vW; varying vec3 vWN; varying float vRoad;\n' + GLSL_GROUND)
+      sh.fragmentShader = MATTE(sh.fragmentShader).replace('#include <common>', '#include <common>\nvarying vec3 vW; varying vec3 vWN; varying float vRoad; uniform float uT; uniform vec4 uBox;\n' + GLSL_GROUND)
         .replace('#include <color_fragment>', `#include <color_fragment>
           vec3 g = groundCol(vW.xz);
           // the floor under the forest is darker; the high slopes turn to dry autumn grass
@@ -118,9 +119,15 @@
           float rk = nA(vW.xz * 0.09);
           g = mix(g, mix(${v3(P.rock)}, ${v3(P.rockLight)}, 0.5 + 0.5 * rk), steep);
           g = mix(g, ${v3(P.earth)}, smoothstep(0.5, 0.0, vRoad) * 0.45);
+          // cloud shadows wander over the mountain sides beyond the valley floor: big soft patches, a few metres a second.
+          // Where they lie depends on the place alone (outside the finely modelled ground around the road)
+          vec2 cb = max(uBox.xy - vW.xz, 0.0) + max(vW.xz - uBox.zw, 0.0);
+          vec2 cw = vW.xz + vec2(uT * 4.2, uT * 2.4);
+          float cl = smoothstep(0.05, 0.6, nA(cw * 0.0034) * 0.65 + nA(cw * 0.0012 + vec2(7.0, 3.0)) * 0.35);
+          g *= 1.0 - 0.2 * cl * smoothstep(30.0, 240.0, length(cb));
           diffuseColor.rgb = g;`);
     };
-    m.customProgramCacheKey = () => 'ps-terrain2';
+    m.customProgramCacheKey = () => 'ps-terrain3';
     return m;
   }
   function roadMat(hw) {
@@ -442,7 +449,7 @@
       return surfE;
     };
     this.surf = surf; this.heightAt = (x, z) => surf(x, z).y;
-    const tm = terrainMat(); this.terrainMat = tm;
+    const tm = terrainMat(new THREE.Vector4(gx0, gz0, gx1, gz1)); this.terrainMat = tm;
     {   // one set of normals for the whole grid, then tiles of 64 x 64 cells (culled one by one, no seams in the shading)
       const pos = new Float32Array(NV * 3), idx = new Uint32Array((gnx - 1) * (gnz - 1) * 6); let k = 0;
       for (let j = 0; j < gnz; j++) for (let i = 0; i < gnx; i++) { const v = j * gnx + i; pos[v * 3] = gx0 + i * GSTEP; pos[v * 3 + 1] = GH[v]; pos[v * 3 + 2] = gz0 + j * GSTEP; }
@@ -707,9 +714,11 @@
         const Z = Nn.clone().multiplyScalar(sg), Mx = new THREE.Matrix4().makeBasis(Tv, UP, Z).setPosition(O.clone().addScaledVector(Z, lat));
         g.applyMatrix4(Mx); g.computeVertexNormals();
         sc.add(Object.assign(new THREE.Mesh(g, sm), { castShadow: true, receiveShadow: true }));
-        const pg = withSt(new THREE.BoxGeometry(24, 1.0, 0.45), 1, 1); pg.translate(0, 0.5, 0.22); pg.applyMatrix4(Mx);
+        // on one side the placement mirrors the box: turn its triangles back round, or parapet and cap show their insides and are lit from the wrong side
+        const unMirror = (bg) => { if (Mx.determinant() < 0) { const ix = bg.index; for (let k = 0; k < ix.count; k += 3) { const a = ix.getX(k + 1); ix.setX(k + 1, ix.getX(k + 2)); ix.setX(k + 2, a); } } return bg; };
+        const pg = withSt(new THREE.BoxGeometry(24, 1.0, 0.45), 1, 1); pg.translate(0, 0.5, 0.22); pg.applyMatrix4(Mx); unMirror(pg);
         sc.add(Object.assign(new THREE.Mesh(pg, sm), { castShadow: true, receiveShadow: true }));
-        const cg = new THREE.BoxGeometry(24.2, 0.12, 0.6); cg.translate(0, 1.06, 0.22); cg.applyMatrix4(Mx); sc.add(Object.assign(new THREE.Mesh(cg, capM), { castShadow: true }));
+        const cg = new THREE.BoxGeometry(24.2, 0.12, 0.6); cg.translate(0, 1.06, 0.22); cg.applyMatrix4(Mx); unMirror(cg); sc.add(Object.assign(new THREE.Mesh(cg, capM), { castShadow: true }));
       }
       {
         const L0 = -(t.bar[0][i] + 0.2), L1 = t.bar[1][i] + 0.2, Pp = [], idx = [], seg = 20;
