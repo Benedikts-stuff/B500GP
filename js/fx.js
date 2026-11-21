@@ -80,12 +80,13 @@
       const vs = 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.0,1.0); }';
       this.mBright = new THREE.ShaderMaterial({ uniforms: { t: { value: null } }, vertexShader: vs, depthTest: false, depthWrite: false,
         fragmentShader: 'uniform sampler2D t; varying vec2 vUv; void main(){ vec3 c=texture2D(t,vUv).rgb; float l=max(c.r,max(c.g,c.b)); if(!(l==l)||l>65000.0){ c=vec3(0.0); l=0.0; } gl_FragColor=vec4(c*smoothstep(0.80,1.0,l),1.0); }' });
+      this.mCopy = new THREE.ShaderMaterial({ uniforms: { t: { value: null } }, vertexShader: vs, depthTest: false, depthWrite: false, fragmentShader: 'uniform sampler2D t; varying vec2 vUv; void main(){ gl_FragColor=vec4(texture2D(t,vUv).rgb,1.0); }' });
       this.mBlur = new THREE.ShaderMaterial({ uniforms: { t: { value: null }, d: { value: new THREE.Vector2() } }, vertexShader: vs, depthTest: false, depthWrite: false,
         fragmentShader: 'uniform sampler2D t; uniform vec2 d; varying vec2 vUv; void main(){ vec3 c=texture2D(t,vUv).rgb*0.227; c+=(texture2D(t,vUv+d*1.385).rgb+texture2D(t,vUv-d*1.385).rgb)*0.316; c+=(texture2D(t,vUv+d*3.231).rgb+texture2D(t,vUv-d*3.231).rgb)*0.070; gl_FragColor=vec4(c,1.0); }' });
       this.mFinal = new THREE.ShaderMaterial({
-        uniforms: { t: { value: null }, b: { value: null }, ao: { value: null }, uAO: { value: 0 }, px: { value: new THREE.Vector2() }, uTilt: { value: 1 }, uFocus: { value: 0.5 }, uBloom: { value: 0.5 }, uVig: { value: 0.32 }, uSat: { value: 1.12 }, uHz: { value: new THREE.Vector4() }, uHzR: { value: new THREE.Vector4(0.02, 0.05, 0, 1.6) }, uHzA: { value: 0 } },
+        uniforms: { t: { value: null }, b: { value: null }, ao: { value: null }, uAO: { value: 0 }, px: { value: new THREE.Vector2() }, uTilt: { value: 1 }, uFocus: { value: 0.5 }, uBloom: { value: 0.5 }, uVig: { value: 0.32 }, uSat: { value: 1.12 }, uHz: { value: new THREE.Vector4() }, uHzR: { value: new THREE.Vector4(0.02, 0.05, 0, 1.6) }, uHzA: { value: 0 }, uRes: { value: 1 } },
         vertexShader: vs, depthTest: false, depthWrite: false,
-        fragmentShader: `uniform sampler2D t; uniform sampler2D b; uniform sampler2D ao; uniform float uAO; uniform vec2 px; uniform float uTilt; uniform float uFocus; uniform float uBloom; uniform float uVig; uniform float uSat; uniform vec4 uHz; uniform vec4 uHzR; uniform float uHzA; varying vec2 vUv;
+        fragmentShader: `uniform float uRes; uniform sampler2D t; uniform sampler2D b; uniform sampler2D ao; uniform float uAO; uniform vec2 px; uniform float uTilt; uniform float uFocus; uniform float uBloom; uniform float uVig; uniform float uSat; uniform vec4 uHz; uniform vec4 uHzR; uniform float uHzA; varying vec2 vUv;
           void main(){
             float r = uTilt * smoothstep(0.24, 0.6, abs(vUv.y - uFocus)) * 1.7;
             // heat haze: the air behind a hot exhaust bends the picture. uHz = plume start/end on screen, uHzR = radius at start/end, time, aspect; uHzA = how far it bends
@@ -101,7 +102,7 @@
             }
             vec3 c = texture2D(t, vUv + hz).rgb;
             if (r > 0.05) {
-              c *= 0.2; vec2 o = px * r;
+              c *= 0.2; vec2 o = px * r * uRes;      // the miniature blur is as wide on a sharp screen as on a plain one
               c += texture2D(t, vUv + o * vec2( 1.0,  0.35)).rgb * 0.1; c += texture2D(t, vUv + o * vec2(-1.0, -0.35)).rgb * 0.1;
               c += texture2D(t, vUv + o * vec2( 0.35, -1.0)).rgb * 0.1; c += texture2D(t, vUv + o * vec2(-0.35,  1.0)).rgb * 0.1;
               c += texture2D(t, vUv + o * vec2( 1.9,  -1.3)).rgb * 0.1; c += texture2D(t, vUv + o * vec2(-1.9,   1.3)).rgb * 0.1;
@@ -148,17 +149,22 @@
       this.setSize(1, 1, 1);
     }
     setSize(w, h, samples) {
-      const r = this.r; if (this.rt) { this.rt.dispose(); this.a.dispose(); this.bb.dispose(); }
+      const r = this.r; if (this.rt) { this.rt.dispose(); this.a.dispose(); this.bb.dispose(); this.h1.dispose(); if (this.h2) this.h2.dispose(); }
       const opt = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, encoding: THREE.sRGBEncoding, depthBuffer: true, stencilBuffer: false };
       if (r.capabilities.isWebGL2 && samples > 1 && THREE.WebGLMultisampleRenderTarget) { this.rt = new THREE.WebGLMultisampleRenderTarget(w, h, opt); this.rt.samples = Math.min(samples, r.capabilities.maxSamples || 4); }
       else this.rt = new THREE.WebGLRenderTarget(w, h, opt);
       const o2 = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBAFormat, depthBuffer: false, stencilBuffer: false };
-      const bw = Math.max(2, w >> 2), bh = Math.max(2, h >> 2); this.a = new THREE.WebGLRenderTarget(bw, bh, o2); this.bb = new THREE.WebGLRenderTarget(bw, bh, o2);
+      // glow: the picture is halved step by step down to a small buffer (every source pixel counts in every step, so a small
+      // highlight never flickers in and out), and that buffer stays about 180-270 lines high whatever the render size is,
+      // so the glow is as wide on a Retina screen as on a plain one
+      const div = (h >> 2) > 270 ? 8 : 4, bw = Math.max(2, Math.round(w / div)), bh = Math.max(2, Math.round(h / div));
+      this.a = new THREE.WebGLRenderTarget(bw, bh, o2); this.bb = new THREE.WebGLRenderTarget(bw, bh, o2);
+      this.h1 = new THREE.WebGLRenderTarget(Math.max(2, w >> 1), Math.max(2, h >> 1), o2); this.h2 = div === 8 ? new THREE.WebGLRenderTarget(Math.max(2, w >> 2), Math.max(2, h >> 2), o2) : null;
       if (this.dRT) { this.dRT.dispose(); this.aoA.dispose(); this.aoB.dispose(); }
       const hw = Math.max(2, w >> 1), hh = Math.max(2, h >> 1);
       this.dRT = new THREE.WebGLRenderTarget(hw, hh, { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, format: THREE.RGBAFormat, depthBuffer: true, stencilBuffer: false });
       this.aoA = new THREE.WebGLRenderTarget(hw, hh, o2); this.aoB = new THREE.WebGLRenderTarget(hw, hh, o2); this.hw = hw; this.hh = hh;
-      this.w = w; this.h = h; this.bw = bw; this.bh = bh; this.mFinal.uniforms.px.value.set(1 / w, 1 / h);
+      this.w = w; this.h = h; this.bw = bw; this.bh = bh; this.mFinal.uniforms.px.value.set(1 / w, 1 / h); this.mFinal.uniforms.uRes.value = Math.max(1, h / 720);
     }
     pass(mat, target) { this.quad.material = mat; this.r.setRenderTarget(target); this.r.render(this.scene, this.cam); }
     render(scene, camera) {
@@ -180,10 +186,14 @@
         this.mAOBlur.uniforms.t.value = this.aoA.texture; this.mAOBlur.uniforms.d.value.set(1.2 / this.hw, 0); this.pass(this.mAOBlur, this.aoB);
         this.mAOBlur.uniforms.t.value = this.aoB.texture; this.mAOBlur.uniforms.d.value.set(0, 1.2 / this.hh); this.pass(this.mAOBlur, this.aoA);
       }
-      this.mBright.uniforms.t.value = this.rt.texture; this.pass(this.mBright, this.a);
-      for (let k = 0; k < 2; k++) {
-        this.mBlur.uniforms.t.value = this.a.texture; this.mBlur.uniforms.d.value.set((1 + k) / this.bw, 0); this.pass(this.mBlur, this.bb);
-        this.mBlur.uniforms.t.value = this.bb.texture; this.mBlur.uniforms.d.value.set(0, (1 + k) / this.bh); this.pass(this.mBlur, this.a);
+      this.mBright.uniforms.t.value = this.rt.texture; this.pass(this.mBright, this.h1);
+      if (this.h2) { this.mCopy.uniforms.t.value = this.h1.texture; this.pass(this.mCopy, this.h2); }
+      this.mCopy.uniforms.t.value = (this.h2 || this.h1).texture; this.pass(this.mCopy, this.a);
+      const bs = this.bh / 180, nb = bs > 1.25 ? 3 : 2;
+      for (let k = 0; k < nb; k++) {
+        const st = (1 + k) * (nb === 3 ? bs * 0.6 : bs);
+        this.mBlur.uniforms.t.value = this.a.texture; this.mBlur.uniforms.d.value.set(st / this.bw, 0); this.pass(this.mBlur, this.bb);
+        this.mBlur.uniforms.t.value = this.bb.texture; this.mBlur.uniforms.d.value.set(0, st / this.bh); this.pass(this.mBlur, this.a);
       }
       const u = this.mFinal.uniforms; u.t.value = this.rt.texture; u.b.value = this.a.texture; u.ao.value = this.aoA.texture; u.uAO.value = this.aoOn ? 0.85 : 0; u.uTilt.value = this.tilt; u.uFocus.value = this.focusY;
       this.pass(this.mFinal, null); r.shadowMap.autoUpdate = sh;

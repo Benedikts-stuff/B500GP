@@ -424,7 +424,7 @@
     if (G.shake > 0.01) { camera.position.x += (Math.random() - 0.5) * G.shake * 0.9; camera.position.y += (Math.random() - 0.5) * G.shake * 0.5; camera.position.z += (Math.random() - 0.5) * G.shake * 0.9; G.shake *= Math.exp(-7 * dt); }
     camera.up.set(0, 1, 0); camera.lookAt(G.camLook);
     if (Math.abs(camera.fov - fov) > 0.05) { camera.fov = damp(camera.fov, fov, 6, dt); camera.updateProjectionMatrix(); }
-    post.tilt = mode === 'chase' ? (AX.LOOK ? 0.5 : 0) : mode === 'pov' || mode === 'chest' ? 0 : mode === 'menu' ? 0.7 : 1; post.focusY = mode === 'menu' ? 0.45 : 0.5;
+    post.tilt = mode === 'chase' ? 0 : mode === 'pov' || mode === 'chest' ? 0 : mode === 'menu' ? 0.7 : 1; post.focusY = mode === 'menu' ? 0.45 : 0.5;
   }
 
   /* ------------------------------------------------------------------ HUD */
