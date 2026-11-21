@@ -759,8 +759,11 @@
     update(focus, time) {
       const s = this.sun, R = this.shadowR, texel = (R * 2) / s.shadow.mapSize.x;
       // snap the shadow frustum to texels so shadows do not shimmer while the camera travels
-      const fx = Math.round(focus.x / texel / 8) * texel * 8, fz = Math.round(focus.z / texel / 8) * texel * 8;
-      const fy = focus.y || 0; s.target.position.set(fx, fy, fz); s.position.set(fx + this.sunDir.x * 260, fy + this.sunDir.y * 260, fz + this.sunDir.z * 260); s.target.updateMatrixWorld();
+      if (this.placeSun) this.placeSun(focus);      // the styled pass places its own shadow light (see passstyle.js)
+      else {
+        const fx = Math.round(focus.x / texel / 8) * texel * 8, fz = Math.round(focus.z / texel / 8) * texel * 8;
+        const fy = focus.y || 0; s.target.position.set(fx, fy, fz); s.position.set(fx + this.sunDir.x * 260, fy + this.sunDir.y * 260, fz + this.sunDir.z * 260); s.target.updateMatrixWorld();
+      }
       this.sky.position.set(focus.x, focus.y || 0, focus.z);
       if (this.clouds) this.clouds.rotation.y = time * 0.0025;
       if (AX.windT) AX.windT.value = time;

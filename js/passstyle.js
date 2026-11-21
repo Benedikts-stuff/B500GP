@@ -98,6 +98,33 @@
     #endif`;
   }
   AX.windT = AX.windT || { value: 0 };
+  /* ------------------------------------------------------------------ shadows that stand still.
+     Two shadow maps, both of the same sun:
+       far  - the whole modelled valley in one map, drawn once when the world is built. It never moves, so a shadow out there
+              never shifts, appears or changes, however you ride.
+       near - a sharper map round the camera for the detail close by. It moves in whole texels of its own grid (see placeNear),
+              so every shadow edge stays exactly where it was drawn.
+     Between the two lies a wide, soft cross-fade. Both show the same trees and walls, so nothing pops; the edge only gets finer.
+     Switched on wherever a scene has exactly two shadow-casting directional lights (only the styled pass does). */
+  {
+    const ch = THREE.ShaderChunk, line = 'directLight.color *= all( bvec2( directLight.visible, receiveShadow ) ) ? getShadow( directionalShadowMap[ i ], directionalLightShadow.shadowMapSize, directionalLightShadow.shadowBias, directionalLightShadow.shadowRadius, vDirectionalShadowCoord[ i ] ) : 1.0;';
+    if (ch.lights_fragment_begin.indexOf(line) < 0) console.warn('passstyle: shadow line not found, shadows stay single-map');
+    ch.lights_fragment_begin = ch.lights_fragment_begin.replace(line, `#if NUM_DIR_LIGHT_SHADOWS == 2
+			#if UNROLLED_LOOP_INDEX == 0
+			if ( directLight.visible && receiveShadow ) {
+				vec3 psC = vDirectionalShadowCoord[ 0 ].xyz / vDirectionalShadowCoord[ 0 ].w;
+				float psE = max( abs( psC.x - 0.5 ), abs( psC.y - 0.5 ) ) * 2.0;
+				float psW = ( psC.z < 0.0 || psC.z > 1.0 ) ? 1.0 : smoothstep( 0.55, 0.95, psE );
+				float psN = 1.0, psF = 1.0;
+				if ( psW < 1.0 ) psN = getShadow( directionalShadowMap[ 0 ], directionalLightShadows[ 0 ].shadowMapSize, directionalLightShadows[ 0 ].shadowBias, directionalLightShadows[ 0 ].shadowRadius, vDirectionalShadowCoord[ 0 ] );
+				if ( psW > 0.0 ) psF = getShadow( directionalShadowMap[ 1 ], directionalLightShadows[ 1 ].shadowMapSize, directionalLightShadows[ 1 ].shadowBias, directionalLightShadows[ 1 ].shadowRadius, vDirectionalShadowCoord[ 1 ] );
+				directLight.color *= mix( psN, psF, psW );
+			}
+			#endif
+		#else
+		${line}
+		#endif`);
+  }
 
   // matt surfaces (meadow, grass, rock): no mirror glare. Looking into the low sun, the standard material would lay a pale sheen
   // over everything that faces up; grass and ground keep their colour instead
@@ -152,58 +179,65 @@
     return m;
   }
   // dry-stone wall: flat stones laid in courses that rise and dip a little along the wall; every stone its own length and tone,
-  // narrow soft joints, a light upper and a darker lower edge. Joints and tone differences fade as stones shrink to a pixel,
-  // so far walls are one calm colour and never shimmer
-  function stoneMat() {
-    const m = new THREE.MeshStandardMaterial({ roughness: 0.96, metalness: 0, side: THREE.DoubleSide });
+  // narrow soft joints, a light upper and a darker lower edge. The pattern is painted once into a real texture (12.8 m x 3.2 m,
+  // 320 px per metre, repeating without a seam) and the graphics card filters it like any texture: full detail up close, and
+  // with distance it settles evenly, sharp along the courses even at a flat angle. Nothing is switched or faded by hand
+  let STONE_TEX = null;
+  function stoneTexture(renderer) {
+    if (STONE_TEX) return STONE_TEX;
+    const W = 4096, H = 1024, PPM = 320, LEN = W / PPM, RH = 0.2, ROWS = Math.round(H / PPM / RH), data = new Uint8Array(W * H * 4);
+    const hsh = (a, b) => { const v = Math.sin(a * 127.1 + b * 311.7) * 43758.5453; return v - Math.floor(v); }, mod = (a, n) => ((a % n) + n) % n;
+    const sr = (v) => { v = clamp(v, 0, 1); return Math.round((v <= 0.0031308 ? v * 12.92 : 1.055 * Math.pow(v, 1 / 2.4) - 0.055) * 255); };
+    const kU = 2 * Math.PI / LEN, kV = 2 * Math.PI / (H / PPM), A = P.stoneA, B = P.stoneB;
+    // per course: stone count, a shift, and where each stone ends (so courses close exactly after 12.8 m)
+    const rows = []; for (let r = 0; r < ROWS; r++) { const n = Math.round(LEN / (0.34 + 0.2 * hsh(r, 3.7))), e = []; for (let i = 0; i <= n; i++) e.push(i + (hsh(mod(i, n), r + 0.37) - 0.5) * 0.64); rows.push({ n, L: LEN / n, off: hsh(r, 9.1), e }); }
+    // per stone: its tone
+    const tone = rows.map((R, r) => { const t = []; for (let i = 0; i < R.n; i++) { const h1 = hsh(i + 0.3, r * 1.7 + 0.3), h2 = (h1 * 17.13) % 1, h3 = (h1 * 91.7) % 1, k = 0.93 + 0.14 * h2; let cr = (A.r + (B.r - A.r) * h1) * k, cg = (A.g + (B.g - A.g) * h1) * k, cb = (A.b + (B.b - A.b) * h1) * k; if (h3 > 0.8) { cr *= 1.056; cg *= 0.992; cb *= 0.92; } else if (h3 < 0.16) { cr *= 0.944; cg *= 0.968; cb *= 1.024; } t.push([cr, cg, cb]); } return t; });
+    const ss = (a, b, x) => { const q = clamp((x - a) / (b - a), 0, 1); return q * q * (3 - 2 * q); };
+    for (let y = 0; y < H; y++) {
+      const v = (y + 0.5) / PPM, vb = (v + 0.034 * Math.sin(v * kV * 5 + 0.6)) / RH;
+      for (let x = 0; x < W; x++) {
+        const u = (x + 0.5) / PPM, vw = vb + 0.13 * Math.sin(u * kU * 2) + 0.06 * Math.sin(u * kU * 5 + 1.3), rw = Math.floor(vw), fy = vw - rw, r = mod(rw, ROWS), R = rows[r];
+        const xx = u / R.L + R.off; let i = Math.floor(xx); const f = xx - i; i = mod(i, R.n);
+        let e0 = R.e[i] - i, e1 = R.e[i + 1] - i;
+        if (f < e0) { i = mod(i - 1, R.n); e1 = e0; e0 = R.e[i] - i - 1; } else if (f > e1) { i = mod(i + 1, R.n); e0 = e1; e1 = R.e[i + 1] - i + 1; }
+        const dEnd = Math.min(f - e0, e1 - f) * R.L, dEdge = Math.min(dEnd, Math.min(fy, 1 - fy) * RH), joint = 1 - ss(0.0055, 0.0095, dEdge), t = tone[r][i];
+        const up = ss(0.78, 1, fy) * (1 - joint), low = 1 - ss(0, 0.3, fy), k = (1 + 0.07 * up - 0.06 * low - 0.05 * (1 - ss(0, 0.03, dEnd))) * (1 - 0.3 * joint), o = (y * W + x) * 4;
+        data[o] = sr(t[0] * k); data[o + 1] = sr(t[1] * k); data[o + 2] = sr(t[2] * k); data[o + 3] = 255;
+      }
+    }
+    const tex = new THREE.DataTexture(data, W, H, THREE.RGBAFormat); tex.encoding = THREE.sRGBEncoding; tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter;
+    tex.anisotropy = renderer ? renderer.capabilities.getMaxAnisotropy() : 8; tex.needsUpdate = true; tex.metres = [LEN, H / PPM];
+    return (STONE_TEX = tex);
+  }
+  function stoneMat(renderer) {
+    const tex = stoneTexture(renderer), m = new THREE.MeshStandardMaterial({ map: tex, roughness: 0.96, metalness: 0, side: THREE.DoubleSide });
     m.onBeforeCompile = (sh) => {
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 aSt; varying vec2 vSt;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvSt = aSt;');
-      sh.fragmentShader = MATTE(sh.fragmentShader).replace('#include <common>', `#include <common>
-        varying vec2 vSt;
-        float sH(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-        // one course of stones: x = stone id, y = distance to the nearer end of the stone (m), z = stone length (m)
-        vec3 sCourse(float u, float row){
-          float L = 0.34 + 0.2 * sH(vec2(row, 3.7)), x = u / L + sH(vec2(row, 9.1)) * 13.0, i = floor(x), f = x - i;
-          float e0 = (sH(vec2(i, row)) - 0.5) * 0.64, e1 = 1.0 + (sH(vec2(i + 1.0, row)) - 0.5) * 0.64;
-          if (f < e0) { i -= 1.0; e1 = e0; e0 = -1.0 + (sH(vec2(i, row)) - 0.5) * 0.64; }
-          else if (f > e1) { i += 1.0; e0 = e1; e1 = 2.0 + (sH(vec2(i + 1.0, row)) - 0.5) * 0.64; }
-          return vec3(i, min(f - e0, e1 - f) * L, (e1 - e0) * L);
-        }`)
-        .replace('#include <color_fragment>', `#include <color_fragment>
-          const float RH = 0.2;
-          float vw = (vSt.y + 0.034 * sin(vSt.y * 9.7 + 0.6)) / RH + 0.13 * sin(vSt.x * 0.83) + 0.06 * sin(vSt.x * 2.37 + 1.3);      // courses of unequal height that rise and dip
-          float row = floor(vw), fy = vw - row;
-          vec3 st = sCourse(vSt.x, row);
-          float px = max(length(vec2(dFdx(vSt.x), dFdy(vSt.x))), length(vec2(dFdx(vSt.y), dFdy(vSt.y))));      // metres of wall per pixel
-          float fade = 1.0 - smoothstep(0.02, 0.07, px), tone = 1.0 - smoothstep(0.03, 0.1, px);
-          float dEdge = min(st.y, min(fy, 1.0 - fy) * RH);
-          float joint = 1.0 - smoothstep(0.007, 0.007 + px * 1.4, dEdge);
-          float hs = sH(vec2(st.x, row * 1.7 + 0.3)), hs2 = fract(hs * 17.13), hs3 = fract(hs * 91.7);
-          vec3 c = mix(${v3(P.stoneA)}, ${v3(P.stoneB)}, hs) * (0.93 + 0.14 * hs2);
-          c = mix(c, c * vec3(1.07, 0.99, 0.9), step(0.8, hs3) * 0.8);
-          c = mix(c, c * vec3(0.93, 0.96, 1.03), step(hs3, 0.16) * 0.8);
-          c = mix(${v3(P.stoneA.clone().lerp(P.stoneB, 0.5))}, c, tone);
-          // each stone a little rounded: lighter where its upper edge catches the sky, darker along its foot
-          float up = smoothstep(0.78, 1.0, fy) * (1.0 - joint), low = 1.0 - smoothstep(0.0, 0.3, fy);
-          c *= 1.0 + (0.07 * up - 0.06 * low - 0.05 * (1.0 - smoothstep(0.0, 0.03, st.y))) * fade;
-          c *= 1.0 - 0.3 * joint * fade;
-          c *= 1.0 - 0.12 * (1.0 - smoothstep(0.0, 0.5, vSt.y));
-          diffuseColor.rgb = c;`);
+      // the wall's own coordinates (metres along, metres up) address the texture; the foot of the wall is a little darker
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec2 aSt; varying float vFoot;')
+        .replace('#include <uv_vertex>', `vUv = aSt / vec2(${tex.metres[0].toFixed(3)}, ${tex.metres[1].toFixed(3)}); vFoot = aSt.y;`);
+      sh.fragmentShader = MATTE(sh.fragmentShader).replace('#include <common>', '#include <common>\nvarying float vFoot;')
+        .replace('#include <map_fragment>', '#include <map_fragment>\ndiffuseColor.rgb *= 1.0 - 0.12 * (1.0 - smoothstep(0.0, 0.5, vFoot));');
     };
-    m.customProgramCacheKey = () => 'ps-stone3';
+    m.customProgramCacheKey = () => 'ps-stone4';
     return m;
   }
   function grassMat() {
     const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, side: THREE.DoubleSide });
     m.onBeforeCompile = (sh) => {
       sh.uniforms.uT = AX.windT;
-      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aT; attribute vec3 aGN; varying float vT; varying vec3 vGW; uniform float uT;')
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute float aT; attribute vec3 aGN; attribute float aRk; varying float vT; varying vec3 vGW; uniform float uT;')
         .replace('#include <defaultnormal_vertex>', 'vec3 transformedNormal = normalMatrix * aGN;')
         .replace('#include <begin_vertex>', `#include <begin_vertex>
           vT = aT;
           vec3 ip = instanceMatrix[3].xyz; vGW = ip;
           float cd = distance(ip, cameraPosition);
           transformed.y *= 1.0 - smoothstep(130.0, 220.0, cd);
+          // far meadows carry fewer tufts (see update). A tuft does not pop in when its turn comes: it grows out of the ground
+          // over the last stretch, each one at its own distance (aRk is its place in the queue)
+          float gf = clamp(pow(45.0 / max(45.0, cd), 1.6), 0.1, 1.0);
+          transformed.y *= smoothstep(aRk - 0.08, aRk + 0.02, gf);
           transformed.xz *= 1.0 + cd / 22.0;
           float w = sin(uT * 1.6 + ip.x * 0.19 + ip.z * 0.13) * 0.6 + sin(uT * 2.9 + ip.x * 0.6) * 0.25;
           transformed.x += w * aT * aT * 0.11; transformed.z += w * aT * aT * 0.06;`);
@@ -213,7 +247,7 @@
           vec3 g = groundCol(vGW.xz) * diffuseColor.rgb;
           diffuseColor.rgb = g * mix(0.94, 1.24, vT * vT) + vec3(0.012, 0.01, 0.0) * vT;`);
     };
-    m.customProgramCacheKey = () => 'ps-grass2';
+    m.customProgramCacheKey = () => 'ps-grass3';
     return m;
   }
 
@@ -305,7 +339,7 @@
           vec3 lc = mix(aA, aB, fall);
           lc.x += sin(lt * 21.0 + aP.w * 6.3) * aP.z * air; lc.z += cos(lt * 16.0 + aP.w * 4.1) * aP.z * air; lc.y += sin(lt * 34.0 + aP.w * 9.0) * 0.07 * air;
           float a1 = (lt * 31.0 * (0.5 + aP.w) + aP.w * 20.0) * air, a2 = lt * 19.0 * air + aP.w * 40.0;
-          vec3 lq = position * (1.9 * smoothstep(0.0, 0.04, lt) * (1.0 - smoothstep(0.93, 1.0, lt)) * (1.0 + distance(aA, cameraPosition) / 60.0));      // drawn large, like everything small in this style
+          vec3 lq = position * (2.3 * smoothstep(0.0, 0.04, lt) * (1.0 - smoothstep(0.93, 1.0, lt)));      // drawn large, like everything small in this style; one size at every distance
           lq = vec3(lq.x, lq.y * cos(a1) - lq.z * sin(a1), lq.y * sin(a1) + lq.z * cos(a1));
           lq = vec3(lq.x * cos(a2) + lq.z * sin(a2), lq.y, -lq.x * sin(a2) + lq.z * cos(a2));
           vec3 transformed = lc + lq; vLC = aC;`);
@@ -314,16 +348,14 @@
     m.customProgramCacheKey = () => 'ps-leaf-fall';
     return m;
   }
-  // leaves on the ground and leaves whirled up by a bike: plain instances. Like the grass, a lying leaf is drawn a little wider
-  // the further away it is (one smooth curve), so a distant leaf never shrinks to a flickering dot
-  function lyingLeafMat(widen) {
+  // leaves on the ground and leaves whirled up by a bike: plain instances, one fixed size at every distance
+  function lyingLeafMat() {
     const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 });      // a leaf lies on the road, never half in it
     m.onBeforeCompile = (sh) => {
-      sh.vertexShader = sh.vertexShader.replace('#include <beginnormal_vertex>', 'vec3 objectNormal = vec3(0.0, 1.0, 0.0);')
-        .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (widen ? 'transformed.xz *= 1.0 + distance(instanceMatrix[3].xyz, cameraPosition) / 45.0;' : ''));
+      sh.vertexShader = sh.vertexShader.replace('#include <beginnormal_vertex>', 'vec3 objectNormal = vec3(0.0, 1.0, 0.0);');
       sh.fragmentShader = LEAF_FRAG(sh.fragmentShader);
     };
-    m.customProgramCacheKey = () => 'ps-leaf-' + (widen ? 'lie' : 'air');
+    m.customProgramCacheKey = () => 'ps-leaf-lie';
     return m;
   }
   // a geometry that shares another's buffers but carries its own bounds (for frustum-culled instanced chunks)
@@ -367,10 +399,23 @@
     this.hemi = new THREE.HemisphereLight(K.hemiSky, K.hemiGround, K.hemiI); sc.add(this.hemi);
     const sun = this.sun = new THREE.DirectionalLight(K.sun, K.sunI); this.sunDir = SUN.clone();
     const QL = this.q === 'low' ? 0 : this.q === 'medium' ? 1 : 2;       // the graphics level: shadow map and grass density here, resolution in game.js
-    const SM = QL === 0 ? 2048 : 4096;
-    sun.castShadow = true; sun.shadow.mapSize.set(SM, SM); this.shadowR = 70;
-    Object.assign(sun.shadow.camera, { left: -70, right: 70, top: 70, bottom: -70, near: 120, far: 430 });
-    sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.035; sc.add(sun); sc.add(sun.target);      // PCF-soft: edges about two texels wide, so shadows read as shapes
+    // near shadow map: 170 m square round a point ahead of the camera, PCF-soft (edges about two texels wide, so shadows read as shapes)
+    const SM = QL === 0 ? 2048 : 4096, NR = 85;
+    sun.castShadow = true; sun.shadow.mapSize.set(SM, SM); this.shadowR = NR;
+    Object.assign(sun.shadow.camera, { left: -NR, right: NR, top: NR, bottom: -NR, near: 40, far: 540 });
+    sun.shadow.bias = -0.0003; sun.shadow.normalBias = 0.045; sc.add(sun); sc.add(sun.target);
+    {   // the map's own axes: right and up as the shadow camera sees them. The map is only ever moved by whole texels along them,
+        // and not at all along the light (that changes depths, never where an edge falls)
+      const z = SUN.clone(), r = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), z).normalize(), u = new THREE.Vector3().crossVectors(z, r), tx = NR * 2 / SM;
+      const c = new THREE.Vector3();
+      this.placeNear = (x, y, zz) => {
+        c.set(x, y, zz); const a = Math.round(c.dot(r) / tx) * tx, b = Math.round(c.dot(u) / tx) * tx, d = c.dot(z);
+        sun.target.position.set(r.x * a + u.x * b + z.x * d, r.y * a + u.y * b + z.y * d, r.z * a + u.z * b + z.z * d);
+        sun.position.copy(sun.target.position).addScaledVector(z, 320); sun.target.updateMatrixWorld(); sun.updateMatrixWorld();
+      };
+      this._focus = new THREE.Vector3(); this.placeSun = (focus) => { this._focus.set(focus.x, focus.y || 0, focus.z); };
+      this.placeNear(t.px[0], t.py[0], t.pz[0]);
+    }
     {   // a soft environment for the bike's paint and visor, in the sky's colours
       const pm = new THREE.PMREMGenerator(this.renderer), es = new THREE.Scene();
       const hor = K.hazeCool.clone().lerp(K.hazeWarm, 0.5), envTop = K.top.clone().lerp(K.topSun, 0.35);
@@ -505,6 +550,26 @@
       ring(4700, 350, 1350, K.ring[2], 9.1, 0.3); ring(3600, 300, 950, K.ring[1], 4.7, 0.48); ring(2300, 300, 700, K.ring[0], 1.3, 0.66);
     }
 
+    /* ---- the far shadow map: the whole finely modelled ground in one map, drawn once (see the note on shadows at the top).
+       A second sun of no brightness carries it; the shader reads it as the sun's shadow beyond the near map */
+    {
+      const z = SUN.clone(), r = new THREE.Vector3().crossVectors(new THREE.Vector3(0, 1, 0), z).normalize(), u = new THREE.Vector3().crossVectors(z, r), v = new THREE.Vector3();
+      let yLo = 1e9, yHi = -1e9; for (let k = 0; k < NV; k++) { if (GH[k] < yLo) yLo = GH[k]; if (GH[k] > yHi) yHi = GH[k]; }
+      let r0 = 1e9, r1 = -1e9, u0 = 1e9, u1 = -1e9, z0 = 1e9, z1 = -1e9;
+      for (const x of [gx0, gx1]) for (const zz of [gz0, gz1]) for (const y of [yLo - 4, yHi + 34]) { v.set(x, y, zz); const a = v.dot(r), b = v.dot(u), d = v.dot(z); r0 = Math.min(r0, a); r1 = Math.max(r1, a); u0 = Math.min(u0, b); u1 = Math.max(u1, b); z0 = Math.min(z0, d); z1 = Math.max(z1, d); }
+      const maxT = this.renderer.capabilities.maxTextureSize || 4096, fw = Math.min(maxT, QL === 2 ? 8192 : 4096), fh = fw / 2;
+      const far = new THREE.DirectionalLight(0xffffff, 0); far.castShadow = true; far.shadow.mapSize.set(fw, fh);
+      const hw2 = (r1 - r0) / 2, hh2 = (u1 - u0) / 2, cr = (r0 + r1) / 2, cu = (u0 + u1) / 2;
+      Object.assign(far.shadow.camera, { left: -hw2, right: hw2, top: hh2, bottom: -hh2, near: 20, far: z1 - z0 + 60 });
+      far.target.position.set(r.x * cr + u.x * cu + z.x * z0, r.y * cr + u.y * cu + z.y * z0, r.z * cr + u.z * cu + z.z * z0);
+      far.position.copy(far.target.position).addScaledVector(z, z1 - z0 + 40);
+      // a texel of this map is long on the ground (the sun stands low): lift what is tested a little off the surface, so flat ground never shadows itself
+      far.shadow.bias = -0.5 / (z1 - z0 + 40); far.shadow.normalBias = 2.2 * Math.max(2 * hw2 / fw, 2 * hh2 / fh);
+      far.shadow.autoUpdate = false; far.shadow.needsUpdate = true;
+      sc.add(far); sc.add(far.target); far.target.updateMatrixWorld(); far.updateMatrixWorld(); this.farShadow = far;
+      this.shadowInfo = { near: [SM, +(NR * 2 / SM).toFixed(3)], far: [fw, fh, +(2 * hw2 / fw).toFixed(3), +(2 * hh2 / fh).toFixed(3)], box: [Math.round(2 * hw2), Math.round(2 * hh2), Math.round(z1 - z0)] };
+    }
+
     /* ---- clouds: a few low-poly banks far out above the ridges, flat underneath, lit from the sun's side.
        They are real shapes standing in the distance (the ridges cover them properly) and drift very slowly round the valley */
     {
@@ -543,7 +608,7 @@
             #include <encodings_fragment>
           }`
       }));
-      m.renderOrder = -7; m.frustumCulled = false; grp.add(m); sc.add(grp); this.clouds = grp;
+      m.renderOrder = -7; m.frustumCulled = false; grp.add(m); sc.add(grp); this.cloudBanks = grp;
     }
 
     /* ---- road: one ribbon from barrier to barrier, asphalt, lines and shoulders drawn in the shader */
@@ -581,7 +646,7 @@
     const stripGrass = [], stripCov = new Set(), ckey = (x, z) => Math.floor(x) + ',' + Math.floor(z);
     const covered = (x, z) => stripCov.has(ckey(x, z));
     {
-      const face = { p: [], st: [], i: [] }, cap = { p: [], i: [] }, strip = { p: [], r: [], i: [] };
+      const face = { p: [], st: [], i: [] }, cap = { p: [], i: [] }, strip = { p: [], r: [], i: [] }, back = { p: [], i: [] };
       const capM = new THREE.MeshStandardMaterial({ color: P.cap, roughness: 0.95, side: THREE.DoubleSide });
       const quadRow = (o, a, bq, flip) => { if (flip) o.push(a, a + 1, bq, a + 1, bq + 1, bq); else o.push(a, bq, a + 1, a + 1, bq, bq + 1); };
       const NC = 6;
@@ -590,12 +655,13 @@
         const flush = () => {
           if (run.length < 3) { run = []; return; }
           let along = 0;
-          const f0 = face.p.length / 3, c0 = cap.p.length / 3, s0 = strip.p.length / 3;
+          const f0 = face.p.length / 3, c0 = cap.p.length / 3, s0 = strip.p.length / 3, b0 = back.p.length / 3;
           run.forEach((i, r) => {
             if (r) along += Math.hypot(t.px[i] - t.px[run[r - 1]], t.pz[i] - t.pz[run[r - 1]]);
             const nx = t.nx[i] * sg, nz = t.nz[i] * sg, y = t.py[i], wh = t.wallH[sd][i], bar = t.bar[sd][i], top = y + wh, lean = 0.06 * wh;
             const P2 = (L, h) => [t.px[i] + nx * L, h, t.pz[i] + nz * L];
             face.p.push(...P2(bar, y - 0.45), ...P2(bar + lean, top)); face.st.push(along, 0, along, wh + 0.45);
+            for (const d of [0.5, 2.2]) back.p.push(...P2(bar + d, y - 0.8), ...P2(bar + lean + d, top + 0.04));      // the wall's body, for shadows only (see below)
             const cb = bar + lean + 0.55;
             cap.p.push(...P2(bar + lean - 0.06, top - 0.04), ...P2(bar + lean - 0.06, top + 0.12), ...P2(cb, top + 0.12), ...P2(cb, top - 0.1));
             // ground over the wall top: from the cap back to 6 m behind the wall, joining the grid exactly at its far edge
@@ -608,10 +674,29 @@
             }
             if (r) {
               const a = f0 + (r - 1) * 2; quadRow(face.i, a, a + 2, sd === 1);
+              const bA = b0 + (r - 1) * 4; quadRow(back.i, bA, bA + 4, sd === 1); quadRow(back.i, bA + 2, bA + 6, sd === 1);
               const cA = c0 + (r - 1) * 4; for (let k = 0; k < 3; k++) quadRow(cap.i, cA + k, cA + 4 + k, sd === 1);
               const sA = s0 + (r - 1) * NC; for (let k = 0; k < NC - 1; k++) quadRow(strip.i, sA + k, sA + NC + k, sd === 1);
             }
           });
+          // a pier closes each end of a wall: a stone block a little wider and higher than the wall, with its own cap stone.
+          // It covers the open end of the face and of the cap, so no wall can be looked into
+          for (const [r, dir, u0] of [[0, -1, 0], [run.length - 1, 1, along]]) {
+            const i = run[r], nx = t.nx[i] * sg, nz = t.nz[i] * sg, ex = Math.cos(t.yaw[i]) * dir, ez = Math.sin(t.yaw[i]) * dir, y = t.py[i], wh = t.wallH[sd][i], bar = t.bar[sd][i], lean = 0.06 * wh;
+            const L0 = bar - 0.06, L1 = bar + lean + 0.62, a0 = -0.22, a1 = 0.55, y0 = y - 0.45, y1 = y + wh + 0.1;
+            const Cn = (L, a, h) => [t.px[i] + nx * L + ex * a, h, t.pz[i] + nz * L + ez * a];
+            const box = (o, Ls, Le, as, ae, hb, ht, st) => {
+              const ring = [[Ls, as], [Ls, ae], [Le, ae], [Le, as]]; let u = u0;
+              for (let k = 0; k < 4; k++) {
+                const [La, aa] = ring[k], [Lb, ab] = ring[(k + 1) % 4], len = Math.hypot(Lb - La, ab - aa), b = o.p.length / 3;
+                o.p.push(...Cn(La, aa, hb), ...Cn(La, aa, ht), ...Cn(Lb, ab, hb), ...Cn(Lb, ab, ht)); o.i.push(b, b + 1, b + 2, b + 1, b + 3, b + 2);
+                if (st) st.push(u, 0, u, ht - hb, u + len, 0, u + len, ht - hb); u += len;
+              }
+              for (const h of [hb, ht]) { const b = o.p.length / 3; o.p.push(...Cn(Ls, as, h), ...Cn(Ls, ae, h), ...Cn(Le, as, h), ...Cn(Le, ae, h)); o.i.push(b, b + 1, b + 2, b + 1, b + 3, b + 2); if (st) st.push(u0, 0, u0, 0.6, u0 + 0.7, 0, u0 + 0.7, 0.6); }
+            };
+            box(face, L0, L1, a0, a1, y0, y1, face.st);
+            box(cap, L0 - 0.07, L1 + 0.07, a0 - 0.07, a1 + 0.07, y1, y1 + 0.14, null);
+          }
           // grass on the wall-top ground (sampled on the strip itself, so it sits on it)
           for (let r = 1; r < run.length; r++) for (let k = 0; k < NC - 1; k++) {
             const A = s0 + (r - 1) * NC + k, B = A + 1, Cc = A + NC, D = Cc + 1, sp = strip.p;
@@ -650,9 +735,14 @@
         flush();
       }
       const fg = new THREE.BufferGeometry(); fg.setAttribute('position', new THREE.Float32BufferAttribute(face.p, 3)); fg.setAttribute('aSt', new THREE.Float32BufferAttribute(face.st, 2)); fg.setIndex(face.i); fg.computeVertexNormals();
-      sc.add(Object.assign(new THREE.Mesh(fg, stoneMat()), { castShadow: true, receiveShadow: true }));
+      sc.add(Object.assign(new THREE.Mesh(fg, stoneMat(this.renderer)), { castShadow: true, receiveShadow: true }));
       const cg = new THREE.BufferGeometry(); cg.setAttribute('position', new THREE.Float32BufferAttribute(cap.p, 3)); cg.setIndex(cap.i); cg.computeVertexNormals();
       sc.add(Object.assign(new THREE.Mesh(cg, capM), { castShadow: true, receiveShadow: true }));
+      {   // the wall face is a thin sheet with the hill behind it, and the hill throws no shadow. Two unseen sheets inside the hill
+          // stand in for the wall's body, so no sliver of sunlight slips in along the foot of the wall
+        const bg = new THREE.BufferGeometry(); bg.setAttribute('position', new THREE.Float32BufferAttribute(back.p, 3)); bg.setIndex(back.i);
+        sc.add(Object.assign(new THREE.Mesh(bg, new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false, side: THREE.DoubleSide })), { castShadow: true, receiveShadow: false, name: 'psWallBody' }));
+      }
       const sgm = new THREE.BufferGeometry(); sgm.setAttribute('position', new THREE.Float32BufferAttribute(strip.p, 3)); sgm.setAttribute('aRoad', new THREE.Float32BufferAttribute(strip.r, 1)); sgm.setIndex(strip.i); sgm.computeVertexNormals();
       const stm = tm.clone(); stm.onBeforeCompile = tm.onBeforeCompile; stm.customProgramCacheKey = tm.customProgramCacheKey; stm.polygonOffset = true; stm.polygonOffsetFactor = -1; stm.polygonOffsetUnits = -2; stm.side = THREE.DoubleSide;
       sc.add(Object.assign(new THREE.Mesh(sgm, stm), { receiveShadow: true, castShadow: true }));
@@ -703,7 +793,7 @@
     if (t.stream) {
       const S = t.stream, i = S.idx, Tv = new THREE.Vector3(Math.cos(t.yaw[i]), 0, Math.sin(t.yaw[i])), Nn = new THREE.Vector3(t.nx[i], 0, t.nz[i]), UP = new THREE.Vector3(0, 1, 0);
       const O = new THREE.Vector3(t.px[i], t.py[i], t.pz[i]);
-      const sm = stoneMat(), capM = new THREE.MeshStandardMaterial({ color: P.cap, roughness: 0.95 });
+      const sm = stoneMat(this.renderer), capM = new THREE.MeshStandardMaterial({ color: P.cap, roughness: 0.95 });
       const Rr = 3.3, base = -5.6, spring = -4.3;
       const withSt = (g, sx, sy) => { const p = g.attributes.position, st = new Float32Array(p.count * 2); for (let k = 0; k < p.count; k++) { st[k * 2] = p.getX(k) * sx; st[k * 2 + 1] = p.getY(k) * sy + 6; } g.setAttribute('aSt', new THREE.BufferAttribute(st, 2)); return g; };
       for (const sd of [0, 1]) {
@@ -735,7 +825,7 @@
 
     /* ---- vegetation and rocks, all standing on surf() */
     const m4 = new THREE.Matrix4(), qq = new THREE.Quaternion(), sv = new THREE.Vector3(), pv = new THREE.Vector3(), up = new THREE.Vector3(0, 1, 0), tint = new THREE.Color(), eu = new THREE.Euler();
-    const instChunks = (geo, mat, list, cell, cast, hMax, tintOn) => {
+    const instChunks = (geo, mat, list, cell, cast, hMax, tintOn, receive) => {
       const groups = new Map();
       for (const it of list) { const k = Math.floor(it[0] / cell) + ',' + Math.floor(it[2] / cell); (groups.get(k) || groups.set(k, []).get(k)).push(it); }
       let n = 0;
@@ -745,7 +835,7 @@
         const r = Math.hypot(x1 - x0, y1 - y0 + hMax, z1 - z0) / 2 + hMax * 0.6;
         const im = new THREE.InstancedMesh(shareGeo(geo, (x0 + x1) / 2, (y0 + y1) / 2 + hMax * 0.4, (z0 + z1) / 2, r), mat, L.length);
         L.forEach(([x, y, z, ry, s], k) => { qq.setFromAxisAngle(up, ry); sv.set(s, s, s); pv.set(x, y, z); m4.compose(pv, qq, sv); im.setMatrixAt(k, m4); if (tintOn) im.setColorAt(k, tint.setHSL(0, 0, 0.86 + rng() * 0.26)); });
-        im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; im.castShadow = cast; im.receiveShadow = true; im.frustumCulled = true; sc.add(im); n += L.length;
+        im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; im.castShadow = cast; im.receiveShadow = receive !== false; im.frustumCulled = true; sc.add(im); n += L.length;
       }
       return n;
     };
@@ -816,8 +906,10 @@
     const pm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, flatShading: true });
     const lm = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 });
     let nP = 0, nL = 0;
-    pineG.forEach((g, k) => { nP += instChunks(g, pm, pines[k], 130, true, 24, true); });
-    leafG.forEach((g, k) => { nL += instChunks(g, lm, leafs[k], 130, true, 14, true); });
+    // trees throw shadows but take none: a crown is lit by the sun on its own facets alone. Shadow-map shadows on such small, angled
+    // faces came out as jagged patches that changed with every step of the map; this way a tree looks the same from any distance
+    pineG.forEach((g, k) => { nP += instChunks(g, pm, pines[k], 130, true, 24, true, false); });
+    leafG.forEach((g, k) => { nL += instChunks(g, lm, leafs[k], 130, true, 14, true, false); });
     /* ---- leaves of the golden trees near the road: falling, lying underneath, whirled up by passing bikes.
        Medium has fewer, Low none. Counts are fixed per level; the camera's distance plays no part */
     this.leafFx = null;
@@ -852,7 +944,7 @@
         const m = new THREE.Mesh(g, fallingLeafMat()); m.frustumCulled = false; m.receiveShadow = true; m.name = 'psLeavesFalling'; sc.add(m);
       }
       // lying: thick under the crown and a little downwind, thinner on the riding line
-      const zone = new Float32Array(N), lie = new Map(), lm2 = lyingLeafMat(true), CL = 130;
+      const zone = new Float32Array(N), lie = new Map(), lm2 = lyingLeafMat(), CL = 130;
       for (const tr of trees) {
         if (tr.e > 34) continue;
         const n = Math.round((tr.e < 22 ? 150 : 60) * (tr.r / 3) * dens);
@@ -879,11 +971,11 @@
         let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, z0 = 1e9, z1 = -1e9;
         for (const [x, y, z] of L) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
         const im = new THREE.InstancedMesh(shareGeo(LG, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, Math.hypot(x1 - x0, y1 - y0, z1 - z0) / 2 + 3), lm2, L.length);
-        L.forEach(([x, y, z, tilt, c], k) => { eu.set((lr() - 0.5) * tilt, lr() * 6.283, (lr() - 0.5) * tilt); qq.setFromEuler(eu); const s2 = 1.1 + lr() * 0.6; sv.set(s2, s2, s2); pv.set(x, y, z); m4.compose(pv, qq, sv); im.setMatrixAt(k, m4); im.setColorAt(k, c); });
+        L.forEach(([x, y, z, tilt, c], k) => { eu.set((lr() - 0.5) * tilt, lr() * 6.283, (lr() - 0.5) * tilt); qq.setFromEuler(eu); const s2 = 1.5 + lr() * 0.8; sv.set(s2, s2, s2); pv.set(x, y, z); m4.compose(pv, qq, sv); im.setMatrixAt(k, m4); im.setColorAt(k, c); });
         im.instanceMatrix.needsUpdate = true; im.instanceColor.needsUpdate = true; im.receiveShadow = true; im.name = 'psLeavesLying'; sc.add(im); nLie += L.length;
       }
       // whirled up: a small pool of leaves that a bike throws up where leaves lie on the road. They start behind the rear wheel only
-      const NW = 160, wm = new THREE.InstancedMesh(LG, lyingLeafMat(false), NW), W8 = new Float32Array(NW * 12), wcol = new THREE.Color(), zero = new THREE.Matrix4().makeScale(0, 0, 0);
+      const NW = 160, wm = new THREE.InstancedMesh(LG, lm2, NW), W8 = new Float32Array(NW * 12), wcol = new THREE.Color(), zero = new THREE.Matrix4().makeScale(0, 0, 0);
       for (let k = 0; k < NW; k++) { wm.setMatrixAt(k, zero); wm.setColorAt(k, wcol.setRGB(1, 1, 1)); }
       wm.frustumCulled = false; wm.receiveShadow = true; wm.name = 'psLeavesWake'; sc.add(wm);
       const zs = new Float32Array(N); for (let i = 0; i < N; i++) { let v = 0; for (let o = -3; o <= 3; o++) v += zone[clamp(i + o, 0, N - 1)]; zs[i] = v; }
@@ -913,7 +1005,7 @@
               W8[o + 8] += W8[o + 9] * dt;
               if (W8[o + 1] <= W8[o + 10]) { W8[o + 1] = W8[o + 10]; W8[o + 4] = 0; W8[o + 6] = Math.min(W8[o + 6], 0.9); }
             }
-            const f = Math.min(1, W8[o + 6] / 0.45, (W8[o + 7] - W8[o + 6]) / 0.06) * 1.4;
+            const f = Math.min(1, W8[o + 6] / 0.45, (W8[o + 7] - W8[o + 6]) / 0.06) * 1.9;
             eu.set(down ? 0.1 : W8[o + 8], W8[o + 11], down ? 0 : W8[o + 8] * 0.7); qq.setFromEuler(eu); sv.set(f, f, f); pv.set(W8[o], W8[o + 1], W8[o + 2]); m4.compose(pv, qq, sv); wm.setMatrixAt(k, m4);
           }
           wm.instanceMatrix.needsUpdate = true;
@@ -929,7 +1021,7 @@
       const gy = natAt(px + 6, pz) - y, gz = natAt(px, pz + 6) - y; if (Math.hypot(gy, gz) / 6 > 0.9) continue;
       far[Math.floor(rng() * far.length)].push([px, y - 0.6, pz, rng() * 6.283, 0.85 + rng() * 0.5]);
     }
-    let nF = 0; farG.forEach((g, k) => { nF += instChunks(g, pm, far[k], 320, false, 26, true); });
+    let nF = 0; farG.forEach((g, k) => { nF += instChunks(g, pm, far[k], 320, false, 26, true, false); });
     // rocks: groups in the meadows, half sunk into the ground; bigger ones on the steep bits
     const rockG = [0, 1, 2, 3].map(() => rockGeometry(rng)), rocks = rockG.map(() => []);
     for (let k = 0; k < 260; k++) {
@@ -943,8 +1035,12 @@
     let nR = 0; rockG.forEach((g, k) => { nR += instChunks(g, rm, rocks[k], 200, true, 3, true); });
 
     // grass in 24 m cells near the road, each cell thinned with distance at run time (see update)
-    const tuft = tuftGeometry(), gm = grassMat(), CELL = 24, chunks = [];
+    const tuft = tuftGeometry(), gm = grassMat(), CELL = 24, chunks = [], grng = AX.RNG(555);
     const flGeo = new THREE.PlaneGeometry(0.06, 0.06), flMat = new THREE.MeshStandardMaterial({ roughness: 1, side: THREE.DoubleSide, emissive: new THREE.Color(0x2a2016) });
+    // a flower is a few centimetres across: far away it would be a single bright pixel that twinkles as you move. Like the grass it is
+    // drawn wider with distance, and it shrinks to nothing between 70 and 105 m, so flowers neither sparkle nor pop in
+    flMat.onBeforeCompile = (sh) => { sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\nfloat fcd = distance(instanceMatrix[3].xyz, cameraPosition); transformed *= (1.0 + fcd / 22.0) * (1.0 - smoothstep(70.0, 105.0, fcd));'); };
+    flMat.customProgramCacheKey = () => 'ps-flower';
     const cellOf = new Map(); for (const g of stripGrass) { const k = Math.floor((g[0] - gx0) / CELL) + ',' + Math.floor((g[2] - gz0) / CELL); (cellOf.get(k) || cellOf.set(k, []).get(k)).push(g); }
     let total = 0;
     for (let x0 = gx0; x0 < gx1; x0 += CELL) for (let z0 = gz0; z0 < gz1; z0 += CELL) {
@@ -974,14 +1070,25 @@
       if (sg) for (const [x, y, z] of sg) put(x, y, z, tall(x, z) * 0.9, 0, 1, 0);
       if (!mats.length) continue;
       const cxm = x0 + CELL / 2, czm = z0 + CELL / 2, rr = Math.hypot(CELL / 2, CELL / 2, (y1 - y0) / 2) + 2;
+      {   // shuffle the tufts of the cell (the wall-top ones came last and so always appeared last), then number them: the queue for growing in
+        const n = mats.length, ord = Array.from({ length: n }, (_, k) => k); for (let k = n - 1; k > 0; k--) { const j = Math.floor(grng() * (k + 1)), q = ord[k]; ord[k] = ord[j]; ord[j] = q; }
+        const m2 = ord.map((k) => mats[k]), g2 = new Float32Array(n * 3); ord.forEach((k, o) => { g2[o * 3] = gn[k * 3]; g2[o * 3 + 1] = gn[k * 3 + 1]; g2[o * 3 + 2] = gn[k * 3 + 2]; });
+        mats.length = 0; for (const mm of m2) mats.push(mm); gn.length = 0; for (let k = 0; k < g2.length; k++) gn.push(g2[k]);
+      }
       const tg = shareGeo(tuft, cxm, (y0 + y1) / 2, czm, rr); tg.setAttribute('aGN', new THREE.InstancedBufferAttribute(new Float32Array(gn), 3));
+      { const n = mats.length, rk = new Float32Array(n); for (let k = 0; k < n; k++) rk[k] = (k + 0.5) / n; tg.setAttribute('aRk', new THREE.InstancedBufferAttribute(rk, 1)); }
       const im = new THREE.InstancedMesh(tg, gm, mats.length); im.receiveShadow = true; im.frustumCulled = true;
       mats.forEach((mm, k) => im.setMatrixAt(k, mm)); im.instanceMatrix.needsUpdate = true; sc.add(im);
       let fim = null; if (fl.length) { fim = new THREE.InstancedMesh(shareGeo(flGeo, cxm, (y0 + y1) / 2, czm, rr), flMat, fl.length); fim.frustumCulled = true; fl.forEach((mm, k) => { fim.setMatrixAt(k, mm); fim.setColorAt(k, fc[k]); }); fim.instanceMatrix.needsUpdate = true; fim.instanceColor.needsUpdate = true; sc.add(fim); }
       chunks.push({ x: cxm, z: czm, im, cap: mats.length, fim, fcap: fl.length }); total += mats.length;
     }
     this.styleChunks = chunks;
-    this.styleInfo = { ms: Math.round(performance.now() - T0), grid: [gnx, gnz], grass: total, chunks: chunks.length, pines: nP, leafs: nL, far: nF, rocks: nR, leaves: this.leafFx ? [this.leafFx.trees, this.leafFx.falling, this.leafFx.lying] : 0 };
+    this.styleInfo = { ms: Math.round(performance.now() - T0), grid: [gnx, gnz], grass: total, chunks: chunks.length, pines: nP, leafs: nL, far: nF, rocks: nR, shadows: this.shadowInfo, leaves: this.leafFx ? [this.leafFx.trees, this.leafFx.falling, this.leafFx.lying] : 0 };
+    {   // draw the far shadow map now, while only the landscape is in the scene: no bike's shadow gets fixed into it
+      const rd = this.renderer, rt = new THREE.WebGLRenderTarget(4, 4), c0 = new THREE.PerspectiveCamera(10, 1, 0.1, 1), prev = rd.getRenderTarget();
+      c0.position.set(cx, -9000, cz); c0.updateMatrixWorld(); rd.shadowMap.type = THREE.PCFSoftShadowMap;
+      rd.setRenderTarget(rt); rd.render(sc, c0); rd.setRenderTarget(prev); rt.dispose();
+    }
   };
 
   /* ------------------------------------------------------------------ renderer settings, per-frame work, the bike */
@@ -991,7 +1098,10 @@
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     if (on) {
       renderer.toneMappingExposure = EXPOSURE;
-      mb.fragmentShader = brightOrig.replace('smoothstep(0.80,1.0,l)', 'smoothstep(0.93,1.0,l)');
+      // glow comes from light only (the sun, white highlights, brake light and flame), never from a sunlit matt colour:
+      // a golden tree must not start to shine as it fills more of the screen
+      mb.fragmentShader = brightOrig.replace('gl_FragColor=vec4(c*smoothstep(0.80,1.0,l),1.0);', 'float lm=dot(c,vec3(0.2126,0.7152,0.0722)); float em=c.r*(1.0-smoothstep(0.3,0.55,c.g)); gl_FragColor=vec4(c*smoothstep(0.93,1.0,max(lm,em)),1.0);');
+      if (mb.fragmentShader === brightOrig) console.warn('passstyle: glow pass not adjusted');
       post.mFinal.uniforms.uBloom.value = 0.55; post.mFinal.uniforms.uVig.value = 0.24; post.mFinal.uniforms.uSat.value = 1.0;
     } else {
       renderer.toneMappingExposure = 1.0; mb.fragmentShader = brightOrig;
@@ -1001,14 +1111,18 @@
   function update(world, cam) {
     const now = AX.windT.value, dt = clamp(now - (world._psT == null ? now : world._psT), 0, 0.05); world._psT = now;
     if (world.leafFx) world.leafFx.update(dt);
-    if (world.clouds) world.clouds.rotation.y = AX.windT.value * 0.0011;      // about four metres a second out there: you only notice over a minute
+    if (world.cloudBanks) world.cloudBanks.rotation.y = AX.windT.value * 0.0011;      // about four metres a second out there: you only notice over a minute
+    if (world.placeNear) {      // the near shadow map sits ahead of the camera: most of it covers what you are riding toward
+      const f = world._focus, dx = f.x - cam.x, dz = f.z - cam.z, l = Math.hypot(dx, dz), k = l > 0.5 ? Math.min(1, l / 4) * 38 / l : 0;
+      world.placeNear(f.x + dx * k, f.y, f.z + dz * k);
+    }
     const rb = AX.RiderBatch && AX.RiderBatch.mat; if (rb && !rb.userData.psTame) { rb.userData.psTame = true; rb.roughness = 0.92; rb.envMapIntensity = 0.1; rimLight(rb); rb.needsUpdate = true; }
     const L = world.styleChunks; if (!L) return;
     for (let k = 0; k < L.length; k++) {
       const c = L[k], d = Math.max(0, Math.hypot(c.x - cam.x, c.z - cam.z) - 17);
       const f = d > 235 ? 0 : clamp((45 / Math.max(45, d)) ** 1.6, 0.1, 1);
-      c.im.visible = f > 0; c.im.count = Math.max(1, Math.round(c.cap * f));
-      if (c.fim) { c.fim.visible = d < 110; c.fim.count = Math.max(1, Math.round(c.fcap * Math.min(1, f * 1.4))); }
+      c.im.visible = f > 0; c.im.count = Math.max(1, Math.min(c.cap, Math.ceil(c.cap * (f + 0.09))));      // a few more than are up: the shader lets each one grow in
+      if (c.fim) c.fim.visible = d < 125;      // all of a cell's flowers or none; the shader has shrunk them away long before
     }
   }
   // edge light on bike and rider: where a surface turns away from the camera on the sun's side, it catches a rim of the sun's
