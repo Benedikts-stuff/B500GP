@@ -312,7 +312,7 @@
     const v = G.vis[0]; if (!v) return; const rig = v.rider;
     if (on === povOn && rig.pov === on) return; povOn = on;      // also checked against the rider itself: after a restart the bike is a new one and still shows everything
     if (on) G.povReset = true; rig.pov = on; rig.torso.visible = !on; rig.helmet.visible = !on;   // on: false, 'pov' (cockpit) or 'chest'
-    if (on && !v.dash) makeDash(v); if (v.dash) v.dash.visible = !!on;
+    if (on && !v.dash && v.spec.style.dash !== false) makeDash(v); if (v.dash) v.dash.visible = !!on;
     camera.near = on ? 0.05 : 0.3; camera.updateProjectionMatrix();
   }
   /* digital dash on the top yoke: gear, speed, rev bar with shift lights (only in the helmet cam) */
@@ -530,7 +530,7 @@
   }
 
   // medal times per bike, set from what a quick, clean AI run manages on the pass
-  const PAR = { corsa: 73.0, strada: 73.3, duetto: 76.5 };
+  const PAR = { corsa: 73.0, strada: 73.3, duetto: 76.5, supermoto: 80.0 };
   function medalTimes(bike) { const p = PAR[bike] || 75; return [['g', T.gold, p + 1.5], ['s', T.silver, p + 6], ['b', T.bronze, p + 14]]; }
 
   function showResults() {

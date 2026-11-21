@@ -96,6 +96,20 @@
   };
   AX.BIKE_ORDER = ['corsa', 'strada', 'duetto'];
 
+  /* The supermoto: a light 450 single on 17-inch slicks. Its model has no instruments (style.dash) and brings its own colours. */
+  AX.BIKES.supermoto = {
+    id: 'supermoto', name: 'MOTARD 450', cls: 'Supermoto', engineLabel: '449 cm³ · 1 Zyl.',
+    blurb: { de: 'Federleicht und wendig. Wenig Topspeed, aber quer durch jede Kehre.', en: 'Featherweight and nimble. Not much top speed, but sideways through every hairpin.' },
+    mass: 190, power: 46, redline: 11500, idle: 1900,
+    gears: [16.5, 22.5, 28.5, 34.5, 40.5, 47],
+    torqueShape: [[0, 0.6], [0.2, 0.78], [0.4, 0.95], [0.55, 1.0], [0.7, 0.98], [0.82, 0.93], [0.92, 0.86], [1.0, 0.76]],
+    wheelbase: 1.47, cgB: 0.69, cgH: 0.66, mu: 1.52, maxLean: 56, leanRate: 10.8, brake: 12.8, dragTop: 45,
+    stats: { speed: 0.42, accel: 0.62, agility: 1.0, brake: 0.84 },
+    engine: (AX.ENGINES && AX.ENGINES.single450) || { cyl: 1, fire: [0], rough: 0.14, pipe: 0.004, bright: 1, body: 1 },
+    style: { fairing: 'naked', model: 'supermoto', tail: 'slim', exhaust: 'side', bars: 'wide', winglets: false, scale: 1.0, dash: false }
+  };
+  AX.BIKE_ORDER.push('supermoto');
+
   /* Engine sounds that no bike uses yet. A bike picks one up with `engine: AX.ENGINES.single450`.
      single450: 450 cm³ supermoto single, tuned for redline 11500 and idle 1900. kind 'single' selects the single-cylinder
      voice in audio.js; `tune` overrides its defaults (soundlab.html has a slider for each key and prints the values). */

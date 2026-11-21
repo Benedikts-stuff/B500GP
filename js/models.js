@@ -360,19 +360,35 @@
   }
 
   /* ---------------------------------------------------------------- bike */
+  /* Bikes modelled with working suspension: everything the rig has to know about each model. All positions are the model's own, in metres
+     (tools/blender_duetto.py, tools/blender_supermoto.py).
+     head/rake: a point on the steering axis and its angle · PIV: swingarm pivot · S0/S1: shock eyes on frame and swingarm · SPR: gearbox sprocket
+     chain: [gearbox sprocket radius, wheel sprocket radius, z, number of links] · hose: front brake line, top to caliper, and the sides that have one
+     tyre: half axes of the tyres' cross-sections (rear a/b, front a/b) · plate: number on the front plate [x, y, size] · side: number on the side panels
+     ex: where the pipe ends, which way it points, how wide it is · bar: the grips [x, y, z] · fit: where the rider sits (hips, shoulders upright and tucked, boots) */
+  const SPRUNG = {
+    duetto: { wb: 1.42, Rr: 0.325, Rf: 0.315, rake: 24, head: [0.398, 0.932], PIV: [-0.15, 0.43], S0: [-0.20, 0.716], S1: [-0.325, 0.458], SPR: [-0.075, 0.445], chain: [0.0385, 0.1095, -0.118, 108],
+      hose: [[0.53485, 0.77615, 0.014], [0.54931, 0.72509, 0.058], [0.53069, 0.62923, 0.084], [0.58663, 0.4790, 0.092], [0.54505, 0.35613, 0.09]], hoseSides: [-1, 1],
+      tyre: { ar: 0.0525, br: 0.1034, af: 0.0475, bf: 0.061 }, plate: [0.5395, 0.8957, 0.2], heat: true, ex: [[-0.795, 0.532, 0.232], [-0.866, 0.483, 0.129], 0.036] },
+    supermoto: { wb: 1.47, Rr: 0.315, Rf: 0.30, rake: 26.5, head: [0.387, 0.953], PIV: [-0.145, 0.445], S0: [-0.05, 0.795], S1: [-0.165, 0.375], SPR: [-0.055, 0.425], chain: [0.0365, 0.121, -0.092, 114],
+      hose: [[0.5206, 0.8468, 0.055], [0.5477, 0.7206, 0.06], [0.5386, 0.6044, 0.084], [0.5993, 0.4558, 0.092], [0.5588, 0.3712, 0.09]], hoseSides: [-1],
+      tyre: { ar: 0.034, br: 0.0835, af: 0.031, bf: 0.0632 }, plate: [0.5026, 0.9993, 0.125], side: [-0.275, 0.818, 0.1295, 0.082], ex: [[-0.757, 0.8175, 0.188], [-0.886, 0.464, 0.022], 0.0215],
+      bar: [0.252, 1.174, 0.34], fit: { hip: [-0.15, 0.985], sh: [0.045, 1.467, 0.185, 1.385], foot: [-0.20, 0.40, 0.172] } }
+  };
   function buildBike(spec, rider, opts) {
-    opts = opts || {}; const env = opts.env || null; const st = spec.style; const naked = st.fairing === 'naked';
+    opts = opts || {}; const env = opts.env || null; const st = spec.style; const naked = st.fairing === 'naked', mdl = naked ? st.model || 'duetto' : null, MD = mdl ? SPRUNG[mdl] : null;
     const mats = sharedMats(env);
     const pat = opts.pattern != null ? opts.pattern : (rider.num % 4);
     const liv = spec.livery && rider.num === AX.RIDERS[0].num ? spec.livery : [rider.c1, rider.c2, rider.c3];
     const paint = paintMaterial(liv[0], liv[1], liv[2], pat, env);
-    const wb = spec.wheelbase, hx = wb / 2, Rr = 0.325, Rf = 0.315, wR = 0.115, wF = 0.078;
+    const wb = spec.wheelbase, hx = wb / 2, Rr = MD ? MD.Rr : 0.325, Rf = MD ? MD.Rf : 0.315, wR = 0.115, wF = 0.078;
 
     const rootG = new THREE.Group(), leanG = new THREE.Group(), pitchG = new THREE.Group(), bodyG = new THREE.Group(), susG = new THREE.Group();
     rootG.add(leanG); leanG.add(pitchG); pitchG.add(bodyG); bodyG.add(susG);
     const P = new GeoBuilder(), Mt = new GeoBuilder(), Me = new GeoBuilder(), Gl = new GeoBuilder();
-    // the Duetto is modelled round a real steering head: 24 degrees, 34 mm offset
-    const steerHead = naked ? V3(hx - 0.312, 0.932, 0) : V3(hx - 0.27, 0.93, 0), forkDir = naked ? V3(Math.sin(24 * Math.PI / 180), -Math.cos(24 * Math.PI / 180), 0) : V3(hx, Rf, 0).sub(steerHead).normalize();
+    // the sprung bikes are modelled round a real steering head (the Duetto: 24 degrees, 34 mm offset)
+    const rake = (MD ? MD.rake : 24) * Math.PI / 180;
+    const steerHead = MD ? V3(hx - MD.wb / 2 + MD.head[0], MD.head[1], 0) : V3(hx - 0.27, 0.93, 0), forkDir = MD ? V3(Math.sin(rake), -Math.cos(rake), 0) : V3(hx, Rf, 0).sub(steerHead).normalize();
 
     // ---- frame, engine, swingarm
     const frameCol = naked ? rider.c1 : 0x2c2f35;
@@ -483,7 +499,7 @@
       F1.add(roundedBox(0.1, 0.06, 0.04, 0.014, 2), M(hx - 0.13, Rf + 0.06, z * 1.0, 0, 0, 1.1).premultiply(inv), 0xb8911a); // calipers
     }
     F1.add(roundedBox(0.07, 0.03, 0.27, 0.012, 2), M(steerHead.x - 0.02, steerHead.y + 0.03, 0).premultiply(inv), 0x1b1c20);
-    const barY = st.bars === 'wide' ? 1.036 : 0.905, barX = st.bars === 'wide' ? hx - 0.405 : hx - 0.27, barZ = st.bars === 'wide' ? 0.325 : 0.265;
+    const barY = MD && MD.bar ? MD.bar[1] : st.bars === 'wide' ? 1.036 : 0.905, barX = MD && MD.bar ? hx - MD.wb / 2 + MD.bar[0] : st.bars === 'wide' ? hx - 0.405 : hx - 0.27, barZ = MD && MD.bar ? MD.bar[2] : st.bars === 'wide' ? 0.325 : 0.265;
     if (st.bars === 'wide') {
       F1.add(tubeBetween(V3(barX + 0.06, 0.97, -0.1), V3(barX + 0.06, 0.97, 0.1), 0.014, 0.014, 6), inv, 0x1a1b1e);
       for (const z of [-1, 1]) { F1.add(tubeBetween(V3(barX + 0.06, 0.97, z * 0.1), V3(barX + 0.02, barY, z * 0.2), 0.014, 0.014, 6), inv, 0x1a1b1e); F1.add(tubeBetween(V3(barX + 0.02, barY, z * 0.2), V3(barX, barY, z * (barZ + 0.05)), 0.016, 0.016, 6), inv, 0x1a1b1e); }
@@ -498,7 +514,7 @@
     // ---- Blender superbike (faired bikes): swap the procedural parts for the modelled ones, keep the rig
     const NEWM = { strada: 'super', corsa: 'corsa' }[spec.id], SUPV = NEWM && AX.Assets && AX.Assets.has('bike/' + NEWM + '_body') ? NEWM : null, SUP = !!SUPV, CORSA = SUPV === 'corsa';   // the supersports use their own models
     let susp = null;
-    const BV = naked ? 'duetto' : SUP ? SUPV : 'strada', BWB = naked || SUP ? 1.42 : 1.45, BMOD = !!(AX.Assets && AX.Assets.has('bike/' + BV + '_body'));
+    const BV = naked ? mdl : SUP ? SUPV : 'strada', BWB = MD ? MD.wb : SUP ? 1.42 : 1.45, BMOD = !!(AX.Assets && AX.Assets.has('bike/' + BV + '_body'));
     if (BMOD) {
       const sx = wb / BWB, Sx = new THREE.Matrix4().makeScale(sx, 1, 1);
       paint.vertexColors = true;
@@ -527,20 +543,20 @@
       else if (naked) { brakeLight.position.set(-0.7445 * sx, 0.863, 0); brakeLight.scale.set(1, 0.55, 1.24); brakeLight.visible = !AX.Assets.has('bike/' + BV + '_swing'); }      // the Duetto's light is a band let into the tail (material L_)
       if (naked && AX.Assets.has('bike/' + BV + '_swing')) {
         /* working suspension: the fork lowers slide in the outer tubes, the swingarm turns about its pivot, the shock is squeezed between them.
-           All positions below are the model's own (tools/blender_duetto.py). */
-        const PIV = V3(-0.15, 0.43, 0), S0 = V3(-0.20, 0.716, 0), S1 = V3(-0.325, 0.458, 0), SPR = V3(-0.075, 0.445, 0), Tm = (v) => new THREE.Matrix4().makeTranslation(-v.x, -v.y, 0), nm = 'bike/' + BV + '_';
+           All positions are the model's own (SPRUNG). */
+        const PIV = V3(MD.PIV[0], MD.PIV[1], 0), S0 = V3(MD.S0[0], MD.S0[1], 0), S1 = V3(MD.S1[0], MD.S1[1], 0), SPR = V3(MD.SPR[0], MD.SPR[1], 0), Tm = (v) => new THREE.Matrix4().makeTranslation(-v.x, -v.y, 0), nm = 'bike/' + BV + '_';
         const forkG = new THREE.Group(); steerG.add(forkG); merged(nm + 'fork', new THREE.Matrix4().multiplyMatrices(inv, Sx)).forEach((m) => forkG.add(m)); forkG.add(wfHolder);
         const swingG = new THREE.Group(); swingG.position.copy(PIV); susG.add(swingG); merged(nm + 'swing', Tm(PIV)).forEach((m) => swingG.add(m));
         const sv = S1.clone().sub(S0), sl = sv.length(), Rm = new THREE.Matrix4().makeRotationZ(-Math.atan2(sv.y, sv.x));      // shock parts lie along local +x, turning about the top eye
         const shU = new THREE.Group(); shU.position.copy(S0); susG.add(shU); merged(nm + 'shockU', Rm.clone().multiply(Tm(S0))).forEach((m) => shU.add(m));
         const spring = merged(nm + 'spring', Rm.clone().multiply(Tm(S0))); spring.forEach((m) => shU.add(m));
         const shL = new THREE.Group(); susG.add(shL); merged(nm + 'shockL', Rm.clone().multiply(Tm(S1))).forEach((m) => shL.add(m));
-        // chain: 108 links (54 outer, 54 inner) laid round the two sprockets every frame
-        const NL = 108, pitch = 0.01634, chain = [0, 1].map((k) => { const im = new THREE.InstancedMesh(linkGeometry(!k, pitch), mats.metal, NL / 2); im.frustumCulled = false; susG.add(im); return im; });
+        // chain: outer and inner links by turns, laid round the two sprockets every frame
+        const NL = MD.chain[3], pitch = 0.01634, chain = [0, 1].map((k) => { const im = new THREE.InstancedMesh(linkGeometry(!k, pitch), mats.metal, NL / 2); im.frustumCulled = false; susG.add(im); return im; });
         // brake hoses from the splitter on the lower clamp down to the calipers: the top is clamped, the bottom rides with the fork
-        const HP = [[0.53485, 0.77615, 0.014], [0.54931, 0.72509, 0.058], [0.53069, 0.62923, 0.084], [0.58663, 0.4790, 0.092], [0.54505, 0.35613, 0.09]], hoses = [-1, 1].map((sd) => {
+        const HP = MD.hose, hoses = MD.hoseSides.map((sd) => {
           const m = hoseMesh(mats.metal, 0x3c3e43, 22, 6); m.userData.pts = HP.map((q) => V3(q[0] * sx, q[1], q[2] * sd).applyMatrix4(inv)); m.userData.cur = m.userData.pts.map((q) => q.clone()); steerG.add(m); return m; });
-        susp = { forkG, swingG, shU, shL, spring, chain, hoses, PIV, S0, SPR, s1r: S1.clone().sub(PIV), sl, L: Math.hypot(-hx - PIV.x, Rr - PIV.y), psi0: Math.atan2(Rr - PIV.y, -hx - PIV.x), axle0: wfHolder.position.clone(), NL, pitch, d: 1, th: 0, ph: 0, top: 0 };
+        susp = { forkG, swingG, shU, shL, spring, chain, hoses, PIV, S0, SPR, r1: MD.chain[0], r2: MD.chain[1], cz: MD.chain[2], s1r: S1.clone().sub(PIV), sl, L: Math.hypot(-hx - PIV.x, Rr - PIV.y), psi0: Math.atan2(Rr - PIV.y, -hx - PIV.x), axle0: wfHolder.position.clone(), NL, pitch, d: 1, th: 0, ph: 0, top: 0 };
         // number and name on the tank side panels
         for (const [dn, tex] of [['decalR', panelTexture(rider.num)], ['decalL', panelTexture(null)]]) {
           if (!AX.Assets.has(nm + dn)) continue;
@@ -554,10 +570,12 @@
     // number roundels on the tail sides
     const numTex = numberTexture(rider.num, rider.c3 === '#ffffff' ? '#ffffff' : '#f4f4f0', '#111111');
     const numMat = new THREE.MeshBasicMaterial({ map: numTex, transparent: true, toneMapped: true });
-    if (naked && BMOD) {   // the Duetto carries its number on the plate in front of the fork (steers with it)
-      const sn = Math.sin(24 * Math.PI / 180), cs = Math.cos(24 * Math.PI / 180), m = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.2), numMat);
-      const mb = new THREE.Matrix4().makeBasis(V3(0, 0, -1), V3(-sn, cs, 0), V3(cs, sn, 0)).setPosition(hx - 0.244 + cs * 0.0805, Rf + 0.548 + sn * 0.0805, 0);
+    if (naked && BMOD) {   // the sprung bikes carry their number on the plate in front of the fork (steers with it)
+      const sn = Math.sin(rake), cs = Math.cos(rake), m = new THREE.Mesh(new THREE.PlaneGeometry(MD.plate[2], MD.plate[2]), numMat);
+      const mb = new THREE.Matrix4().makeBasis(V3(0, 0, -1), V3(-sn, cs, 0), V3(cs, sn, 0)).setPosition(hx - MD.wb / 2 + MD.plate[0], MD.plate[1], 0);
       m.applyMatrix4(mb.premultiply(inv)); steerG.add(m);
+      if (MD.side) for (const z of [-1, 1]) {   // and on the white fields of the side panels
+        const n2 = new THREE.Mesh(new THREE.PlaneGeometry(MD.side[3], MD.side[3]), numMat); n2.position.set(MD.side[0] * wb / BWB, MD.side[1], z * MD.side[2]); n2.rotation.y = z > 0 ? 0 : Math.PI; n2.userData.decal = true; susG.add(n2); }
     } else
     for (const z of [-1, 1]) { const m = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 0.15), numMat); if (SUP) m.position.set(-0.56 * wb / BWB, CORSA ? 0.875 : 0.89, z * (CORSA ? 0.124 : 0.117)); else m.position.set(BMOD ? -0.5 * wb / BWB : -0.5, BMOD ? (naked ? 0.85 : 0.875) : 0.86 + tH * 0.5, z * (BMOD ? (naked ? 0.108 : 0.137) : 0.128)); m.rotation.y = z > 0 ? 0 : Math.PI; m.rotation.x = z * -0.25; susG.add(m); }
 
@@ -568,7 +586,7 @@
     rootG.traverse((o) => { if (o.isMesh && o !== shadow) { o.castShadow = !o.userData.decal && !o.isInstancedMesh; o.receiveShadow = false; } });
     // signs of heat on the Duetto: a dull glow deep in the exhaust, brake discs that begin to glow after a few hard stops (looks only)
     let heat = null;
-    if (naked && BMOD) {
+    if (naked && BMOD && MD.heat) {
       const gm = (map) => new THREE.MeshBasicMaterial({ color: 0x000000, map: map || null, transparent: true, opacity: map ? 1 : 0, blending: map ? THREE.AdditiveBlending : THREE.NormalBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide, fog: false });   // exhaust: light added in the dark bore; discs: the metal itself turns colour
       const put = (geo, mat, parent, x, y, z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.renderOrder = 3; parent.add(m); return m; };
       const mF = gm(), mR = gm(), mE = gm(heatTexture()), ringF = new THREE.RingGeometry(0.123, 0.159, 40), ringR = new THREE.RingGeometry(0.092, 0.121, 32);
@@ -577,10 +595,10 @@
       const ex = put(new THREE.CircleGeometry(0.041, 20), mE, susG, -0.72 * wb / BWB, 0.4905, 0.2216); ex.quaternion.setFromUnitVectors(V3(0, 0, 1), V3(-0.866, 0.483, 0.129).normalize());
       heat = { mF, mR, mE, tf: 0, tr: 0, te: 0, flash: 0 };
     }
-    const wear = naked && BMOD ? [tyreSkin(wheelF, mats.matte, 0.2675, 0.062), tyreSkin(wheelR, mats.matte, 0.2725, 0.105)] : null;
+    const wear = naked && BMOD ? [tyreSkin(wheelF, mats.matte, Rf - MD.tyre.af, MD.tyre.bf + 0.001), tyreSkin(wheelR, mats.matte, Rr - MD.tyre.ar, MD.tyre.br + 0.0016)] : null;
     // where the pipe ends, which way it points and how wide it is (in the sprung body's own frame)
     const EX = CORSA ? [V3(-0.87 * wb / 1.42, 0.876, 0), V3(-1, 0.12, 0), 0.028] : SUP ? [V3(-0.73 * wb / 1.42, 0.55, 0.205), V3(-0.9, 0.42, 0.04), 0.034] : st.exhaust === 'under' ? [V3(-0.78, 0.82, 0), V3(-1, 0.12, 0), 0.028]
-      : naked && BMOD ? [V3(-0.795, 0.532, 0.232), V3(-0.866, 0.483, 0.129), 0.036] : [V3(-0.5, 0.6, 0.16), V3(-0.9, 0.4, 0), 0.04];
+      : naked && BMOD ? [V3(MD.ex[0][0] * wb / BWB, MD.ex[0][1], MD.ex[0][2]), V3(MD.ex[1][0], MD.ex[1][1], MD.ex[1][2]), MD.ex[2]] : [V3(-0.5, 0.6, 0.16), V3(-0.9, 0.4, 0), 0.04];
     const flame = { mat: flameMaterial(), meshes: [], I: 0, len: 0.2 }; flame.mat.uniforms.uRad.value = EX[2]; EX[1].normalize();
     for (const z of (CORSA || (!BMOD && st.exhaust === 'under') ? [-0.055, 0.055] : [0])) {      // twin pipes under the seat: one tongue each
       const m = new THREE.Mesh(flameGeometry(), flame.mat); m.position.copy(EX[0]).addScaledVector(EX[1], -0.012); m.position.z += z; m.quaternion.setFromUnitVectors(V3(0, 1, 0), EX[1]);
@@ -591,12 +609,12 @@
 
     const bike = {
       root: rootG, leanG, pitchG, bodyG, susG, steerG, wheelF, wheelR, rider: riderRig, paint, brakeMat, spec, scale: sc,
-      Rr, Rf, hx, wfHolder, shadow, rT: 0.105, heat, wear, susp, flame, tyre: naked && BMOD ? { ar: 0.0525, br: 0.1034, af: 0.0475, bf: 0.061 } : null, dive: 0, diveV: 0, steerVis: 0, shake: 0, crashedVis: false, riderHolder: null,
+      Rr, Rf, hx, wfHolder, shadow, rT: 0.105, heat, wear, susp, flame, tyre: naked && BMOD ? MD.tyre : null, dive: 0, diveV: 0, steerVis: 0, shake: 0, crashedVis: false, riderHolder: null,
       /* contact patches in world space (for skid marks / smoke) */
       rearContact(out) { return out.set(-hx, 0.02, 0).applyMatrix4(leanG.matrixWorld); },
       frontContact(out) { return out.set(hx, 0.02, 0).applyMatrix4(leanG.matrixWorld); },
       pop(k) { if (flame.meshes[0].parent) { flame.I = Math.max(flame.I, k); flame.len = (0.13 + 0.12 * Math.random()) * (0.7 + 0.5 * k); } },      // afterfire: k = how hard (0..1)
-      exhaustPos(out) { return (CORSA ? out.set(-0.87 * wb / 1.42, 0.876, 0) : SUP ? out.set(-0.73 * wb / 1.42, 0.55, 0.205) : st.exhaust === 'under' ? out.set(-0.78, 0.82, 0) : naked && BMOD ? out.set(-0.795, 0.532, 0.232) : out.set(-0.5, 0.6, 0.16)).applyMatrix4(susG.matrixWorld); }
+      exhaustPos(out) { return (CORSA ? out.set(-0.87 * wb / 1.42, 0.876, 0) : SUP ? out.set(-0.73 * wb / 1.42, 0.55, 0.205) : st.exhaust === 'under' ? out.set(-0.78, 0.82, 0) : naked && BMOD ? out.set(EX[0].x, EX[0].y, EX[0].z) : out.set(-0.5, 0.6, 0.16)).applyMatrix4(susG.matrixWorld); }
     };
     if (batched) riderRig.group.traverse((o) => { if (o.isMesh && o.userData.rb) RB.add(o, bike); });
     else riderRig.group.traverse((o) => {   // stand-alone rider (ghost): give each limb its own coloured geometry back
@@ -667,7 +685,7 @@
   }
 
   function buildRider(spec, rider, mats, numTex, bars) {
-    const g = new THREE.Group(); const naked = spec.style.fairing === 'naked';
+    const g = new THREE.Group(); const naked = spec.style.fairing === 'naked', fit = naked && SPRUNG[spec.style.model] ? SPRUNG[spec.style.model].fit || null : null;
     const suit = lin(rider.suit), dark = lin(0x16171a), accent = lin(rider.c2), helmetC = lin(rider.helmet);
     // torso (built along +Y, hips at origin)
     const tb = new GeoBuilder(); const L = 0.5;
@@ -731,7 +749,7 @@
     for (const A of parts.arms) [A.up, A.sh].forEach(hideIn);   // the forearms stay in view, whole, from the elbow to the glove; upper arms and shoulders sit beside the camera
     for (const A of parts.arms) A.sh.userData.chestHide = true; for (const L of parts.legs) L.hip.userData.chestHide = true;   // right beside / behind the chest cam
     const rig = {
-      group: g, torso, helmet, parts, naked, bars, pov: false,
+      group: g, torso, helmet, parts, naked, bars, fit, pov: false,
       hang: 0, tuck: 0, sit: 0, kneeOut: 0, headYaw: 0, kneeDown: [false, false], elbowDown: [false, false], footDown: [false, false], dangle: 0,
       J: { H: V3(), S: V3(), head: V3(), a: V3(), b: V3(), c: V3(), pole: V3() }
     };
@@ -772,11 +790,11 @@
   /* st: {lean [-1..1 normalised hang-off], tuck 0..1, sit 0..1 (upright under braking), steer} ; k = smoothing blend 0..1 */
   function poseRider(rig, st, k) {
     rig.hang = lerp(rig.hang, st.lean, k); rig.tuck = lerp(rig.tuck, st.tuck, k); rig.sit = lerp(rig.sit, st.sit, k); rig.dangle = lerp(rig.dangle || 0, st.dangle || 0, k * 0.6);
-    const h = rig.hang, ah = Math.abs(h), tk = rig.tuck, si = rig.sit, J = rig.J, nk = rig.naked, bars = rig.bars;
+    const h = rig.hang, ah = Math.abs(h), tk = rig.tuck, si = rig.sit, J = rig.J, nk = rig.naked, bars = rig.bars, F = rig.fit;
     // hips slide to the inside, torso follows further, head leads into the corner
-    J.H.set(-0.3, 0.86 - ah * 0.02, h * 0.17);
-    const sx = nk ? lerp(-0.03, 0.07, tk) - si * 0.04 : lerp(0.14, 0.24, tk) - si * 0.1;      // hips to shoulders is 0.52 m, as on a real rider
-    const sy = nk ? lerp(1.30, 1.21, tk) + si * 0.03 : lerp(1.15, 1.04, tk) + si * 0.1 - ah * 0.03;
+    J.H.set(F ? F.hip[0] : -0.3, (F ? F.hip[1] : 0.86) - ah * 0.02, h * 0.17);
+    const sx = F ? lerp(F.sh[0], F.sh[2], tk) - si * 0.04 : nk ? lerp(-0.03, 0.07, tk) - si * 0.04 : lerp(0.14, 0.24, tk) - si * 0.1;      // hips to shoulders is 0.52 m, as on a real rider
+    const sy = F ? lerp(F.sh[1], F.sh[3], tk) + si * 0.03 : nk ? lerp(1.30, 1.21, tk) + si * 0.03 : lerp(1.15, 1.04, tk) + si * 0.1 - ah * 0.03;
     J.S.set(sx + ah * 0.02, sy - ah * 0.04, h * 0.27);
     // torso basis: Y along spine, Z to rider's right (rolled a little into the corner)
     _y.subVectors(J.S, J.H).normalize(); _z.set(0, -h * 0.25, 1).normalize(); _x.crossVectors(_y, _z).normalize(); _z.crossVectors(_x, _y).normalize();
@@ -801,15 +819,16 @@
       // leg
       const Lg = rig.parts.legs[s];
       _a.copy(J.H).addScaledVector(_z, sg * 0.105); _a.y -= 0.03;
-      _b.set(-0.25, 0.48, sg * 0.18);
+      const fx = F ? F.foot[0] : -0.25, fy = F ? F.foot[1] : 0.48, fz = F ? F.foot[2] : 0.18;
+      _b.set(fx, fy, sg * fz);
       const dg = sg * rig.dangle > 0 ? Math.abs(rig.dangle) : 0;           // MotoGP leg dangle on the brakes
       rig.footDown[s] = false;
       if (dg > 0.01) {
         // the boot leaves the peg, swings forward and out beside the front of the engine, toe down, hovering just off the
         // tarmac; the knee points out and up. A loose leg flaps a little in the wind and over the bumps.
         const w = Math.min(1, dg), deep = Math.max(0, dg - 1), tt = (rig.dgClock = (rig.dgClock || 0) + 0.016);
-        _b.set(lerp(-0.25, 0.14, w) + Math.sin(tt * 6.3) * 0.03 * w, lerp(0.48, 0.16 - deep * 0.08, w) + Math.sin(tt * 9.1) * 0.012 * w,
-          sg * (lerp(0.18, 0.5, w) + deep * 0.06 + Math.sin(tt * 4.7 + s) * 0.025 * w));
+        _b.set(lerp(fx, 0.14, w) + Math.sin(tt * 6.3) * 0.03 * w, lerp(fy, 0.16 - deep * 0.08, w) + Math.sin(tt * 9.1) * 0.012 * w,
+          sg * (lerp(fz, 0.5, w) + deep * 0.06 + Math.sin(tt * 4.7 + s) * 0.025 * w));
         // leaned (or sliding) to that side, the boot reaches the asphalt and drags along it
         rig.footDown[s] = clearGround(_b, ph, 0.03, w > 0.7 ? 0.62 : 0) && w > 0.5;
       }
@@ -892,7 +911,7 @@
       S.shU.rotation.z = ph; S.shL.rotation.z = ph; S.shL.position.set(s1x, s1y, 0);
       const ks = (ls - 0.3 * S.sl) / (0.7 * S.sl); for (const m of S.spring) { m.scale.x = ks; m.position.x = 0.15 * S.sl * (1 - ks); }
       // chain: round the rear sprocket, along the top run to the gearbox sprocket, round it and back along the bottom
-      const r1 = 0.0385, r2 = 0.1095, c2x = S.PIV.x + S.L * Math.cos(psi - sa), c2y = S.PIV.y + S.L * Math.sin(psi - sa), dx = S.SPR.x - c2x, dy = S.SPR.y - c2y, Dc = Math.hypot(dx, dy), cph = Math.atan2(dy, dx), al = Math.acos((r2 - r1) / Dc);
+      const r1 = S.r1, r2 = S.r2, c2x = S.PIV.x + S.L * Math.cos(psi - sa), c2y = S.PIV.y + S.L * Math.sin(psi - sa), dx = S.SPR.x - c2x, dy = S.SPR.y - c2y, Dc = Math.hypot(dx, dy), cph = Math.atan2(dy, dx), al = Math.acos((r2 - r1) / Dc);
       const Lr = r2 * (2 * Math.PI - 2 * al), Lf = r1 * 2 * al, Ls = Math.sqrt(Dc * Dc - (r2 - r1) * (r2 - r1)), Lt = Lr + Lf + 2 * Ls, pt = Lt / S.NL, adv = rollR * r2 / (2 * pt);
       S.ph = ((S.ph - (Math.abs(adv) > 0.37 ? Math.sign(adv) * 0.37 : adv)) % 1 + 1) % 1;      // faster than the eye (and the frame rate) can follow: keep it running forwards instead of flickering
       const a0x = c2x + r2 * Math.cos(cph - al), a0y = c2y + r2 * Math.sin(cph - al), b0x = S.SPR.x + r1 * Math.cos(cph - al), b0y = S.SPR.y + r1 * Math.sin(cph - al);
@@ -907,7 +926,7 @@
       for (let k = 0; k <= S.NL; k++) pin(k, k * 2);
       for (let k = 0; k < S.NL; k++) {
         const ax = _pin[k * 2], ay = _pin[k * 2 + 1], ex = _pin[k * 2 + 2] - ax, ey = _pin[k * 2 + 3] - ay, el = Math.hypot(ex, ey) || 1, sc2 = el / S.pitch, e = S.chain[k & 1].instanceMatrix.array, o = (k >> 1) * 16;
-        e[o] = ex / el * sc2; e[o + 1] = ey / el * sc2; e[o + 2] = 0; e[o + 3] = 0; e[o + 4] = -ey / el; e[o + 5] = ex / el; e[o + 6] = 0; e[o + 7] = 0; e[o + 8] = 0; e[o + 9] = 0; e[o + 10] = 1; e[o + 11] = 0; e[o + 12] = ax; e[o + 13] = ay; e[o + 14] = -0.118; e[o + 15] = 1;
+        e[o] = ex / el * sc2; e[o + 1] = ey / el * sc2; e[o + 2] = 0; e[o + 3] = 0; e[o + 4] = -ey / el; e[o + 5] = ex / el; e[o + 6] = 0; e[o + 7] = 0; e[o + 8] = 0; e[o + 9] = 0; e[o + 10] = 1; e[o + 11] = 0; e[o + 12] = ax; e[o + 13] = ay; e[o + 14] = S.cz; e[o + 15] = 1;
       }
       S.chain[0].instanceMatrix.needsUpdate = true; S.chain[1].instanceMatrix.needsUpdate = true;
     }

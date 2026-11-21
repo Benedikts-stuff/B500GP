@@ -2,9 +2,9 @@
 like the Duetto, so that every step can be checked on its own. No real make's bodywork, colours or lettering are copied.
 
   STAGES   list of stages to build: 'chassis' (frame, subframe, swingarm with linkage, shock, fork, wire wheels, brakes)
-           -> 'engine' (engine, cooling, exhaust, final drive) -> 'body' (tank, airbox, seat, plastics) -> 'controls'   ('controls' is still to come)
+           -> 'engine' (engine, cooling, exhaust, final drive) -> 'body' (tank, airbox, seat, plastics) -> 'controls' (bars, levers, lines, footrests)
   SHOTS    list of preview views to render into blender/renders/<PREFIX>_<view>.png
-  EXPORT   not yet: the game assemblies are exported once the bike is complete
+  EXPORT   True: bake AO into vertex colours and export the game assemblies to blender/bike_supermoto_<assembly>.glb (needs all four stages)
 
 Assemblies (the same set the game already animates on the Duetto): body (frame, subframe) · swing (swingarm, linkage, pivots at PIV)
   front (steered: clamps, outer fork tubes) · fork (steered + slides along the fork: stanchions, axle lugs, caliper, axle)
@@ -558,4 +558,50 @@ if SHOTS:
         if v in CLOSE: eye, tgt, lens = CLOSE[v]; cam.data.type = 'PERSP'; cam.data.lens = lens; cam.location = V(*eye); cam.rotation_euler = (V(*tgt) - cam.location).to_track_quat('-Z', 'Y').to_euler()
         scene.render.filepath = OUT + 'renders/' + PREFIX + '_' + v + '.png'; bpy.ops.render.render(write_still=True)
     bpy.data.objects.remove(cam)
+# ------------------------------------------------------------------ bake AO into vertex colours and export the game assemblies
+if EXPORT:
+    for k in ASM: ASM[k] = [o for o in ASM[k] if not o.get('noexport')]
+    for o in [o for o in scene.objects if o.get('noexport')]: o.hide_render = True
+    allobj = [o for k, L in ASM.items() for o in L]
+    for o in allobj:
+        me = o.data
+        for a in list(me.color_attributes): me.color_attributes.remove(a)
+        ca = me.color_attributes.new('Col', 'BYTE_COLOR', 'CORNER'); me.color_attributes.active_color = ca
+        for p in ca.data: p.color = (1, 1, 1, 1)
+    gme = bpy.data.meshes.new('sm_ground'); gme.from_pydata([(-3, -3, 0), (3, -3, 0), (3, 3, 0), (-3, 3, 0)], [], [(0, 1, 2, 3)])
+    gnd = bpy.data.objects.new('sm_ground', gme); scene.collection.objects.link(gnd)
+    scene.render.engine = 'CYCLES'
+    try: scene.cycles.device = 'GPU'
+    except Exception: pass
+    scene.cycles.samples = 64
+    if not scene.world: scene.world = bpy.data.worlds.new('smW')
+    scene.world.light_settings.distance = 0.22
+    scene.render.bake.target = 'VERTEX_COLORS'
+    vl = bpy.context.view_layer
+    for o in scene.objects: o.select_set(False)
+    for o in allobj: o.select_set(True)
+    vl.objects.active = allobj[0]
+    bpy.ops.object.bake(type='AO', target='VERTEX_COLORS', use_clear=True)
+    for o in allobj:
+        m = o.data.materials[0]; base = (1, 1, 1) if m.name.startswith('P_') or m.name.startswith('L_') else m['apex_col']
+        lettering = o.name.startswith(OBJPRE + 'ad_'); ca = o.data.color_attributes['Col']      # lettering lies flat on its panel: it takes no shade of its own
+        for lp in o.data.loops:
+            p = ca.data[lp.index]; a = 1.0 if lettering else 0.35 + 0.65 * p.color[0]
+            p.color = (base[0] * a, base[1] * a, base[2] * a, 1)
+    bpy.data.objects.remove(gnd)
+    for asm, L in ASM.items():
+        if not L: continue
+        shift = -V(F[0], F[1], 0) if asm == 'wheelF' else -V(A[0], A[1], 0) if asm == 'wheelR' else Vector((0, 0, 0))
+        for o in L: o.location = shift
+        for sc2 in bpy.data.scenes:
+            for vl2 in sc2.view_layers:
+                for o in sc2.objects:
+                    try: o.select_set(False, view_layer=vl2)
+                    except Exception: pass
+        for o in L: o.select_set(True)
+        vl.objects.active = L[0]
+        bpy.ops.export_scene.gltf(filepath=OUT + 'bike_supermoto_' + asm + '.glb', export_format='GLB', use_selection=True, use_active_scene=True, export_apply=True,
+                                  export_vertex_color='ACTIVE', export_yup=True, export_normals=True, export_texcoords=False, export_materials='EXPORT')
+        for o in L: o.location = (0, 0, 0)
+    res['exported'] = sorted(k for k, L in ASM.items() if L)
 result = res
