@@ -317,7 +317,7 @@
   // leaves on the ground and leaves whirled up by a bike: plain instances. Like the grass, a lying leaf is drawn a little wider
   // the further away it is (one smooth curve), so a distant leaf never shrinks to a flickering dot
   function lyingLeafMat(widen) {
-    const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, side: THREE.DoubleSide });
+    const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 });      // a leaf lies on the road, never half in it
     m.onBeforeCompile = (sh) => {
       sh.vertexShader = sh.vertexShader.replace('#include <beginnormal_vertex>', 'vec3 objectNormal = vec3(0.0, 1.0, 0.0);')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (widen ? 'transformed.xz *= 1.0 + distance(instanceMatrix[3].xyz, cameraPosition) / 45.0;' : ''));
@@ -828,7 +828,7 @@
       // where a leaf comes to rest: on the road ribbon inside the barriers, on the ground outside; null where it must not lie
       const rest = (x, z) => {
         if (covered(x, z) || nearStream(x, z)) return null; const g = surf(x, z);
-        if (g.e < 0.3) { const i = t.nearest(x, z, -1), lat = Math.abs(t.lateral(i, x, z)); return { y: t.py[i] + 0.04, i, road: true, lane: lat < hw - 0.15 }; }
+        if (g.e < 0.3) { const i = t.nearest(x, z, -1), lat = Math.abs(t.lateral(i, x, z)); return { y: t.py[i] + 0.05, i, road: true, lane: lat < hw - 0.15 }; }
         return { y: g.y + 0.3, i: -1, road: false, lane: false };      // in the meadow a leaf rests on top of the grass
       };
       const tone = new THREE.Color(), pick = (pal, dull) => tone.copy(pal[Math.floor(lr() * pal.length)]).lerp(P.trunk, dull).multiplyScalar(0.82 + lr() * 0.3);
@@ -858,7 +858,7 @@
         const n = Math.round((tr.e < 22 ? 150 : 60) * (tr.r / 3) * dens);
         for (let k = 0; k < n; k++) {
           const a = lr() * 6.283, rr = tr.r * 1.75 * Math.sqrt(lr()), x = tr.x + Math.cos(a) * rr + WIND[0] * tr.r * 0.5, z = tr.z + Math.sin(a) * rr + WIND[1] * tr.r * 0.5, g = rest(x, z);
-          if (!g || (g.lane && lr() > 0.4)) continue;
+          if (!g || (g.lane && lr() > 0.3)) continue;
           if (g.road) zone[g.i] += g.lane ? 1 : 0.5;
           const key = Math.floor(x / CL) + ',' + Math.floor(z / CL); (lie.get(key) || lie.set(key, []).get(key)).push([x, g.y, z, g.road ? 0.12 : 0.5, pick(tr.pal, 0.22).clone()]);
         }
@@ -866,10 +866,10 @@
       // and blown out onto the road next to trees that stand close: along the shoulder and into the near lane
       for (const tr of trees) {
         if (tr.e > 18) continue;
-        const i0 = t.nearest(tr.x, tr.z, -1), dx = t.px[i0] - tr.x, dz = t.pz[i0] - tr.z, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl, n = Math.round(150 * dens * (1 - tr.e / 30));
+        const i0 = t.nearest(tr.x, tr.z, -1), dx = t.px[i0] - tr.x, dz = t.pz[i0] - tr.z, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl, n = Math.round(110 * dens * (1 - tr.e / 30));
         for (let k = 0; k < n; k++) {
           const d = tr.e + 0.4 + Math.pow(lr(), 1.4) * (hw * 1.5 + 1.5), sp = (lr() - 0.5) * (7 + tr.r), x = tr.x + ux * d - uz * sp, z = tr.z + uz * d + ux * sp, g = rest(x, z);
-          if (!g || !g.road) continue;
+          if (!g || !g.road || (g.lane && lr() > 0.45)) continue;
           zone[g.i] += g.lane ? 1 : 0.5;
           const key = Math.floor(x / CL) + ',' + Math.floor(z / CL); (lie.get(key) || lie.set(key, []).get(key)).push([x, g.y, z, 0.12, pick(tr.pal, 0.22).clone()]);
         }
