@@ -284,6 +284,7 @@
       }
       return;
     }
+    if (G.world.leafFx) G.world.leafFx.ride(b, rx, rz, ys);       // leaves lying on the road whirl up behind the rear wheel
     if ((b.surf === SURF.GRASS || b.surf === SURF.GRAVEL) && b.speed > 5 && r() < 0.7) {
       const g = b.surf === SURF.GRAVEL;
       sm.spawn(rx, 0.2 + ys, rz, b.vx * 0.3 + (r() - 0.5) * 3, 0.8 + r() * 1.8, b.vz * 0.3 + (r() - 0.5) * 3, 0.8 + r() * 0.6, 0.6, g ? 0.74 : 0.42, g ? 0.66 : 0.5, g ? 0.48 : 0.26, g ? 0.5 : 0.32, 2.6, 1.4, 0);

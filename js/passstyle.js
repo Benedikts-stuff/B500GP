@@ -277,6 +277,48 @@
     }
     g.computeVertexNormals(); return g;
   }
+  // one leaf: a small kite folded along its rib, about 17 cm long
+  function leafGeometry() {
+    const g = new THREE.BufferGeometry(), L = 0.17;
+    g.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0.5 * L, 0.3 * L, 0.07 * L, 0, 0, 0, -0.5 * L, -0.3 * L, 0.07 * L, 0], 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0], 3)); g.setIndex([0, 1, 2, 0, 2, 3]);
+    return g;
+  }
+  const LEAF_FRAG = (fs) => MATTE(fs).replace('#include <normal_fragment_begin>', THREE.ShaderChunk.normal_fragment_begin.replace(/normal = normal \* faceDirection;/g, ''));
+  // leaves in the air. Each one belongs to a tree for good: it lets go in the crown, flutters down with the wind, lies for a moment
+  // and shrinks away; then the same leaf starts again. All of it runs on the clock in the vertex shader (no per-frame work),
+  // and nothing about it depends on how far away the camera is
+  function fallingLeafMat() {
+    const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, side: THREE.DoubleSide });
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.uT = AX.windT;
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 aA; attribute vec3 aB; attribute vec4 aP; attribute vec3 aC; uniform float uT; varying vec3 vLC;')
+        .replace('#include <beginnormal_vertex>', 'vec3 objectNormal = vec3(0.0, 1.0, 0.0);')
+        .replace('#include <begin_vertex>', `float lt = fract(uT / aP.y + aP.x), fall = smoothstep(0.0, 0.86, lt), air = 1.0 - smoothstep(0.8, 0.86, lt);
+          vec3 lc = mix(aA, aB, fall);
+          lc.x += sin(lt * 21.0 + aP.w * 6.3) * aP.z * air; lc.z += cos(lt * 16.0 + aP.w * 4.1) * aP.z * air; lc.y += sin(lt * 34.0 + aP.w * 9.0) * 0.07 * air;
+          float a1 = (lt * 31.0 * (0.5 + aP.w) + aP.w * 20.0) * air, a2 = lt * 19.0 * air + aP.w * 40.0;
+          vec3 lq = position * (1.9 * smoothstep(0.0, 0.04, lt) * (1.0 - smoothstep(0.93, 1.0, lt)) * (1.0 + distance(aA, cameraPosition) / 60.0));      // drawn large, like everything small in this style
+          lq = vec3(lq.x, lq.y * cos(a1) - lq.z * sin(a1), lq.y * sin(a1) + lq.z * cos(a1));
+          lq = vec3(lq.x * cos(a2) + lq.z * sin(a2), lq.y, -lq.x * sin(a2) + lq.z * cos(a2));
+          vec3 transformed = lc + lq; vLC = aC;`);
+      sh.fragmentShader = LEAF_FRAG(sh.fragmentShader).replace('#include <common>', '#include <common>\nvarying vec3 vLC;').replace('#include <color_fragment>', '#include <color_fragment>\ndiffuseColor.rgb *= vLC;');
+    };
+    m.customProgramCacheKey = () => 'ps-leaf-fall';
+    return m;
+  }
+  // leaves on the ground and leaves whirled up by a bike: plain instances. Like the grass, a lying leaf is drawn a little wider
+  // the further away it is (one smooth curve), so a distant leaf never shrinks to a flickering dot
+  function lyingLeafMat(widen) {
+    const m = new THREE.MeshStandardMaterial({ roughness: 1, metalness: 0, side: THREE.DoubleSide });
+    m.onBeforeCompile = (sh) => {
+      sh.vertexShader = sh.vertexShader.replace('#include <beginnormal_vertex>', 'vec3 objectNormal = vec3(0.0, 1.0, 0.0);')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\n' + (widen ? 'transformed.xz *= 1.0 + distance(instanceMatrix[3].xyz, cameraPosition) / 45.0;' : ''));
+      sh.fragmentShader = LEAF_FRAG(sh.fragmentShader);
+    };
+    m.customProgramCacheKey = () => 'ps-leaf-' + (widen ? 'lie' : 'air');
+    return m;
+  }
   // a geometry that shares another's buffers but carries its own bounds (for frustum-culled instanced chunks)
   function shareGeo(geo, cx, cy, cz, r) {
     const g = new THREE.BufferGeometry(); for (const k in geo.attributes) g.setAttribute(k, geo.attributes[k]); if (geo.index) g.setIndex(geo.index);
@@ -767,6 +809,108 @@
     let nP = 0, nL = 0;
     pineG.forEach((g, k) => { nP += instChunks(g, pm, pines[k], 130, true, 24, true); });
     leafG.forEach((g, k) => { nL += instChunks(g, lm, leafs[k], 130, true, 14, true); });
+    /* ---- leaves of the golden trees near the road: falling, lying underneath, whirled up by passing bikes.
+       Medium has fewer, Low none. Counts are fixed per level; the camera's distance plays no part */
+    this.leafFx = null;
+    if (QL > 0) {
+      const lr = AX.RNG(9091), LG = leafGeometry(), dens = QL === 2 ? 1 : 0.55, WIND = [0.83, 0.55];
+      const trees = [];
+      leafs.forEach((L, k) => { const h = 7.5 + k * 1.3, pal = k % 2 ? P.maple : P.gold; for (const [x, y, z, , sc2] of L) { const e = surf(x, z).e; if (e < 55) trees.push({ x, y, z, cy: y + h * 0.66 * sc2, r: h * 0.3 * sc2, pal, e }); } });
+      // where a leaf comes to rest: on the road ribbon inside the barriers, on the ground outside; null where it must not lie
+      const rest = (x, z) => {
+        if (covered(x, z) || nearStream(x, z)) return null; const g = surf(x, z);
+        if (g.e < 0.3) { const i = t.nearest(x, z, -1), lat = Math.abs(t.lateral(i, x, z)); return { y: t.py[i] + 0.04, i, road: true, lane: lat < hw - 0.15 }; }
+        return { y: g.y + 0.3, i: -1, road: false, lane: false };      // in the meadow a leaf rests on top of the grass
+      };
+      const tone = new THREE.Color(), pick = (pal, dull) => tone.copy(pal[Math.floor(lr() * pal.length)]).lerp(P.trunk, dull).multiplyScalar(0.82 + lr() * 0.3);
+      // falling
+      const A = [], B = [], Pp = [], Cc = [];
+      for (const tr of trees) {
+        const n = Math.round((tr.e < 25 ? 10 : 5) * dens);
+        for (let k = 0; k < n; k++) for (let tries = 0; tries < 4; tries++) {
+          const a = lr() * 6.283, rr = tr.r * (0.3 + 0.7 * Math.sqrt(lr())), ax = tr.x + Math.cos(a) * rr, az = tr.z + Math.sin(a) * rr, dr = 1.2 + lr() * 3.2;
+          const bx = ax + WIND[0] * dr + (lr() - 0.5) * 1.6, bz = az + WIND[1] * dr + (lr() - 0.5) * 1.6, g = rest(bx, bz);
+          if (!g || g.lane) continue;           // never down onto the riding line: nothing drops through the helmet camera's view
+          A.push(ax, tr.cy + (lr() - 0.35) * tr.r * 0.8, az); B.push(bx, g.y, bz); Pp.push(lr(), 7 + lr() * 7, 0.22 + lr() * 0.3, lr());
+          pick(tr.pal, 0.05); Cc.push(tone.r, tone.g, tone.b); break;
+        }
+      }
+      if (A.length) {
+        const g = new THREE.InstancedBufferGeometry(); g.setAttribute('position', LG.attributes.position); g.setAttribute('normal', LG.attributes.normal); g.setIndex(LG.index);
+        g.setAttribute('aA', new THREE.InstancedBufferAttribute(new Float32Array(A), 3)); g.setAttribute('aB', new THREE.InstancedBufferAttribute(new Float32Array(B), 3));
+        g.setAttribute('aP', new THREE.InstancedBufferAttribute(new Float32Array(Pp), 4)); g.setAttribute('aC', new THREE.InstancedBufferAttribute(new Float32Array(Cc), 3));
+        g.instanceCount = A.length / 3;
+        const m = new THREE.Mesh(g, fallingLeafMat()); m.frustumCulled = false; m.receiveShadow = true; m.name = 'psLeavesFalling'; sc.add(m);
+      }
+      // lying: thick under the crown and a little downwind, thinner on the riding line
+      const zone = new Float32Array(N), lie = new Map(), lm2 = lyingLeafMat(true), CL = 130;
+      for (const tr of trees) {
+        if (tr.e > 34) continue;
+        const n = Math.round((tr.e < 22 ? 150 : 60) * (tr.r / 3) * dens);
+        for (let k = 0; k < n; k++) {
+          const a = lr() * 6.283, rr = tr.r * 1.75 * Math.sqrt(lr()), x = tr.x + Math.cos(a) * rr + WIND[0] * tr.r * 0.5, z = tr.z + Math.sin(a) * rr + WIND[1] * tr.r * 0.5, g = rest(x, z);
+          if (!g || (g.lane && lr() > 0.4)) continue;
+          if (g.road) zone[g.i] += g.lane ? 1 : 0.5;
+          const key = Math.floor(x / CL) + ',' + Math.floor(z / CL); (lie.get(key) || lie.set(key, []).get(key)).push([x, g.y, z, g.road ? 0.12 : 0.5, pick(tr.pal, 0.22).clone()]);
+        }
+      }
+      // and blown out onto the road next to trees that stand close: along the shoulder and into the near lane
+      for (const tr of trees) {
+        if (tr.e > 18) continue;
+        const i0 = t.nearest(tr.x, tr.z, -1), dx = t.px[i0] - tr.x, dz = t.pz[i0] - tr.z, dl = Math.hypot(dx, dz) || 1, ux = dx / dl, uz = dz / dl, n = Math.round(150 * dens * (1 - tr.e / 30));
+        for (let k = 0; k < n; k++) {
+          const d = tr.e + 0.4 + Math.pow(lr(), 1.4) * (hw * 1.5 + 1.5), sp = (lr() - 0.5) * (7 + tr.r), x = tr.x + ux * d - uz * sp, z = tr.z + uz * d + ux * sp, g = rest(x, z);
+          if (!g || !g.road) continue;
+          zone[g.i] += g.lane ? 1 : 0.5;
+          const key = Math.floor(x / CL) + ',' + Math.floor(z / CL); (lie.get(key) || lie.set(key, []).get(key)).push([x, g.y, z, 0.12, pick(tr.pal, 0.22).clone()]);
+        }
+      }
+      let nLie = 0;
+      for (const [, L] of lie) {
+        let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, z0 = 1e9, z1 = -1e9;
+        for (const [x, y, z] of L) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); y0 = Math.min(y0, y); y1 = Math.max(y1, y); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
+        const im = new THREE.InstancedMesh(shareGeo(LG, (x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, Math.hypot(x1 - x0, y1 - y0, z1 - z0) / 2 + 3), lm2, L.length);
+        L.forEach(([x, y, z, tilt, c], k) => { eu.set((lr() - 0.5) * tilt, lr() * 6.283, (lr() - 0.5) * tilt); qq.setFromEuler(eu); const s2 = 1.1 + lr() * 0.6; sv.set(s2, s2, s2); pv.set(x, y, z); m4.compose(pv, qq, sv); im.setMatrixAt(k, m4); im.setColorAt(k, c); });
+        im.instanceMatrix.needsUpdate = true; im.instanceColor.needsUpdate = true; im.receiveShadow = true; im.name = 'psLeavesLying'; sc.add(im); nLie += L.length;
+      }
+      // whirled up: a small pool of leaves that a bike throws up where leaves lie on the road. They start behind the rear wheel only
+      const NW = 160, wm = new THREE.InstancedMesh(LG, lyingLeafMat(false), NW), W8 = new Float32Array(NW * 12), wcol = new THREE.Color(), zero = new THREE.Matrix4().makeScale(0, 0, 0);
+      for (let k = 0; k < NW; k++) { wm.setMatrixAt(k, zero); wm.setColorAt(k, wcol.setRGB(1, 1, 1)); }
+      wm.frustumCulled = false; wm.receiveShadow = true; wm.name = 'psLeavesWake'; sc.add(wm);
+      const zs = new Float32Array(N); for (let i = 0; i < N; i++) { let v = 0; for (let o = -3; o <= 3; o++) v += zone[clamp(i + o, 0, N - 1)]; zs[i] = v; }
+      const both = P.gold.concat(P.maple); let wc = 0, live = 0;
+      this.leafFx = {
+        falling: A.length / 3, lying: nLie, trees: trees.length, zone: zs,
+        // b: bike, (rx, rz): its rear contact point, y: road height there. Called once per physics step
+        ride(b, rx, rz, y) {
+          const d = zs[clamp(b.idx | 0, 0, N - 1)]; if (d < 1 || b.speed < 6 || b.crashed) return;
+          if (Math.random() > clamp(d / 14, 0.15, 1) * clamp(b.speed / 32, 0.25, 1) * 0.42) return;
+          const k = wc; wc = (wc + 1) % NW; const o = k * 12, c = Math.cos(b.yaw), sn = Math.sin(b.yaw), side = (Math.random() - 0.5) * 2, sp = 1.6 + b.speed * 0.07;
+          W8[o] = rx - sn * side * 0.45; W8[o + 1] = y + 0.06; W8[o + 2] = rz + c * side * 0.45;
+          W8[o + 3] = c * b.speed * 0.2 - sn * side * sp; W8[o + 4] = 1.1 + Math.random() * 2.4; W8[o + 5] = sn * b.speed * 0.2 + c * side * sp;
+          W8[o + 6] = W8[o + 7] = 2.0 + Math.random() * 1.4; W8[o + 8] = Math.random() * 6.283; W8[o + 9] = (Math.random() - 0.5) * 22; W8[o + 10] = y + 0.04; W8[o + 11] = Math.random() * 6.283;
+          wm.setColorAt(k, wcol.copy(both[Math.floor(Math.random() * both.length)]).lerp(P.trunk, 0.15));
+          wm.instanceColor.needsUpdate = true;
+        },
+        update(dt) {
+          live = 0; const dr = Math.exp(-1.7 * dt);
+          for (let k = 0; k < NW; k++) {
+            const o = k * 12; if (W8[o + 6] <= 0) continue; W8[o + 6] -= dt;
+            if (W8[o + 6] <= 0) { wm.setMatrixAt(k, zero); continue; } live++;
+            const down = W8[o + 1] <= W8[o + 10] + 0.001 && W8[o + 4] <= 0;
+            if (!down) {
+              W8[o + 3] *= dr; W8[o + 5] *= dr; W8[o + 4] = Math.max(W8[o + 4] - 4.6 * dt, -1.5);
+              W8[o] += (W8[o + 3] + Math.sin(W8[o + 6] * 7 + W8[o + 11]) * 0.7) * dt; W8[o + 1] += W8[o + 4] * dt; W8[o + 2] += (W8[o + 5] + Math.cos(W8[o + 6] * 6 + W8[o + 11]) * 0.7) * dt;
+              W8[o + 8] += W8[o + 9] * dt;
+              if (W8[o + 1] <= W8[o + 10]) { W8[o + 1] = W8[o + 10]; W8[o + 4] = 0; W8[o + 6] = Math.min(W8[o + 6], 0.9); }
+            }
+            const f = Math.min(1, W8[o + 6] / 0.45, (W8[o + 7] - W8[o + 6]) / 0.06) * 1.4;
+            eu.set(down ? 0.1 : W8[o + 8], W8[o + 11], down ? 0 : W8[o + 8] * 0.7); qq.setFromEuler(eu); sv.set(f, f, f); pv.set(W8[o], W8[o + 1], W8[o + 2]); m4.compose(pv, qq, sv); wm.setMatrixAt(k, m4);
+          }
+          wm.instanceMatrix.needsUpdate = true;
+        }
+      };
+    }
     // far forest on the slopes of the outer ground: simple firs, no shadows
     const farG = [0, 1, 2].map((k) => pineGeometry(rng, 14 + k * 2, 3.2, 3, 6)), far = farG.map(() => []);
     for (let x = cx - 1400; x < cx + 1400; x += 9) for (let z = cz - 1400; z < cz + 1400; z += 9) {
@@ -828,7 +972,7 @@
       chunks.push({ x: cxm, z: czm, im, cap: mats.length, fim, fcap: fl.length }); total += mats.length;
     }
     this.styleChunks = chunks;
-    this.styleInfo = { ms: Math.round(performance.now() - T0), grid: [gnx, gnz], grass: total, chunks: chunks.length, pines: nP, leafs: nL, far: nF, rocks: nR };
+    this.styleInfo = { ms: Math.round(performance.now() - T0), grid: [gnx, gnz], grass: total, chunks: chunks.length, pines: nP, leafs: nL, far: nF, rocks: nR, leaves: this.leafFx ? [this.leafFx.trees, this.leafFx.falling, this.leafFx.lying] : 0 };
   };
 
   /* ------------------------------------------------------------------ renderer settings, per-frame work, the bike */
@@ -846,6 +990,8 @@
     mb.needsUpdate = true;
   }
   function update(world, cam) {
+    const now = AX.windT.value, dt = clamp(now - (world._psT == null ? now : world._psT), 0, 0.05); world._psT = now;
+    if (world.leafFx) world.leafFx.update(dt);
     if (world.clouds) world.clouds.rotation.y = AX.windT.value * 0.0011;      // about four metres a second out there: you only notice over a minute
     const rb = AX.RiderBatch && AX.RiderBatch.mat; if (rb && !rb.userData.psTame) { rb.userData.psTame = true; rb.roughness = 0.92; rb.envMapIntensity = 0.1; rimLight(rb); rb.needsUpdate = true; }
     const L = world.styleChunks; if (!L) return;
