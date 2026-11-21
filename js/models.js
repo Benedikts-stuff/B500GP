@@ -267,6 +267,28 @@
     for (let j = 0; j < 2; j++) for (let i = 0; i < nx; i++) { const a = j * (nx + 1) + i, b2 = a + 1, c2 = a + nx + 1, d2 = c2 + 1; I.push(a, b2, c2, b2, d2, c2); }
     const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('uv', new THREE.Float32BufferAttribute(U, 2)); geo.setIndex(I); geo.computeVertexNormals(); return geo;
   }
+  /* afterfire: a short tongue of flame out of the pipe when the engine pops. A thin shell of light that is brightest where you look through
+     the middle of it and fades to nothing at its outline - no hard edge, no blobs. Blue-white at the mouth, orange, then a dull red tip. */
+  let _flameGeo = null;
+  function flameGeometry() {
+    if (_flameGeo) return _flameGeo;
+    const pts = []; for (let k = 0; k <= 12; k++) { const t = k / 12; pts.push(new THREE.Vector2(Math.max(0.0005, (0.86 + 0.5 * t) * Math.pow(1 - t, 0.75) * (0.55 + 0.45 * Math.min(1, t * 9))), t)); }
+    return (_flameGeo = new THREE.LatheGeometry(pts, 16));
+  }
+  function flameMaterial() {
+    return new THREE.ShaderMaterial({
+      uniforms: { uI: { value: 0 }, uLen: { value: 0.2 }, uRad: { value: 0.035 }, uT: { value: 0 } }, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false, toneMapped: false,
+      vertexShader: `uniform float uLen; uniform float uRad; uniform float uT; varying vec3 vN; varying vec3 vV; varying float vS;
+        void main(){ vS = position.y; float w = sin(position.y * 9.0 - uT * 55.0) * 0.07 * position.y;      // the tip licks about
+          vec3 p = vec3(position.x * uRad + w * uRad * 3.0, position.y * uLen, position.z * uRad);
+          vec4 mv = modelViewMatrix * vec4(p, 1.0); vN = normalize(normalMatrix * vec3(normal.x, normal.y * uRad / uLen, normal.z)); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }`,
+      fragmentShader: `uniform float uI; varying vec3 vN; varying vec3 vV; varying float vS;
+        void main(){ float f = abs(dot(normalize(vN), normalize(vV))), core = pow(f, 2.2);
+          vec3 c = mix(vec3(0.5, 0.72, 1.5), vec3(1.5, 0.6, 0.13), smoothstep(0.02, 0.4, vS)); c = mix(c, vec3(0.85, 0.13, 0.02), smoothstep(0.45, 1.0, vS));
+          float a = core * (1.0 - smoothstep(0.6, 1.0, vS)) * uI * 0.75;
+          gl_FragColor = vec4(c * a, 1.0); }` });
+  }
+
   /* tyres that show how they have been used: fresh rubber is a dull grey, the band that has worked is clean and black,
      and where the tyre has been slid the rubber rolls up into a rough, lighter grain that cleans off again over the next corners */
   const TYRE_FRAG = `
@@ -554,15 +576,24 @@
       heat = { mF, mR, mE, tf: 0, tr: 0, te: 0, flash: 0 };
     }
     const wear = naked && BMOD ? [tyreSkin(wheelF, mats.matte, 0.2675, 0.062), tyreSkin(wheelR, mats.matte, 0.2725, 0.105)] : null;
+    // where the pipe ends, which way it points and how wide it is (in the sprung body's own frame)
+    const EX = CORSA ? [V3(-0.87 * wb / 1.42, 0.876, 0), V3(-1, 0.12, 0), 0.028] : SUP ? [V3(-0.73 * wb / 1.42, 0.55, 0.205), V3(-0.9, 0.42, 0.04), 0.034] : st.exhaust === 'under' ? [V3(-0.78, 0.82, 0), V3(-1, 0.12, 0), 0.028]
+      : naked && BMOD ? [V3(-0.795, 0.532, 0.232), V3(-0.866, 0.483, 0.129), 0.036] : [V3(-0.5, 0.6, 0.16), V3(-0.9, 0.4, 0), 0.04];
+    const flame = { mat: flameMaterial(), meshes: [], I: 0, len: 0.2 }; flame.mat.uniforms.uRad.value = EX[2]; EX[1].normalize();
+    for (const z of (CORSA || (!BMOD && st.exhaust === 'under') ? [-0.055, 0.055] : [0])) {      // twin pipes under the seat: one tongue each
+      const m = new THREE.Mesh(flameGeometry(), flame.mat); m.position.copy(EX[0]).addScaledVector(EX[1], -0.012); m.position.z += z; m.quaternion.setFromUnitVectors(V3(0, 1, 0), EX[1]);
+      m.visible = false; m.castShadow = false; m.frustumCulled = false; m.renderOrder = 4; susG.add(m); flame.meshes.push(m);
+    }
     const batched = opts.batch !== false;
     const sc = (st.scale || 1) * AX.BIKE_SCALE; rootG.scale.setScalar(sc);
 
     const bike = {
       root: rootG, leanG, pitchG, bodyG, susG, steerG, wheelF, wheelR, rider: riderRig, paint, brakeMat, spec, scale: sc,
-      Rr, Rf, hx, wfHolder, shadow, rT: 0.105, heat, wear, susp, tyre: naked && BMOD ? { ar: 0.0525, br: 0.1034, af: 0.0475, bf: 0.061 } : null, dive: 0, diveV: 0, steerVis: 0, shake: 0, crashedVis: false, riderHolder: null,
+      Rr, Rf, hx, wfHolder, shadow, rT: 0.105, heat, wear, susp, flame, tyre: naked && BMOD ? { ar: 0.0525, br: 0.1034, af: 0.0475, bf: 0.061 } : null, dive: 0, diveV: 0, steerVis: 0, shake: 0, crashedVis: false, riderHolder: null,
       /* contact patches in world space (for skid marks / smoke) */
       rearContact(out) { return out.set(-hx, 0.02, 0).applyMatrix4(leanG.matrixWorld); },
       frontContact(out) { return out.set(hx, 0.02, 0).applyMatrix4(leanG.matrixWorld); },
+      pop(k) { if (flame.meshes[0].parent) { flame.I = Math.max(flame.I, k); flame.len = (0.13 + 0.12 * Math.random()) * (0.7 + 0.5 * k); } },      // afterfire: k = how hard (0..1)
       exhaustPos(out) { return (CORSA ? out.set(-0.87 * wb / 1.42, 0.876, 0) : SUP ? out.set(-0.73 * wb / 1.42, 0.55, 0.205) : st.exhaust === 'under' ? out.set(-0.78, 0.82, 0) : naked && BMOD ? out.set(-0.795, 0.532, 0.232) : out.set(-0.5, 0.6, 0.16)).applyMatrix4(susG.matrixWorld); }
     };
     if (batched) riderRig.group.traverse((o) => { if (o.isMesh && o.userData.rb) RB.add(o, bike); });
@@ -878,6 +909,10 @@
     const br = (p.brake + (p.rearBrake || 0)) > 0.08 && !p.crashed;
     const bl = br ? (p.brake > 0.8 && p.speed > 12 && Math.sin(time * 37.7) < 0 ? 0.3 : 1) : 0;      // hard on the brakes: it flashes, six times a second
     vis.brakeMat.color.setRGB(br ? 0.5 + 2.7 * bl : 0.3, br ? 0.04 + 0.18 * bl : 0.03, br ? 0.02 + 0.1 * bl : 0.02);
+    if (vis.flame) {
+      const F = vis.flame; F.I *= Math.exp(-15 * dt); const on = F.I > 0.03 && !p.crashed; for (const m of F.meshes) m.visible = on;
+      if (on) { const u = F.mat.uniforms; u.uI.value = Math.min(1, F.I * 1.4); u.uLen.value = F.len * (0.45 + 0.55 * Math.min(1, F.I * 1.6)); u.uT.value = time; }
+    }
     if (vis.heat && p.spec) {
       const H = vis.heat, sp = p.speed || 0, bk = p.crashed ? 0 : p.brake || 0, rb = p.crashed ? 0 : p.rearBrake || 0, air = 0.07 + sp * 0.004, work = clamp(sp / 40, 0, 1.2);
       H.tf = clamp(H.tf + (bk * work * 0.34 - H.tf * air) * dt, 0, 1.25); H.tr = clamp(H.tr + ((rb + bk * 0.25) * work * 0.2 - H.tr * air) * dt, 0, 1.25);
@@ -929,7 +964,7 @@
     const m = new THREE.MeshBasicMaterial({ color: color || 0x66ccff, transparent: true, opacity: 0.32, depthWrite: false });
     const f = (o) => { if (o.isMesh) { o.material = m; o.castShadow = false; } };
     if (vis.heat) { const H = vis.heat, kill = []; vis.root.traverse((o) => { if (o.isMesh && (o.material === H.mF || o.material === H.mR || o.material === H.mE)) kill.push(o); }); for (const o of kill) o.parent.remove(o); vis.heat = null; }   // a ghost has no engine to glow
-    vis.wear = null;
+    vis.wear = null; if (vis.flame) { for (const m of vis.flame.meshes) if (m.parent) m.parent.remove(m); vis.flame = null; }
     vis.root.traverse(f); vis.rider.group.traverse(f); vis.brakeMat = new THREE.MeshBasicMaterial(); return vis;
   }
 

@@ -9,7 +9,7 @@ const OUT = process.argv[2] || 'st', BIKE = process.argv[3] || 'strada', VIEWS =
   await p.addInitScript(() => localStorage.setItem('apex3_settings', JSON.stringify({ quality: 'high', mode: 'tt', look: 'on' })));
   await p.goto('file://' + path.resolve(__dirname, '../apex/index.html'), { waitUntil: 'commit', timeout: 600000 });
   await p.waitForFunction(() => window.APEX && window.APEX.state === 'menu' && window.APEX.world, null, { timeout: 600000 });
-  await p.evaluate(([id, norider, seq]) => {
+  await p.evaluate(([id, norider, seq, flameK]) => {
     const G = window.APEX, T = window.THREE; G._manual = true; G._noRender = true;
     const r = G._r.renderer; r.setPixelRatio(1); r.setSize(innerWidth, innerHeight, false); G._r.post.setSize(innerWidth, innerHeight, 4); G._r.post.tilt = 0;
     document.querySelectorAll('body > div').forEach((d) => { d.style.visibility = 'hidden'; });
@@ -25,8 +25,9 @@ const OUT = process.argv[2] || 'st', BIKE = process.argv[3] || 'strada', VIEWS =
     // SEQ='[[{"lean":0.7,"speed":30},300],...]': drive the visual rig through states (dt 1/60) before the pictures are taken
     const st = { x: 0, z: 0, yaw: 0, y: 0, slope: 0, lean: 0, pitch: 0, aLong: 0, speed: 0, spin: 0, slipAngle: 0, steer: 0, brake: 0, rearBrake: 0, crashed: false, surf: 0, spec: AX.BIKES[id], rpm: AX.BIKES[id].idle, throttle: 0, fx: {} };
     let t = 0; for (const [d, n] of seq) { Object.assign(st, d); for (let k = 0; k < n; k++) { t += 1 / 60; AX.Models.syncBike(v, st, 1 / 60, t); } }
+    if (flameK) { v.pop(flameK); AX.Models.syncBike(v, st, 0.001, t + (flameK * 7.3) % 1); }      // FLAME=0..1: an afterfire pop at that strength
     window.ST.t = t;
-  }, [BIKE, !!process.env.NORIDER, JSON.parse(process.env.SEQ || '[[{},2]]')]);
+  }, [BIKE, !!process.env.NORIDER, JSON.parse(process.env.SEQ || '[[{},2]]'), +(process.env.FLAME || 0)]);
   for (const view of VIEWS) {
     const url = await p.evaluate((view) => {
       const G = window.APEX, T = window.THREE, { sc } = window.ST, A = innerWidth / innerHeight; let cam;

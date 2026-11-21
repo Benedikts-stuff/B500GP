@@ -293,9 +293,9 @@
       if (r() < 0.5) sm.spawn(rx, 0.15 + ys, rz, b.vx * 0.5 + (r() - 0.5) * 5, 2 + r() * 3, b.vz * 0.5 + (r() - 0.5) * 5, 0.5, 0.11, g ? 0.6 : 0.3, g ? 0.54 : 0.44, g ? 0.4 : 0.18, 0.95, 0, 0.6, 14);
     }
     if (f.scrape && r() < 0.7) G.sparks.spawn(b.x, 0.5 + ys, b.z, -b.vx * 0.2 + (r() - 0.5) * 5, 1 + r() * 2, -b.vz * 0.2 + (r() - 0.5) * 5, 0.22, 0.1, 1, 0.8, 0.35, 1, 0, 1, 10);
-    // now and then a few sparks out of the pipe: on a downshift, or held on the limiter
-    if ((f.shift === -1 && r() < 0.35) || (b.limiter && r() < 0.03)) { vis.exhaustPos(_v); for (let k = 0, n = 1 + (r() < 0.4 ? 1 : 0); k < n; k++) G.sparks.spawn(_v.x, _v.y, _v.z, -cx * (2 + r() * 2) + (r() - 0.5), 0.2 + r() * 0.6, -sz * (2 + r() * 2) + (r() - 0.5), 0.07, 0.3, 1, 0.55, 0.18, 0.9, 1.5, 4, 0); }
-    if (f.backfire > 0 && r() < 0.05) { vis.exhaustPos(_v); G.sparks.spawn(_v.x, _v.y, _v.z, -cx * 3, 0.3, -sz * 3, 0.09, 0.4, 1, 0.6, 0.2, 0.9, 1.5, 4, 0); if (b === G.player) G.pop = 0.55; }
+    // the engine pops on the overrun, now and then on a downshift or held on the limiter: a short tongue of flame out of the pipe
+    if ((f.shift === -1 && r() < 0.3) || (b.limiter && r() < 0.025)) vis.pop(0.55 + r() * 0.25);
+    if (f.backfire > 0 && r() < 0.05) { vis.pop(0.8 + r() * 0.2); if (b === G.player) G.pop = 0.55; }
   }
   function burst(b) {
     const ys = b.y || 0;
@@ -684,7 +684,7 @@
     if (_hz0.z > 1 || _hz1.z > 1 || Math.abs(_hz0.x) > 1.4 || Math.abs(_hz0.y) > 1.4 || d0 > 30) return;
     const rs = Math.abs(_hz2.y - _hz0.y) * 0.5;      // radius on screen, in units of the picture's height
     u.uHz.value.set(_hz0.x * 0.5 + 0.5, _hz0.y * 0.5 + 0.5, _hz1.x * 0.5 + 0.5, _hz1.y * 0.5 + 0.5);
-    u.uHzR.value.set(rs, rs * (r1 / r0) * (d0 / Math.max(d1, 0.5)), G.time, camera.aspect); u.uHzA.value = rs * 0.22 * str;
+    u.uHzR.value.set(rs, rs * (r1 / r0) * (d0 / Math.max(d1, 0.5)), G.time, camera.aspect); u.uHzA.value = rs * 0.055 * str;
   }
 
   function frame(now) {
