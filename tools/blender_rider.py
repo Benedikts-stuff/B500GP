@@ -1,6 +1,6 @@
 """APEX rider parts, built in Blender. Game coordinates: x forward, y up, z right; Blender X = x, Y = -z, Z = y.
 Pieces (each its own GLB, placed by the game's rider rig):
-  torso  - hips at the origin, shoulders 0.47 m up the +y axis, chest faces +x, back -x; the spine between them is a gentle curve (BEND degrees), not a plank
+  torso  - hips at the origin, shoulders 0.52 m up the +y axis, chest faces +x, back -x; the spine between them is a gentle curve (BEND degrees), not a plank
   helmet - centred at the origin, face towards +x
   limbs  - unit length along +y (0 = joint at the body side), real radii; rotationally symmetric so the rig can roll them freely
 Material prefixes: T_suit / T_accent / T_dark / H_shell / H_accent / H_dark / H_visor, L_suit / L_dark.
@@ -107,47 +107,52 @@ T_suit, T_accent, T_dark = mat('T_suit', (0.03, 0.03, 0.035)), mat('T_accent', (
 H_shell, H_accent, H_dark, H_visor = mat('H_shell', (0.9, 0.9, 0.88)), mat('H_accent', (0.9, 0.9, 0.88)), mat('H_dark', (0.02, 0.02, 0.02)), mat('H_visor', (0.01, 0.01, 0.012))
 L_suit, L_accent, L_dark = mat('L_suit', (0.03, 0.03, 0.035)), mat('L_accent', (0.9, 0.9, 0.88)), mat('L_dark', (0.015, 0.015, 0.015))
 
-# ------------------------------------------------------------------ torso: one smooth leather shell, the shoulder yoke in the second colour
+# ------------------------------------------------------------------ torso: one smooth leather shell at true size, the shoulder yoke in the second colour
+# hips at y = 0, shoulder line at y = TL. Broad across the shoulders, drawn in at the waist, seat and small of the back behind the hips.
+TL = 0.52
 torso = loft_y('torso', [
-    dict(y=-0.06, x=0.0, w=0.09, df=0.07, db=0.08, e=2.2), dict(y=-0.01, x=0.0, w=0.158, df=0.10, db=0.105, e=2.5),
-    dict(y=0.10, x=0.0, w=0.142, df=0.092, db=0.10, e=2.4), dict(y=0.22, x=0.005, w=0.158, df=0.105, db=0.105, e=2.5),
-    dict(y=0.34, x=0.012, w=0.182, df=0.118, db=0.105, e=2.6), dict(y=0.43, x=0.012, w=0.19, df=0.108, db=0.10, e=2.6),
-    dict(y=0.49, x=0.012, w=0.15, df=0.085, db=0.085, e=2.4), dict(y=0.53, x=0.014, w=0.075, df=0.06, db=0.06, e=2.2),
-    dict(y=0.565, x=0.016, w=0.055, df=0.048, db=0.048, e=2.0)], T_suit, 'torso', ring=24, subsurf=2)
-repaint(torso, [((0, 0.375, 0), (0.0, 1, 0))], lambda x, y, z: y > 0.375, 'yoke', T_accent, 'torso')
+    dict(y=-0.075, x=0.0, w=0.095, df=0.072, db=0.085, e=2.2), dict(y=-0.01, x=-0.004, w=0.166, df=0.10, db=0.116, e=2.5),
+    dict(y=0.13, x=0.0, w=0.137, df=0.092, db=0.097, e=2.4), dict(y=0.26, x=0.004, w=0.153, df=0.104, db=0.10, e=2.5),
+    dict(y=0.385, x=0.012, w=0.186, df=0.122, db=0.104, e=2.6), dict(y=0.475, x=0.012, w=0.204, df=0.108, db=0.102, e=2.7),
+    dict(y=0.54, x=0.012, w=0.15, df=0.084, db=0.09, e=2.4), dict(y=0.585, x=0.014, w=0.076, df=0.06, db=0.064, e=2.2),
+    dict(y=0.63, x=0.016, w=0.055, df=0.048, db=0.05, e=2.0)], T_suit, 'torso', ring=24, subsurf=2)
+YOKE = 0.415
+repaint(torso, [((0, YOKE, 0), (0.0, 1, 0))], lambda x, y, z: y > YOKE, 'yoke', T_accent, 'torso')
 # speed hump: grows out of the back, same leather
-hump = loft_y('hump', [dict(y=0.22, x=-0.088, w=0.02, df=0.01, db=0.01), dict(y=0.3, x=-0.09, w=0.06, df=0.02, db=0.03, e=2.4), dict(y=0.4, x=-0.09, w=0.066, df=0.02, db=0.04, e=2.4),
-                       dict(y=0.47, x=-0.085, w=0.05, df=0.02, db=0.03, e=2.4), dict(y=0.51, x=-0.075, w=0.02, df=0.01, db=0.01)], T_suit, 'torso', ring=16, subsurf=2)
-repaint(hump, [((0, 0.375, 0), (0.0, 1, 0))], lambda x, y, z: y > 0.375, 'hump_yoke', T_accent, 'torso')
-loft_y('collar', [dict(y=0.525, x=0.014, w=0.068, df=0.056, db=0.056), dict(y=0.575, x=0.017, w=0.056, df=0.049, db=0.049)], T_dark, 'torso', ring=20, subsurf=1)
+hump = loft_y('hump', [dict(y=0.245, x=-0.086, w=0.02, df=0.01, db=0.01), dict(y=0.33, x=-0.088, w=0.058, df=0.02, db=0.03, e=2.4), dict(y=0.44, x=-0.088, w=0.064, df=0.02, db=0.042, e=2.4),
+                       dict(y=0.52, x=-0.082, w=0.05, df=0.02, db=0.032, e=2.4), dict(y=0.565, x=-0.072, w=0.02, df=0.01, db=0.01)], T_suit, 'torso', ring=16, subsurf=2)
+repaint(hump, [((0, YOKE, 0), (0.0, 1, 0))], lambda x, y, z: y > YOKE, 'hump_yoke', T_accent, 'torso')
+loft_y('collar', [dict(y=0.58, x=0.014, w=0.068, df=0.056, db=0.058), dict(y=0.64, x=0.017, w=0.056, df=0.049, db=0.05)], T_dark, 'torso', ring=20, subsurf=1)
 
-# ------------------------------------------------------------------ helmet: smooth full-face shell; the visor is part of the same surface, tapering back to its pivots
+# ------------------------------------------------------------------ helmet: a race full-face at true size - 26 cm wide, 28 high, 35 long - so it is longer than it is
+# wide, with the chin bar reaching forward. The visor is part of the same surface, tapering back to its pivots.
 shell = loft_y('shell', [
-    dict(y=-0.152, x=0.0, w=0.095, df=0.115, db=0.105, e=2.3), dict(y=-0.112, x=0.005, w=0.132, df=0.165, db=0.15, e=2.5),
-    dict(y=-0.055, x=0.005, w=0.15, df=0.178, db=0.172, e=2.5), dict(y=0.0, x=0.0, w=0.156, df=0.172, db=0.182, e=2.4),
-    dict(y=0.06, x=-0.006, w=0.15, df=0.158, db=0.182, e=2.3), dict(y=0.115, x=-0.015, w=0.125, df=0.125, db=0.155, e=2.2),
-    dict(y=0.152, x=-0.02, w=0.08, df=0.08, db=0.10, e=2.1), dict(y=0.168, x=-0.02, w=0.02, df=0.02, db=0.025, e=2.0)], H_shell, 'helmet', ring=32, angle=55, subsurf=2)
-repaint(shell, [((0, 0.022, 0), (-0.26, 1, 0)), ((0, -0.02, 0), (0.2, 1, 0)), ((-0.035, 0, 0), (1, 0, 0))],
-        lambda x, y, z: y - 0.26 * x < 0.022 and y + 0.2 * x > -0.02 and x > -0.035, 'visor', H_visor, 'helmet')
+    dict(y=-0.136, x=0.004, w=0.084, df=0.118, db=0.098, e=2.3), dict(y=-0.102, x=0.008, w=0.114, df=0.164, db=0.134, e=2.5),
+    dict(y=-0.05, x=0.006, w=0.128, df=0.176, db=0.158, e=2.5), dict(y=0.0, x=0.0, w=0.132, df=0.168, db=0.172, e=2.4),
+    dict(y=0.052, x=-0.006, w=0.127, df=0.15, db=0.176, e=2.3), dict(y=0.098, x=-0.014, w=0.106, df=0.116, db=0.154, e=2.2),
+    dict(y=0.13, x=-0.02, w=0.07, df=0.074, db=0.104, e=2.1), dict(y=0.143, x=-0.02, w=0.018, df=0.018, db=0.026, e=2.0)], H_shell, 'helmet', ring=32, angle=55, subsurf=2)
+repaint(shell, [((0, 0.02, 0), (-0.25, 1, 0)), ((0, -0.02, 0), (0.2, 1, 0)), ((-0.03, 0, 0), (1, 0, 0))],
+        lambda x, y, z: y - 0.25 * x < 0.02 and y + 0.2 * x > -0.02 and x > -0.03, 'visor', H_visor, 'helmet')
 # two stripes over the crown, front to back
-ZS = (0.014, 0.05)
-repaint(shell, [((0, 0, zc), (0, 0, 1)) for zc in (ZS[0], ZS[1], -ZS[0], -ZS[1])], lambda x, y, z: ZS[0] < abs(z) < ZS[1] and (y > 0.03 or x < -0.04), 'stripes', H_dark, 'helmet')
-loft_y('neckroll', [dict(y=-0.165, x=0.0, w=0.09, df=0.108, db=0.1, e=2.3), dict(y=-0.14, x=0.002, w=0.108, df=0.132, db=0.12, e=2.4)], H_dark, 'helmet', ring=24, subsurf=1)
+ZS = (0.012, 0.043)
+repaint(shell, [((0, 0, zc), (0, 0, 1)) for zc in (ZS[0], ZS[1], -ZS[0], -ZS[1])], lambda x, y, z: ZS[0] < abs(z) < ZS[1] and (y > 0.028 or x < -0.035), 'stripes', H_dark, 'helmet')
+loft_y('neckroll', [dict(y=-0.149, x=0.004, w=0.078, df=0.11, db=0.092, e=2.3), dict(y=-0.126, x=0.006, w=0.094, df=0.132, db=0.106, e=2.4)], H_dark, 'helmet', ring=24, subsurf=1)
 
 # ------------------------------------------------------------------ limbs (unit length along +y; the rig stretches them to arm / leg length and rolls them freely)
+# Each has the shape of the limb it is - a shoulder cap, a forearm that swells below the elbow, a thigh, a calf - and ends at exactly the radius of the
+# ball that sits in the joint (shoulder 0.074, elbow 0.058, hip 0.104, knee 0.076), so a bent joint is one smooth form.
 SEG = 24
 # every piece is closed at both ends: whichever of them a camera shows on its own, there is nothing to look into
-lathe_y('uparm_w', [(0.0, 0.0), (0.0, 0.072), (0.12, 0.078), (0.3, 0.079), (0.5, 0.073), (0.5, 0.0)], L_accent, 'uparm', SEG)
-lathe_y('uparm', [(0.5, 0.0), (0.5, 0.073), (0.75, 0.066), (1.0, 0.06), (1.0, 0.0)], L_suit, 'uparm', SEG)
-lathe_y('foarm', [(0.0, 0.0), (0.0, 0.06), (0.2, 0.064), (0.45, 0.06), (0.6, 0.054), (0.6, 0.0)], L_suit, 'foarm', SEG)
-lathe_y('foarm_w', [(0.6, 0.0), (0.6, 0.054), (0.7, 0.0515), (0.7, 0.0)], L_accent, 'foarm', SEG)
-lathe_y('foarm_glove', [(0.7, 0.0), (0.7, 0.0515), (0.705, 0.06), (0.74, 0.062), (0.92, 0.056), (1.0, 0.05), (1.02, 0.0)], L_dark, 'foarm', SEG)
-lathe_y('thigh', [(0.0, 0.0), (0.0, 0.1), (0.15, 0.108), (0.5, 0.1), (0.86, 0.085), (0.86, 0.0)], L_suit, 'thigh', SEG)
-lathe_y('thigh_w', [(0.86, 0.0), (0.86, 0.085), (1.0, 0.079), (1.0, 0.0)], L_accent, 'thigh', SEG)
-lathe_y('shin_w', [(0.0, 0.0), (0.0, 0.078), (0.1, 0.0805), (0.1, 0.0)], L_accent, 'shin', SEG)
-lathe_y('shin', [(0.1, 0.0), (0.1, 0.0805), (0.3, 0.077), (0.5, 0.066), (0.5, 0.0)], L_suit, 'shin', SEG)
-lathe_y('shin_boot', [(0.5, 0.0), (0.5, 0.066), (0.505, 0.073), (0.56, 0.075), (0.8, 0.066), (1.0, 0.06), (1.03, 0.0)], L_dark, 'shin', SEG)
-lathe_y('shin_cuff', [(0.555, 0.0), (0.555, 0.0765), (0.61, 0.0752), (0.61, 0.0)], L_accent, 'shin', SEG)
+lathe_y('uparm_w', [(0.0, 0.0), (0.0, 0.074), (0.1, 0.0795), (0.22, 0.0795), (0.36, 0.0745), (0.36, 0.0)], L_accent, 'uparm', SEG)
+lathe_y('uparm', [(0.36, 0.0), (0.36, 0.0745), (0.55, 0.0685), (0.8, 0.061), (1.0, 0.058), (1.0, 0.0)], L_suit, 'uparm', SEG)
+lathe_y('foarm', [(0.0, 0.0), (0.0, 0.058), (0.12, 0.0625), (0.26, 0.064), (0.45, 0.059), (0.62, 0.052), (0.62, 0.0)], L_suit, 'foarm', SEG)
+lathe_y('foarm_w', [(0.62, 0.0), (0.62, 0.052), (0.71, 0.0495), (0.71, 0.0)], L_accent, 'foarm', SEG)
+lathe_y('foarm_glove', [(0.71, 0.0), (0.71, 0.0495), (0.715, 0.059), (0.75, 0.061), (0.92, 0.055), (1.0, 0.05), (1.02, 0.0)], L_dark, 'foarm', SEG)
+lathe_y('thigh', [(0.0, 0.0), (0.0, 0.104), (0.1, 0.111), (0.25, 0.11), (0.55, 0.097), (0.86, 0.082), (0.86, 0.0)], L_suit, 'thigh', SEG)
+lathe_y('thigh_w', [(0.86, 0.0), (0.86, 0.082), (1.0, 0.076), (1.0, 0.0)], L_accent, 'thigh', SEG)
+lathe_y('shin_w', [(0.0, 0.0), (0.0, 0.076), (0.1, 0.0795), (0.1, 0.0)], L_accent, 'shin', SEG)
+lathe_y('shin', [(0.1, 0.0), (0.1, 0.0795), (0.2, 0.0825), (0.32, 0.079), (0.5, 0.064), (0.5, 0.0)], L_suit, 'shin', SEG)
+lathe_y('shin_boot', [(0.5, 0.0), (0.5, 0.064), (0.505, 0.072), (0.56, 0.074), (0.8, 0.065), (1.0, 0.059), (1.03, 0.0)], L_dark, 'shin', SEG)
 
 # ------------------------------------------------------------------ glove (a fist round the grip) and boot (ankle at the origin, the peg under the arch)
 loft_x('glove', [dict(x=-0.046, y=0.0, w=0.03, ht=0.018, hb=0.018), dict(x=-0.03, y=0.0, w=0.052, ht=0.034, hb=0.032, e=3.0), dict(x=0.012, y=0.002, w=0.055, ht=0.036, hb=0.034, e=3.0),
@@ -157,10 +162,10 @@ loft_x('boot', [dict(x=-0.115, y=0.02, w=0.028, ht=0.03, hb=0.03), dict(x=-0.09,
        L_dark, 'boot', ring=14, subsurf=1)
 
 # ------------------------------------------------------------------ a rider's back is not a plank: bow the whole torso into one even curve
-# The spine bends forward by BEND degrees between the hips (y = 0.02) and the shoulder line (y = 0.50); the result is turned back so the
-# shoulders still stand straight above the hips at y = 0.47, which is what the game's rig expects. Seen against that line the small of the
+# The spine bends forward by BEND degrees between the hips and just above the shoulder line; the result is turned back so the
+# shoulders still stand straight above the hips at y = TL, which is what the game's rig expects. Seen against that line the small of the
 # back sits further back and more upright, the upper back and neck lean forward.
-BEND = math.radians(globals().get('BEND', 34.0)); BY0, BY1 = 0.02, 0.50
+BEND = math.radians(globals().get('BEND', 34.0)); BY0, BY1 = 0.02, TL + 0.03
 if BEND > 1e-4:
     Rb = (BY1 - BY0) / BEND
     def bow(x, y):
@@ -169,7 +174,7 @@ if BEND > 1e-4:
         if y < BY0: cy += y - BY0
         if y > BY1: cx += (y - BY1) * math.sin(th); cy += (y - BY1) * math.cos(th)
         return cx + x * math.cos(th), cy - x * math.sin(th)
-    sxp, syp = bow(0.0, 0.47); ph = math.atan2(sxp, syp); k = 0.47 / math.hypot(sxp, syp); cp, sp = math.cos(ph), math.sin(ph)
+    sxp, syp = bow(0.0, TL); ph = math.atan2(sxp, syp); k = TL / math.hypot(sxp, syp); cp, sp = math.cos(ph), math.sin(ph)
     for o in PIECES['torso']:
         for v in o.data.vertices:
             bx, by = bow(v.co.x, v.co.z); v.co.x, v.co.z = (bx * cp - by * sp) * k, (bx * sp + by * cp) * k

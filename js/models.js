@@ -682,7 +682,7 @@
     const pick = (n) => /accent/.test(n) ? accent : /dark/.test(n) ? dark : /shell/.test(n) ? helmetC : suit;
     const torso = new THREE.Mesh(RM ? mergeAsset('rider/torso', pick) : tb.build(), mats.suit); g.add(torso);
     // lettering across the back, laid onto the leathers
-    const backWord = new THREE.Mesh(conformStrip(torso, V3(-0.118, 0.24, 0), V3(0, 0, 1), V3(0, 1, 0), 0.27, 0.27 / 4, 16, 0.0022),
+    const backWord = new THREE.Mesh(conformStrip(torso, V3(-0.118, 0.275, 0), V3(0, 0, 1), V3(0, 1, 0), 0.27, 0.27 / 4, 16, 0.0022),
       new THREE.MeshStandardMaterial({ map: wordTexture('#f3f3f0'), transparent: true, roughness: 0.7, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
     backWord.castShadow = false; torso.add(backWord);
     // helmet
@@ -715,8 +715,8 @@
     const ball = (r, col, sx, sy, sz) => { const m = new THREE.Mesh(RB.geo('sph', sphGeo), mats.suit); m.userData.rb = { key: 'sph', col, scale: new THREE.Matrix4().makeScale(r * (sx || 1), r * (sy || 1), r * (sz || 1)) }; g.add(m); return m; };
     const parts = { arms: [], legs: [] };
     for (let s = 0; s < 2; s++) {
-      parts.arms.push({ up: limb(0.074, 0.062, suit), lo: limb(0.062, 0.05, suit), sh: ball(RM ? 0.072 : 0.084, accent), el: ball(0.064, suit), hand: part('glove', 0x1b1c20, () => ball(0.06, dark, 1.3, 0.85, 1)) });
-      parts.legs.push({ up: limb(0.104, 0.08, suit), lo: limb(0.078, 0.06, suit), hip: ball(0.105, suit), kn: ball(RM ? 0.078 : 0.084, accent), foot: part('boot', 0x1b1c20, () => ball(0.064, dark, 2.0, 0.85, 1)) });
+      parts.arms.push({ up: limb(0.074, 0.062, suit), lo: limb(0.062, 0.05, suit), sh: ball(RM ? 0.074 : 0.084, accent), el: ball(RM ? 0.058 : 0.064, suit), hand: part('glove', 0x1b1c20, () => ball(0.06, dark, 1.3, 0.85, 1)) });
+      parts.legs.push({ up: limb(0.104, 0.08, suit), lo: limb(0.078, 0.06, suit), hip: ball(0.104, suit), kn: ball(RM ? 0.076 : 0.084, accent), foot: part('boot', 0x1b1c20, () => ball(0.064, dark, 2.0, 0.85, 1)) });
     }
     // in the helmet cam the forearms and gloves stay visible
     const hideIn = (o) => { o.userData.povHide = true; o.children.forEach(hideIn); };
@@ -758,20 +758,20 @@
     const h = rig.hang, ah = Math.abs(h), tk = rig.tuck, si = rig.sit, J = rig.J, nk = rig.naked, bars = rig.bars;
     // hips slide to the inside, torso follows further, head leads into the corner
     J.H.set(-0.3, 0.86 - ah * 0.02, h * 0.17);
-    const sx = nk ? lerp(0.02, 0.1, tk) - si * 0.04 : lerp(0.14, 0.24, tk) - si * 0.1;
-    const sy = nk ? lerp(1.34, 1.24, tk) + si * 0.03 : lerp(1.15, 1.04, tk) + si * 0.1 - ah * 0.03;
+    const sx = nk ? lerp(-0.03, 0.07, tk) - si * 0.04 : lerp(0.14, 0.24, tk) - si * 0.1;      // hips to shoulders is 0.52 m, as on a real rider
+    const sy = nk ? lerp(1.30, 1.21, tk) + si * 0.03 : lerp(1.15, 1.04, tk) + si * 0.1 - ah * 0.03;
     J.S.set(sx + ah * 0.02, sy - ah * 0.04, h * 0.27);
     // torso basis: Y along spine, Z to rider's right (rolled a little into the corner)
     _y.subVectors(J.S, J.H).normalize(); _z.set(0, -h * 0.25, 1).normalize(); _x.crossVectors(_y, _z).normalize(); _z.crossVectors(_x, _y).normalize();
     _m4.makeBasis(_x, _y, _z); rig.torso.quaternion.setFromRotationMatrix(_m4); rig.torso.position.copy(J.H);
-    rig.torso.scale.set(1, J.S.distanceTo(J.H) / 0.47, 1);
-    J.head.copy(J.S).addScaledVector(_y, 0.148).addScaledVector(_x, 0.085); J.head.z += h * 0.07; J.head.y += lerp(0.02, -0.02, tk);      // the upper back is rounded: the neck comes out of it forwards, the head sits a little lower between the shoulders
+    rig.torso.scale.set(1, J.S.distanceTo(J.H) / 0.52, 1);
+    J.head.copy(J.S).addScaledVector(_y, 0.19).addScaledVector(_x, 0.08); J.head.z += h * 0.07; J.head.y += lerp(0.02, -0.02, tk);      // the upper back is rounded: the neck comes out of it forwards, the head sits a little lower between the shoulders
     rig.helmet.position.copy(J.head); rig.helmet.rotation.set(-h * 0.45, -h * 0.3, lerp(nk ? -0.13 : -0.2, -0.42, tk) + si * 0.15, 'YXZ');
     for (let s = 0; s < 2; s++) {
       const sg = s === 0 ? -1 : 1, inside = sg * h > 0 ? Math.abs(h) : 0;
       // arm
       const A = rig.parts.arms[s];
-      _a.copy(J.S).addScaledVector(_z, sg * 0.2).addScaledVector(_y, -0.05);
+      _a.copy(J.S).addScaledVector(_z, sg * 0.192).addScaledVector(_y, -0.045);
       _b.set(bars.barX, bars.barY + 0.02, sg * bars.barZ);
       rig.poleTmp = _d; const pole = nk ? J.pole.set(-0.42, -0.72 - inside * 0.3, sg * (0.82 + tk * 0.1 + inside * 0.3))      // wide bars: elbows out and up, ready to push
         : J.pole.set(-0.5, -1.0 - inside * 0.3, sg * (0.42 + tk * 0.1 + inside * 0.3));

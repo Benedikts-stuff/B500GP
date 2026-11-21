@@ -348,7 +348,7 @@
     G.povPitch = damp(G.povPitch, Math.max(-0.2, p.pitch) * 0.45, 4, dt);
     G.povSlope = damp(G.povSlope, Math.atan(p.slope || 0), 2.5, dt);
     G.povLook = damp(G.povLook, clamp(p.lean * 0.34, -0.42, 0.42), 2.2, dt);         // and it looks into the corner, the way the rider does
-    _hp.set(0.125, 0.455, 0); rig.torso.localToWorld(_hp);                           // high on the chest, just clear of the leathers: over the tank, not behind it
+    _hp.set(0.125, 0.55, 0); rig.torso.localToWorld(_hp);                           // high on the chest, just clear of the leathers: over the tank, not behind it
     v.susG.worldToLocal(_hp); _hp.z *= 0.6; v.susG.localToWorld(_hp);                 // most of the way out with the body - far enough to feel it, not so far that the bike leaves the frame
     _e.set(0, -G.povYaw, G.povSlope + G.povPitch - 0.3, 'YZX'); _q.setFromEuler(_e);
     _q2.setFromAxisAngle(V3Y, -Math.PI / 2 - G.povLook); _q.multiply(_q2);
